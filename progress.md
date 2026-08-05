@@ -59,11 +59,43 @@
 | Added README + CHANGELOG | committed `666b076` |
 | Tagged and released v1.0.0 | published on GitHub |
 
+### Phase 3: Training block planner
+- **Status:** complete
+- Actions taken:
+  - User reordered the work: block planner before the scraper and season view
+  - User confirmed the session model stays **AM/PM + type** (no per-session
+    times, coach or focus tags), so the v1 hour maths ported over unchanged
+  - Rewrote `vercel-deploy/index.html` as the v2 multi-block planner
+  - Built the `tennis-season-v2` state layer with sanitising on read
+  - Wrote the v1.0.0 migration; v1 key deliberately left intact
+  - Caught and fixed a `toISOString()` timezone bug before testing — it would
+    have shifted a new block's start date a day earlier in Singapore
+  - Committed the test harness to `tests/` and grew it 33 → 83 assertions
+  - Fixed one real gap the tests found: a fresh boot never persisted its
+    default block until the first edit
+  - Updated README and CHANGELOG
+- Files created/modified:
+  - vercel-deploy/index.html (rewritten)
+  - tests/planner.test.mjs, tests/package.json (created)
+  - .gitignore (created)
+  - README.md, CHANGELOG.md (updated)
+  - task_plan.md, progress.md (updated)
+
 ## Test Results
 
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
 | v1.0.0 jsdom suite | `vercel-deploy/index.html` | 33 assertions pass | 33 passed, 0 failed | ✓ |
+| v2 block planner suite | `tests/planner.test.mjs` | all pass | 83 passed, 0 failed | ✓ |
+
+Four failures on the first v2 run, all resolved:
+
+| Failure | Cause | Fix |
+|---------|-------|-----|
+| state not persisted under the v2 key | real gap — cold boot only saved on first edit | added `save()` to the init path |
+| 5-day suggested total expected 7.0h | wrong test expectation (days 0–4 sum to 9.0) | corrected the assertion |
+| suggested plan expected "Balanced" | wrong assumption — it trips two warnings, and did in v1 too | assert the real behaviour: warnings but no red flags |
+| "no toISOString" hygiene check | brittle — matched the explanatory comment | match an actual `.toISOString(` call instead |
 
 Note: the harness lives in the session scratchpad, not the repo. It covers cold
 boot, localStorage round-trip, four corrupt-state cases, grid alignment for

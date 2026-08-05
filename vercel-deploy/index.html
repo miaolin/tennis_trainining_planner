@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Two-week tennis camp planner</title>
-<meta name="description" content="Plan a two-week junior tennis camp: drag sessions onto morning and afternoon slots and get live load checks on daily and weekly hours.">
+<title>Tennis training planner</title>
+<meta name="description" content="Plan junior tennis training blocks: drag sessions onto morning and afternoon slots and get live load checks on daily and weekly hours.">
 <meta name="theme-color" content="#20486B">
 <meta name="color-scheme" content="dark">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23D6E64B'/%3E%3Cpath d='M4 8a16 16 0 0 1 0 16M28 8a16 16 0 0 0 0 16' fill='none' stroke='%2320486B' stroke-width='2'/%3E%3C/svg%3E">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Two-week tennis camp planner">
-<meta property="og:description" content="Drag sessions onto morning and afternoon slots and get live load checks on daily and weekly hours.">
+<meta property="og:title" content="Tennis training planner">
+<meta property="og:description" content="Plan junior tennis training blocks with live load checks on daily and weekly hours.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
@@ -46,7 +46,7 @@ body{
 header{
   border-bottom:2px solid var(--court-line);
   padding:26px 0 18px;
-  margin-bottom:22px;
+  margin-bottom:18px;
 }
 .head-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:24px;justify-content:space-between}
 h1{
@@ -59,7 +59,7 @@ h1{
   text-transform:uppercase;
 }
 h1 em{font-style:normal;color:var(--ball)}
-.sub{color:var(--mute);font-size:14px;margin:8px 0 0;max-width:46ch}
+.sub{color:var(--mute);font-size:14px;margin:8px 0 0;max-width:52ch}
 .readout{display:flex;gap:26px}
 .stat{text-align:right}
 .stat .n{
@@ -72,23 +72,54 @@ h1 em{font-style:normal;color:var(--ball)}
   color:var(--mute);display:block;margin-top:5px;
 }
 
+/* ---------- block tabs ---------- */
+.blockbar{
+  display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+  margin-bottom:14px;
+}
+.btab{
+  font-family:'Karla',sans-serif;font-size:13px;
+  background:transparent;color:var(--mute);
+  border:1px solid var(--hair);border-radius:3px;
+  padding:7px 13px;cursor:pointer;
+  display:flex;align-items:center;gap:8px;
+  transition:background .15s,border-color .15s,color .15s;
+}
+.btab:hover{background:rgba(255,255,255,.08);color:var(--court-line)}
+.btab.on{
+  background:rgba(214,230,75,.14);
+  border-color:var(--ball);
+  color:var(--court-line);
+}
+.btab .bd{
+  font-family:'Barlow Condensed',sans-serif;font-size:13px;
+  color:var(--mute);letter-spacing:.04em;
+}
+.btab.on .bd{color:var(--ball)}
+.btab-add{border-style:dashed}
+
 /* ---------- controls ---------- */
 .bar{
   display:flex;flex-wrap:wrap;gap:12px;align-items:center;
   margin-bottom:20px;
 }
-button, input[type=date]{
+button, input[type=date], input[type=text], input[type=number]{
   font-family:'Karla',sans-serif;font-size:13px;
   background:transparent;color:var(--court-line);
   border:1px solid var(--hair);border-radius:3px;
-  padding:8px 14px;cursor:pointer;
+  padding:8px 14px;
   transition:background .15s,border-color .15s;
 }
+button{cursor:pointer}
 button:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.4)}
-button:focus-visible,input:focus-visible,.chip:focus-visible,.slot:focus-visible{
+button.danger:hover{background:rgba(217,96,63,.2);border-color:var(--bad)}
+button:focus-visible,input:focus-visible,.chip:focus-visible,.slot:focus-visible,.btab:focus-visible{
   outline:2px solid var(--ball);outline-offset:2px;
 }
 input[type=date]{color-scheme:dark}
+input[type=text]#blockname{min-width:190px}
+input[type=number]#days{width:74px}
+.lab{font-size:13px;color:var(--mute)}
 .spacer{flex:1}
 
 /* ---------- palette ---------- */
@@ -97,7 +128,7 @@ input[type=date]{color-scheme:dark}
   border:1px solid var(--hair);
   border-radius:4px;
   padding:16px 18px;
-  margin-bottom:26px;
+  margin-bottom:22px;
 }
 .palette h2{
   font-family:'Barlow Condensed',sans-serif;font-weight:500;
@@ -123,6 +154,20 @@ input[type=date]{color-scheme:dark}
 }
 .hint{font-size:12.5px;color:var(--mute);margin:12px 0 0}
 
+/* ---------- week totals ---------- */
+.weekcaps{
+  display:flex;flex-wrap:wrap;gap:18px;align-items:baseline;
+  margin:0 0 10px;padding-bottom:8px;
+  border-bottom:1px solid var(--hair);
+}
+.wcap{font-family:'Barlow Condensed',sans-serif;font-size:16px;letter-spacing:.02em}
+.wcap b{font-weight:600}
+.wcap small{
+  font-size:11px;color:var(--mute);letter-spacing:.14em;
+  text-transform:uppercase;margin-right:6px;font-family:'Karla',sans-serif;
+}
+.wcap.over{color:var(--bad)}
+
 /* ---------- calendar ---------- */
 .dow-row{
   display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:8px;
@@ -144,7 +189,7 @@ input[type=date]{color-scheme:dark}
 }
 .day.blank{background:transparent;border:none;min-height:0}
 .day.rest{background:rgba(184,92,60,.16);border-color:rgba(184,92,60,.5)}
-.day.travel{background:rgba(255,255,255,.03)}
+.day.last{background:rgba(255,255,255,.03)}
 .day-head{
   display:flex;justify-content:space-between;align-items:baseline;
   border-bottom:1px solid var(--hair);padding-bottom:6px;margin-bottom:7px;
@@ -201,20 +246,6 @@ input[type=date]{color-scheme:dark}
 .load-bar i.over{background:var(--bad)}
 .day-hrs{font-family:'Barlow Condensed',sans-serif;font-size:14px;min-width:30px;text-align:right}
 
-/* ---------- week totals ---------- */
-.weekcap{
-  display:flex;justify-content:space-between;align-items:baseline;
-  margin:16px 0 8px;padding-bottom:5px;
-  border-bottom:1px solid var(--hair);
-}
-.weekcap h3{
-  font-family:'Barlow Condensed',sans-serif;font-weight:500;
-  font-size:13px;letter-spacing:.18em;text-transform:uppercase;
-  color:var(--mute);margin:0;
-}
-.weekcap .wt{font-family:'Barlow Condensed',sans-serif;font-size:17px}
-.weekcap .wt small{font-size:11px;color:var(--mute);letter-spacing:.1em;margin-left:4px}
-
 /* ---------- checks ---------- */
 .checks{margin-top:34px;border-top:2px solid var(--court-line);padding-top:20px}
 .checks h2{
@@ -251,7 +282,7 @@ input[type=date]{color-scheme:dark}
 }
 @media print{
   body{background:#fff;color:#000}
-  .palette,.bar,.hint{display:none}
+  .palette,.bar,.blockbar,.hint{display:none}
   .day{background:#f4f4f4;border:1px solid #999}
 }
 </style>
@@ -262,13 +293,13 @@ input[type=date]{color-scheme:dark}
 <header>
   <div class="head-row">
     <div>
-      <h1>Camp plan <em>/</em> <span id="range">&nbsp;</span></h1>
+      <h1><span id="title">Training block</span> <em>/</em> <span id="range">&nbsp;</span></h1>
       <p class="sub">Drag a session onto a morning or afternoon slot. On a phone, tap a session then tap the slot.</p>
     </div>
     <div class="readout">
-      <div class="stat"><span class="n" id="w1">0</span><span class="l">Week 1 hrs</span></div>
-      <div class="stat"><span class="n" id="w2">0</span><span class="l">Week 2 hrs</span></div>
-      <div class="stat"><span class="n" id="wtot">0</span><span class="l">Total hrs</span></div>
+      <div class="stat"><span class="n" id="tot">0</span><span class="l">Total hrs</span></div>
+      <div class="stat"><span class="n" id="ondays">0</span><span class="l">On-court days</span></div>
+      <div class="stat"><span class="n" id="restdays">0</span><span class="l">Rest days</span></div>
     </div>
   </div>
 </header>
@@ -277,21 +308,30 @@ input[type=date]{color-scheme:dark}
   <div class="noscript">This planner needs JavaScript enabled to run.</div>
 </noscript>
 
+<div class="blockbar" id="blockbar"></div>
+
 <div class="bar">
-  <label for="start" style="font-size:13px;color:var(--mute)">Arrival date</label>
-  <input type="date" id="start" value="2026-11-21">
+  <label class="lab" for="blockname">Block</label>
+  <input type="text" id="blockname" maxlength="40">
+  <label class="lab" for="start">Starts</label>
+  <input type="date" id="start">
+  <label class="lab" for="days">Days</label>
+  <input type="number" id="days" min="1" max="60" step="1">
   <div class="spacer"></div>
   <button id="btn-reset">Load suggested plan</button>
   <button id="btn-clear">Clear all</button>
   <button id="btn-copy">Copy as text</button>
   <button id="btn-print">Print</button>
+  <button id="btn-delete" class="danger">Delete block</button>
 </div>
 
 <div class="palette">
   <h2>Sessions</h2>
   <div class="chips" id="chips"></div>
-  <p class="hint">Drag a placed session to another slot to move it. Click the &times; to remove it. Rest clears the whole day. Your plan is saved in this browser.</p>
+  <p class="hint">Drag a placed session to another slot to move it. Click the &times; to remove it. Rest clears the whole day. Every block is saved in this browser.</p>
 </div>
+
+<div class="weekcaps" id="weekcaps"></div>
 
 <div class="dow-row">
   <div class="dow">Sun</div><div class="dow">Mon</div><div class="dow">Tue</div>
@@ -315,100 +355,169 @@ const TYPES = {
   rest: {nm:'Rest',     dur:"—",    hrs:0,   c:'#B85C3C', tennis:false}
 };
 
-const NDAYS = 14;          // two full weeks from the arrival date
-const DAY_CAP = 3.5;       // sensible ceiling for a 9-year-old
-const WEEK_CAP = 13;
-const STORE_KEY = 'tennis-camp-plan-v1';
+const DAY_CAP  = 3.5;      // sensible daily ceiling for a 9-year-old
+const WEEK_CAP = 13;       // per rolling 7-day week of a block
+const DEFAULT_DAYS = 14;
+const MAX_DAYS = 60;
+
+const STORE_KEY  = 'tennis-season-v2';
+const LEGACY_KEY = 'tennis-camp-plan-v1';   // v1.0.0 — read once, never written
 const DEFAULT_START = '2026-11-21';
 
+// Offsets into a block, not calendar dates — a suggested shape, not a schedule.
 const SUGGESTED = {
-  0:{am:'p1'},                 // Sat  — assessment hit
-  1:{pm:'g2'},                 // Sun  — group
-  2:{am:'p1', pm:'phys'},      // Mon
-  3:{am:'p1', pm:'p1'},        // Tue
-  4:{am:'p1', pm:'phys'},      // Wed
-  5:{am:'rest'},               // Thu  — full rest
-  6:{am:'p1'},                 // Fri
-  7:{am:'rest'},               // Sat  — taper before group
-  8:{pm:'g2'},                 // Sun  — group
-  9:{am:'p1', pm:'phys'},      // Mon
-  10:{am:'p1', pm:'p1'},       // Tue
-  11:{am:'rest'},              // Wed  — full rest
-  12:{am:'p1', pm:'p1'},       // Thu
-  13:{am:'p1'}                 // Fri  — wrap-up, then fly
+  0:{am:'p1'},  1:{pm:'g2'},  2:{am:'p1', pm:'phys'},
+  3:{am:'p1', pm:'p1'},  4:{am:'p1', pm:'phys'},  5:{am:'rest'},
+  6:{am:'p1'},  7:{am:'rest'},  8:{pm:'g2'},
+  9:{am:'p1', pm:'phys'},  10:{am:'p1', pm:'p1'},  11:{am:'rest'},
+  12:{am:'p1', pm:'p1'},  13:{am:'p1'}
 };
 
-let plan = {};
+/* ---------------------------------------------------------------- state --- */
+// The v2 shape. matches/entries/trips/players are reserved for the season view
+// and stay empty here, but they are written so a later version does not have to
+// migrate again.
+let state = null;
 let armed = null;
 
-function blank(){ const o={}; for(let i=0;i<NDAYS;i++) o[i]={am:null,pm:null}; return o; }
-function loadSuggested(){
-  plan = blank();
-  for(const k in SUGGESTED){
-    plan[k].am = SUGGESTED[k].am || null;
-    plan[k].pm = SUGGESTED[k].pm || null;
-  }
+function uid(){ return 'b' + Math.floor(performance.now() * 1000).toString(36) + Math.floor(Math.random()*1e6).toString(36); }
+
+function emptyState(){
+  return {version:2, blocks:[], activeBlockId:null,
+          players:[], entries:[], trips:[], manualMatches:[]};
+}
+function newBlock(name, start, days){
+  return {id:uid(), name:name || 'Training block', start:start || DEFAULT_START,
+          days:days || DEFAULT_DAYS, anchorMatchId:null, plan:{}};
+}
+function active(){
+  if(!state.blocks.length) return null;
+  return state.blocks.find(b => b.id === state.activeBlockId) || state.blocks[0];
+}
+function planAt(b, i){
+  const d = b.plan[i];
+  return d ? d : {am:null, pm:null};
 }
 
-/* ---- persistence ---- */
+/* --------------------------------------------------------- persistence --- */
 function store(){
   try{ return window.localStorage; }catch(e){ return null; }   // blocked in some privacy modes
 }
 function save(){
   const s = store();
   if(!s) return;
-  try{
-    s.setItem(STORE_KEY, JSON.stringify({
-      start: document.getElementById('start').value,
-      plan: plan
-    }));
-  }catch(e){}
-}
-// Accept only slot values we still know about, so an old save can never
-// wedge the grid with a type that no longer exists.
-function sanitise(raw){
-  const out = blank();
-  if(!raw || typeof raw !== 'object') return null;
-  let any = false;
-  for(let i=0;i<NDAYS;i++){
-    const d = raw[i];
-    if(!d || typeof d !== 'object') continue;
-    ['am','pm'].forEach(s=>{
-      if(d[s] && TYPES[d[s]]){ out[i][s] = d[s]; any = true; }
-    });
-  }
-  return any ? out : null;
-}
-function restore(){
-  const s = store();
-  if(!s) return false;
-  try{
-    const raw = s.getItem(STORE_KEY);
-    if(!raw) return false;
-    const saved = JSON.parse(raw);
-    const p = sanitise(saved && saved.plan);
-    if(!p) return false;
-    plan = p;
-    if(saved.start) document.getElementById('start').value = saved.start;
-    return true;
-  }catch(e){ return false; }
+  try{ s.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
 }
 
-/* ---- dates ---- */
-function startDate(){
-  const s = document.getElementById('start').value || DEFAULT_START;
-  const d = new Date(s + 'T00:00:00');
+// Accept only what we still understand. A block that survives sanitising keeps
+// its sessions; anything unrecognised is dropped rather than allowed to wedge
+// the grid.
+function sanitiseBlock(raw){
+  if(!raw || typeof raw !== 'object') return null;
+  const days = Math.min(MAX_DAYS, Math.max(1, parseInt(raw.days, 10) || DEFAULT_DAYS));
+  const start = /^\d{4}-\d{2}-\d{2}$/.test(raw.start) ? raw.start : DEFAULT_START;
+  const b = newBlock(typeof raw.name === 'string' ? raw.name : 'Training block', start, days);
+  if(typeof raw.id === 'string' && raw.id) b.id = raw.id;
+  if(typeof raw.anchorMatchId === 'string') b.anchorMatchId = raw.anchorMatchId;
+  const p = raw.plan;
+  if(p && typeof p === 'object'){
+    for(const k in p){
+      const i = parseInt(k, 10);
+      if(!(i >= 0) || i >= MAX_DAYS) continue;
+      const d = p[k];
+      if(!d || typeof d !== 'object') continue;
+      const am = TYPES[d.am] ? d.am : null;
+      const pm = TYPES[d.pm] ? d.pm : null;
+      if(am || pm) b.plan[i] = {am, pm};
+    }
+  }
+  return b;
+}
+function sanitiseState(raw){
+  if(!raw || typeof raw !== 'object' || !Array.isArray(raw.blocks)) return null;
+  const st = emptyState();
+  st.blocks = raw.blocks.map(sanitiseBlock).filter(Boolean);
+  if(!st.blocks.length) return null;
+  const wanted = st.blocks.find(b => b.id === raw.activeBlockId);
+  st.activeBlockId = wanted ? wanted.id : st.blocks[0].id;
+  ['players','entries','trips','manualMatches'].forEach(k=>{
+    if(Array.isArray(raw[k])) st[k] = raw[k];
+  });
+  return st;
+}
+
+// v1.0.0 stored a single {start, plan} under its own key. Fold it into one
+// block. The old key is deliberately left in place so rolling back to the
+// v1.0.0 deploy still finds its data.
+function migrateLegacy(){
+  const s = store();
+  if(!s) return null;
+  let raw;
+  try{ raw = s.getItem(LEGACY_KEY); }catch(e){ return null; }
+  if(!raw) return null;
+  let old;
+  try{ old = JSON.parse(raw); }catch(e){ return null; }
+  if(!old || typeof old !== 'object' || !old.plan) return null;
+  const b = sanitiseBlock({name:'Camp plan', start:old.start, days:DEFAULT_DAYS, plan:old.plan});
+  if(!b || !Object.keys(b.plan).length) return null;
+  const st = emptyState();
+  st.blocks = [b];
+  st.activeBlockId = b.id;
+  return st;
+}
+
+function load(){
+  const s = store();
+  if(s){
+    let raw;
+    try{ raw = s.getItem(STORE_KEY); }catch(e){ raw = null; }
+    if(raw){
+      try{
+        const st = sanitiseState(JSON.parse(raw));
+        if(st){ state = st; return; }
+      }catch(e){}
+    }
+    const migrated = migrateLegacy();
+    if(migrated){ state = migrated; save(); return; }
+  }
+  state = emptyState();
+  const b = newBlock('Camp plan', DEFAULT_START, DEFAULT_DAYS);
+  applySuggested(b);
+  state.blocks = [b];
+  state.activeBlockId = b.id;
+}
+
+function applySuggested(b){
+  b.plan = {};
+  for(const k in SUGGESTED){
+    const i = parseInt(k, 10);
+    if(i >= b.days) continue;          // a shorter block only takes what fits
+    const src = SUGGESTED[k];
+    b.plan[i] = {am:src.am || null, pm:src.pm || null};
+  }
+}
+
+/* -------------------------------------------------------------- dates --- */
+function startDate(b){
+  const d = new Date((b ? b.start : DEFAULT_START) + 'T00:00:00');
   return isNaN(d) ? new Date(DEFAULT_START + 'T00:00:00') : d;
 }
-function dateFor(i){
-  const d = startDate();
+function dateFor(b, i){
+  const d = startDate(b);
   d.setDate(d.getDate() + i);
   return d;
 }
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function fmt(d){ return `${d.getDate()} ${MON[d.getMonth()]}`; }
+// Local Y-M-D. toISOString() would shift the date backwards anywhere east of
+// UTC, because these Dates are local midnight.
+function iso(d){
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+}
 
-/* ---- palette ---- */
+/* ------------------------------------------------------------ palette --- */
 function buildChips(){
   const box = document.getElementById('chips');
   box.innerHTML = '';
@@ -435,41 +544,130 @@ function arm(key){
   document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('armed', c.dataset.type===armed));
 }
 
-/* ---- placing ---- */
+/* ------------------------------------------------------------- edits --- */
 function place(day, slot, type, from){
-  if(!TYPES[type]) return;
-  if(type === 'rest'){ plan[day] = {am:'rest', pm:null}; }
-  else{
-    if(plan[day].am === 'rest') plan[day].am = null;
-    if(from) plan[from.day][from.slot] = null;
-    plan[day][slot] = type;
+  const b = active();
+  if(!b || !TYPES[type]) return;
+  if(type === 'rest'){
+    b.plan[day] = {am:'rest', pm:null};
+  } else {
+    const cur = planAt(b, day);
+    if(cur.am === 'rest') cur.am = null;
+    if(from){
+      const src = planAt(b, from.day);
+      src[from.slot] = null;
+      b.plan[from.day] = src;
+    }
+    const now = planAt(b, day);
+    now[slot] = type;
+    b.plan[day] = now;
   }
   render(); save();
 }
-function clearSlot(day, slot){ plan[day][slot] = null; render(); save(); }
+function clearSlot(day, slot){
+  const b = active();
+  if(!b) return;
+  const d = planAt(b, day);
+  d[slot] = null;
+  b.plan[day] = d;
+  render(); save();
+}
 
-/* ---- render ---- */
+/* -------------------------------------------------------------- maths --- */
+function dayHours(b, i){
+  const d = planAt(b, i);
+  let h = 0;
+  if(d.am && TYPES[d.am]) h += TYPES[d.am].hrs;
+  if(d.pm && TYPES[d.pm]) h += TYPES[d.pm].hrs;
+  return h;
+}
+function totalHours(b){
+  let h = 0;
+  for(let i=0;i<b.days;i++) h += dayHours(b, i);
+  return h;
+}
+// Weeks are 7-day chunks from the block start, so a block of any length
+// reports sensible weekly loads instead of assuming exactly two weeks.
+function weekChunks(b){
+  const out = [];
+  for(let s=0; s<b.days; s+=7){
+    const e = Math.min(s+7, b.days);
+    let h = 0;
+    for(let i=s;i<e;i++) h += dayHours(b, i);
+    out.push({from:s, to:e-1, hrs:h, days:e-s});
+  }
+  return out;
+}
+function isRestDay(b, i){ return dayHours(b, i) === 0; }
+
+/* ------------------------------------------------------------- render --- */
+function renderBlockBar(){
+  const bar = document.getElementById('blockbar');
+  bar.innerHTML = '';
+  const cur = active();
+  state.blocks.forEach(b=>{
+    const el = document.createElement('button');
+    el.className = 'btab' + (cur && b.id === cur.id ? ' on' : '');
+    el.dataset.id = b.id;
+    const d0 = dateFor(b, 0), d1 = dateFor(b, b.days-1);
+    el.innerHTML = `<span>${escapeHtml(b.name)}</span><span class="bd">${fmt(d0)} – ${fmt(d1)}</span>`;
+    el.addEventListener('click', ()=>{ state.activeBlockId = b.id; render(); save(); });
+    bar.appendChild(el);
+  });
+  const add = document.createElement('button');
+  add.className = 'btab btab-add';
+  add.id = 'btn-add';
+  add.textContent = '+ New block';
+  add.addEventListener('click', addBlock);
+  bar.appendChild(add);
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
 function render(){
+  const b = active();
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
 
-  // The camp can start on any weekday, so the leading gap is the arrival
-  // day's column and the trailing gap pads out to a whole week.
-  const lead = startDate().getDay();
-  for(let i=0;i<lead;i++){ const b=document.createElement('div'); b.className='day blank'; grid.appendChild(b); }
+  renderBlockBar();
 
-  document.getElementById('range').textContent = `${fmt(dateFor(0))} – ${fmt(dateFor(NDAYS-1))}`;
+  if(!b){
+    document.getElementById('title').textContent = 'No blocks';
+    document.getElementById('range').textContent = '';
+    ['tot','ondays','restdays'].forEach(id=>document.getElementById(id).textContent = '0');
+    document.getElementById('weekcaps').innerHTML = '';
+    document.getElementById('notes').innerHTML =
+      '<div class="note warn"><span class="dot"></span><div><b>No training blocks.</b> ' +
+      '<span>Add one to start planning.</span></div></div>';
+    return;
+  }
 
-  for(let i=0;i<NDAYS;i++){
+  document.getElementById('title').textContent = b.name;
+  document.getElementById('range').textContent = `${fmt(dateFor(b,0))} – ${fmt(dateFor(b,b.days-1))}`;
+  const nameEl = document.getElementById('blockname');
+  const startEl = document.getElementById('start');
+  const daysEl = document.getElementById('days');
+  if(document.activeElement !== nameEl) nameEl.value = b.name;
+  if(document.activeElement !== startEl) startEl.value = b.start;
+  if(document.activeElement !== daysEl) daysEl.value = b.days;
+
+  // A block can start on any weekday, so the leading gap is the start day's
+  // column and the trailing gap pads out to a whole week.
+  const lead = startDate(b).getDay();
+  for(let i=0;i<lead;i++){ const x=document.createElement('div'); x.className='day blank'; grid.appendChild(x); }
+
+  for(let i=0;i<b.days;i++){
     const d = document.createElement('div');
     d.className = 'day';
-    const isRest = plan[i].am === 'rest';
+    const cell = planAt(b, i);
+    const isRest = cell.am === 'rest';
     if(isRest) d.classList.add('rest');
-    if(i===NDAYS-1) d.classList.add('travel');
+    if(i === b.days-1) d.classList.add('last');
 
-    const label = fmt(dateFor(i));
-    const tag = i===NDAYS-1 ? 'Depart' : `Day ${i+1}`;
-    d.innerHTML = `<div class="day-head"><span class="day-num">${label}</span><span class="day-tag">${tag}</span></div>`;
+    const tag = i === b.days-1 ? 'Last day' : `Day ${i+1}`;
+    d.innerHTML = `<div class="day-head"><span class="day-num">${fmt(dateFor(b,i))}</span><span class="day-tag">${tag}</span></div>`;
 
     const slots = document.createElement('div');
     slots.className = 'slots';
@@ -479,7 +677,7 @@ function render(){
       r.className = 'rest-fill';
       r.textContent = 'Rest';
       r.title = 'Click to clear';
-      r.addEventListener('click', ()=>{ plan[i]={am:null,pm:null}; render(); save(); });
+      r.addEventListener('click', ()=>{ b.plan[i] = {am:null, pm:null}; render(); save(); });
       wireDrop(r, i, 'am');
       slots.appendChild(r);
     } else {
@@ -487,7 +685,7 @@ function render(){
         const el = document.createElement('div');
         el.className = 'slot';
         el.tabIndex = 0;
-        const val = plan[i][s];
+        const val = cell[s];
         if(val){
           const t = TYPES[val];
           el.classList.add('filled');
@@ -514,7 +712,7 @@ function render(){
     }
     d.appendChild(slots);
 
-    const hrs = dayHours(i);
+    const hrs = dayHours(b, i);
     const pct = Math.min(100, hrs/DAY_CAP*100);
     const cls = hrs > DAY_CAP ? 'over' : (hrs >= 3 ? 'hot' : '');
     const foot = document.createElement('div');
@@ -524,15 +722,22 @@ function render(){
     d.appendChild(foot);
     grid.appendChild(d);
   }
-  const filled = lead + NDAYS;
-  const total = Math.ceil(filled/7)*7;
-  for(let i=filled; i<total; i++){ const b=document.createElement('div'); b.className='day blank'; grid.appendChild(b); }
+  const filled = lead + b.days;
+  const cells = Math.ceil(filled/7)*7;
+  for(let i=filled;i<cells;i++){ const x=document.createElement('div'); x.className='day blank'; grid.appendChild(x); }
 
-  const a = weekHours(0), b = weekHours(1);
-  document.getElementById('w1').textContent = a.toFixed(1);
-  document.getElementById('w2').textContent = b.toFixed(1);
-  document.getElementById('wtot').textContent = (a+b).toFixed(1);
-  runChecks();
+  const weeks = weekChunks(b);
+  document.getElementById('weekcaps').innerHTML = weeks.map((w,i)=>
+    `<span class="wcap${w.hrs > WEEK_CAP ? ' over' : ''}"><small>Week ${i+1}</small><b>${w.hrs.toFixed(1)}</b>h</span>`
+  ).join('') + `<span class="wcap"><small>Block</small><b>${totalHours(b).toFixed(1)}</b>h</span>`;
+
+  let on = 0, rest = 0;
+  for(let i=0;i<b.days;i++){ if(dayHours(b,i) > 0) on++; else rest++; }
+  document.getElementById('tot').textContent = totalHours(b).toFixed(1);
+  document.getElementById('ondays').textContent = on;
+  document.getElementById('restdays').textContent = rest;
+
+  runChecks(b);
 }
 
 function wireDrop(el, day, slot){
@@ -547,103 +752,129 @@ function wireDrop(el, day, slot){
   });
 }
 
-function dayHours(i){
-  const d = plan[i];
-  let h = 0;
-  if(d.am && TYPES[d.am]) h += TYPES[d.am].hrs;
-  if(d.pm && TYPES[d.pm]) h += TYPES[d.pm].hrs;
-  return h;
-}
-function weekHours(w){
-  let h = 0;
-  const from = w===0 ? 0 : 7, to = w===0 ? 6 : NDAYS-1;
-  for(let i=from;i<=to;i++) h += dayHours(i);
-  return h;
-}
-function isRestDay(i){ return dayHours(i) === 0; }
-
-/* ---- load checks ---- */
-function runChecks(){
+/* ------------------------------------------------------- load checks --- */
+function runChecks(b){
   const out = [];
-  const total = weekHours(0) + weekHours(1);
+  const total = totalHours(b);
 
-  // heavy days
   const heavy = [];
-  for(let i=0;i<NDAYS;i++) if(dayHours(i) > DAY_CAP) heavy.push(i+1);
+  for(let i=0;i<b.days;i++) if(dayHours(b,i) > DAY_CAP) heavy.push(i+1);
   if(heavy.length) out.push(['bad','Heavy days',
     `Day ${heavy.join(', ')} exceed ${DAY_CAP}h. That is past the useful ceiling for a 9-year-old — she will stop learning and start surviving the session.`]);
 
-  // consecutive without rest
   let run = 0, worst = 0;
-  for(let i=0;i<NDAYS;i++){ if(isRestDay(i)) run = 0; else { run++; worst = Math.max(worst, run); } }
+  for(let i=0;i<b.days;i++){ if(isRestDay(b,i)) run = 0; else { run++; worst = Math.max(worst, run); } }
   if(worst >= 6) out.push(['bad','No rest day',
     `${worst} days in a row on court. Put a full rest day in — off court means off court, not a light hit.`]);
   else if(worst === 5) out.push(['warn','Long run',
     `${worst} days in a row. Workable, but watch her energy on the last two.`]);
 
-  // group / peer time
   let groups = 0;
-  for(let i=0;i<NDAYS;i++){ if(plan[i].am==='g2') groups++; if(plan[i].pm==='g2') groups++; }
+  for(let i=0;i<b.days;i++){ const d = planAt(b,i); if(d.am==='g2') groups++; if(d.pm==='g2') groups++; }
   if(groups === 0) out.push(['bad','No peer time',
-    'No group sessions. Two weeks of drilling with no other children means technique that never gets tested and a child who gets bored.']);
+    'No group sessions. Weeks of drilling with no other children means technique that never gets tested and a child who gets bored.']);
   else if(groups <= 2) out.push(['warn','Thin peer time',
     `Only ${groups} group session${groups>1?'s':''}. Ask the club to pair her with another junior for some privates, and end every private with live points.`]);
 
-  // private-heavy days
   const twoPriv = [];
-  for(let i=0;i<NDAYS;i++){
-    const {am,pm} = plan[i];
-    if(am && pm && TYPES[am].tennis && TYPES[pm].tennis && !(am==='g2'||pm==='g2')) twoPriv.push(i+1);
+  for(let i=0;i<b.days;i++){
+    const {am,pm} = planAt(b,i);
+    if(am && pm && TYPES[am] && TYPES[pm] && TYPES[am].tennis && TYPES[pm].tennis && !(am==='g2'||pm==='g2')) twoPriv.push(i+1);
   }
   if(twoPriv.length) out.push(['warn','Two tennis blocks',
     `Day ${twoPriv.join(', ')} have two private sessions. Split them morning and late afternoon with a real break — never back to back.`]);
 
-  // physical balance
   let phys = 0;
-  for(let i=0;i<NDAYS;i++){ if(plan[i].am==='phys') phys++; if(plan[i].pm==='phys') phys++; }
+  for(let i=0;i<b.days;i++){ const d = planAt(b,i); if(d.am==='phys') phys++; if(d.pm==='phys') phys++; }
   if(phys > 5) out.push(['warn','Heavy on physical',
     `${phys} physical sessions. At 9, movement work belongs mostly in the warm-up — court time teaches more.`]);
 
-  // week totals
-  [0,1].forEach(w=>{
-    const h = weekHours(w);
-    if(h > WEEK_CAP) out.push(['bad',`Week ${w+1} too heavy`,
-      `${h.toFixed(1)}h. Trim a second session or two — private hours are far denser than group hours.`]);
+  weekChunks(b).forEach((w,i)=>{
+    // Only judge a full week — a 3-day tail is not "under target", it is short.
+    if(w.days === 7 && w.hrs > WEEK_CAP) out.push(['bad',`Week ${i+1} too heavy`,
+      `${w.hrs.toFixed(1)}h. Trim a second session or two — private hours are far denser than group hours.`]);
   });
 
-  if(total === 0) out.push(['warn','Empty plan',
+  if(total === 0) out.push(['warn','Empty block',
     'Nothing scheduled yet. Load the suggested plan, or start dragging sessions onto the days.']);
   else if(!out.length) out.push(['ok','Balanced',
-    `${total.toFixed(1)}h across the fortnight with rest built in. Serves in the morning slot only, 40–50 balls, never two days running.`]);
+    `${total.toFixed(1)}h across ${b.days} days with rest built in. Serves in the morning slot only, 40–50 balls, never two days running.`]);
 
-  document.getElementById('notes').innerHTML = out.map(([k,t,b])=>
-    `<div class="note ${k}"><span class="dot"></span><div><b>${t}.</b> <span>${b}</span></div></div>`
+  document.getElementById('notes').innerHTML = out.map(([k,t,body])=>
+    `<div class="note ${k}"><span class="dot"></span><div><b>${t}.</b> <span>${body}</span></div></div>`
   ).join('');
 }
 
-/* ---- export ---- */
+/* ------------------------------------------------------------ export --- */
 function asText(){
-  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  let s = 'TWO-WEEK TENNIS PLAN\n\n';
-  for(let i=0;i<NDAYS;i++){
-    const dt = dateFor(i);
+  const b = active();
+  if(!b) return 'No training blocks.\n';
+  let s = `${b.name.toUpperCase()}\n\n`;
+  for(let i=0;i<b.days;i++){
+    const dt = dateFor(b, i);
     const head = `${DOW[dt.getDay()]} ${fmt(dt)}`;
+    const cell = planAt(b, i);
     const bits = [];
     ['am','pm'].forEach(sl=>{
-      const v = plan[i][sl];
-      if(v) bits.push(`${sl.toUpperCase()} ${TYPES[v].nm}${TYPES[v].hrs?' '+TYPES[v].dur:''}`);
+      const v = cell[sl];
+      if(v && TYPES[v]) bits.push(`${sl.toUpperCase()} ${TYPES[v].nm}${TYPES[v].hrs?' '+TYPES[v].dur:''}`);
     });
-    s += `${head.padEnd(12)} ${bits.length ? bits.join('  |  ') : '—'}${dayHours(i)?'   ('+dayHours(i).toFixed(1)+'h)':''}\n`;
+    const h = dayHours(b, i);
+    s += `${head.padEnd(12)} ${bits.length ? bits.join('  |  ') : '—'}${h ? '   ('+h.toFixed(1)+'h)' : ''}\n`;
   }
-  s += `\nWeek 1: ${weekHours(0).toFixed(1)}h   Week 2: ${weekHours(1).toFixed(1)}h   Total: ${(weekHours(0)+weekHours(1)).toFixed(1)}h\n`;
+  s += '\n' + weekChunks(b).map((w,i)=>`Week ${i+1}: ${w.hrs.toFixed(1)}h`).join('   ');
+  s += `   Total: ${totalHours(b).toFixed(1)}h\n`;
   return s;
 }
 
-/* ---- wiring ---- */
-document.getElementById('btn-reset').addEventListener('click', ()=>{ loadSuggested(); render(); save(); });
-document.getElementById('btn-clear').addEventListener('click', ()=>{ plan = blank(); render(); save(); });
+/* ------------------------------------------------------- block admin --- */
+function addBlock(){
+  const prev = active();
+  let start = DEFAULT_START;
+  if(prev) start = iso(dateFor(prev, prev.days));   // start the next block after this one
+  const b = newBlock(`Block ${state.blocks.length + 1}`, start, DEFAULT_DAYS);
+  state.blocks.push(b);
+  state.activeBlockId = b.id;
+  render(); save();
+}
+function deleteBlock(){
+  const b = active();
+  if(!b) return;
+  if(!window.confirm(`Delete “${b.name}”? This cannot be undone.`)) return;
+  state.blocks = state.blocks.filter(x => x.id !== b.id);
+  state.activeBlockId = state.blocks.length ? state.blocks[0].id : null;
+  render(); save();
+}
+
+/* ------------------------------------------------------------ wiring --- */
+document.getElementById('btn-reset').addEventListener('click', ()=>{
+  const b = active(); if(!b) return;
+  applySuggested(b); render(); save();
+});
+document.getElementById('btn-clear').addEventListener('click', ()=>{
+  const b = active(); if(!b) return;
+  b.plan = {}; render(); save();
+});
+document.getElementById('btn-delete').addEventListener('click', deleteBlock);
 document.getElementById('btn-print').addEventListener('click', ()=>window.print());
-document.getElementById('start').addEventListener('change', ()=>{ render(); save(); });
+
+document.getElementById('blockname').addEventListener('input', e=>{
+  const b = active(); if(!b) return;
+  b.name = e.target.value || 'Training block';
+  document.getElementById('title').textContent = b.name;
+  renderBlockBar(); save();
+});
+document.getElementById('start').addEventListener('change', e=>{
+  const b = active(); if(!b) return;
+  if(/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) b.start = e.target.value;
+  render(); save();
+});
+document.getElementById('days').addEventListener('change', e=>{
+  const b = active(); if(!b) return;
+  const n = parseInt(e.target.value, 10);
+  b.days = Math.min(MAX_DAYS, Math.max(1, isNaN(n) ? DEFAULT_DAYS : n));
+  render(); save();
+});
 document.getElementById('btn-copy').addEventListener('click', async ()=>{
   const btn = document.getElementById('btn-copy');
   try{ await navigator.clipboard.writeText(asText()); btn.textContent = 'Copied'; }
@@ -652,8 +883,9 @@ document.getElementById('btn-copy').addEventListener('click', async ()=>{
 });
 
 buildChips();
-if(!restore()) loadSuggested();
+load();
 render();
+save();   // persist the default/migrated block immediately, not on first edit
 </script>
 </body>
 </html>

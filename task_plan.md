@@ -9,10 +9,15 @@ around known match dates.
 
 ## Current Phase
 
-Phase 2 — Information architecture & data model. Design is complete and written
-up in findings.md; the only remaining item is user sign-off before building.
-Next action after sign-off: the JTTL parser, because it is the one source with
-real data that can be verified today.
+Phase 3 (training block planner) is **complete** — built, tested (83 assertions
+passing), documented, on branch `plan/v2-season-planner`. Not released; `main`
+still holds v1.0.0.
+
+Next: Phase 4, the scraper tool, starting with `tools/scrape-jttl.mjs`.
+
+Phase 2 (design) remains the reference; see findings.md. Reordering the phases
+changed sequencing, not architecture. The v2 data layer now exists with
+`players`, `entries`, `trips` and `manualMatches` written but empty.
 
 ## Phases
 
@@ -32,7 +37,27 @@ real data that can be verified today.
 - [ ] User sign-off on the design before building
 - **Status:** in_progress
 
-### Phase 3: Scraper tool (separate component, `tools/`)
+### Phase 3: Training block planner  ← REORDERED TO FIRST (user request)
+Builds the v2 data layer and the multi-block editor. Chosen first because it is
+the only part with no dependency on match data.
+- [x] `tennis-season-v2` state shape + save/load/validate
+- [x] Migration from `tennis-camp-plan-v1` (v1 key left intact)
+- [x] Multiple named blocks: create, rename, delete, switch
+- [x] Variable block length (1–60, default 14) with a real start date
+- [x] Port the v1 grid: AM/PM slots, five session types, drag / tap / keyboard
+- [x] Per-week totals generalised beyond exactly two weeks
+- [x] Load checks adapted to variable length
+- [x] Export as text + print
+- [x] `anchorMatchId` carried in the model but inert until matches exist
+- [x] Test harness committed to `tests/` — 83 assertions, all passing
+- [x] README + CHANGELOG updated
+- **Status:** complete
+
+**Session detail: confirmed AM/PM + type** (user chose to keep the v1 model —
+no per-session start times, coach, or focus tags). The v1 hour maths survives
+unchanged.
+
+### Phase 4: Scraper tool (separate component, `tools/`)
 - [ ] `scrape-jttl.mjs` — fetch + parse the static JTTL page (season windows,
       divisions, start dates; fixtures when the draw is published)
 - [ ] `scrape-sta.mjs` — Playwright renders the STA SPA, extracts tournaments
@@ -40,24 +65,19 @@ real data that can be verified today.
 - [ ] Snapshot fixtures + tests so a source layout change fails loudly
 - **Status:** pending
 
-### Phase 4: Visual design direction
+### Phase 5: Visual design direction
 - [ ] Year-view visual language (the v1 court palette is built for 14 cells, not 365 days)
 - [ ] Per-child colour coding; trip and block bands; conflict markers
 - [ ] Verify it holds on a phone
 - **Status:** pending
 
-### Phase 5: Implementation — v2.0 (season view)
-- [ ] Data layer, `matches.json` loading with a file:// fallback
-- [ ] Storage migration from `tennis-camp-plan-v1`
+### Phase 6: Season view
+- [ ] `matches.json` loading with a `file://` fallback
 - [ ] Year overview: matches, trips, blocks on one timeline
 - [ ] Players + per-child entry status
 - [ ] Trips CRUD
 - [ ] Conflict checks (trip vs. entered match, deadline approaching, clashes)
-- **Status:** pending
-
-### Phase 6: Implementation — v2.1 (blocks)
-- [ ] Port the v1 two-week planner in as a block editor
-- [ ] Variable length; anchor a block to a match; taper warnings near match day
+- [ ] Activate `anchorMatchId`: taper warnings near match day
 - **Status:** pending
 
 ### Phase 7: Testing & Verification

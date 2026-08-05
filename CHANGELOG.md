@@ -5,6 +5,44 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Work toward v2: the two-week camp planner becomes a multi-block training
+planner, the first step of the season planner described in `task_plan.md`.
+
+### Added
+
+- **Multiple training blocks.** Create, rename, switch and delete named blocks;
+  a new block starts the day after the previous one ends.
+- **Variable block length** (1–60 days, default 14) instead of a fixed fortnight.
+- Per-week totals computed as 7-day chunks from the block start, so a block of
+  any length reports sensible weekly loads.
+- On-court days and rest days in the header readout.
+- `tests/` — the jsdom harness is now committed and runnable (`npm test`),
+  83 assertions. It previously lived only in a scratch directory.
+- `.gitignore`.
+
+### Changed
+
+- Storage moves to `tennis-season-v2`, holding `blocks[]` plus `players`,
+  `entries`, `trips` and `manualMatches` reserved (empty) for the season view.
+- Blocks carry an inert `anchorMatchId`, ready for match anchoring.
+- The weekly-load check only judges a **full** 7-day week, so a short tail is
+  not reported as if it were under target.
+- The suggested plan now fills only the days that fit a shorter block.
+
+### Fixed
+
+- A new block's start date is computed with local date parts. `toISOString()`
+  would have shifted it a day earlier in any timezone east of UTC — including
+  Singapore, where this is used.
+
+### Migration
+
+A v1.0.0 plan under `tennis-camp-plan-v1` is folded into a single block named
+"Camp plan", keeping its start date and sessions. The v1 key is **left intact**,
+so rolling back to the v1.0.0 deploy still finds its data.
+
 ## [1.0.0] — 2026-08-05
 
 First deployable release. The baseline is the original single-file planner that
