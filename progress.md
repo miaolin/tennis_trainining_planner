@@ -48,6 +48,43 @@
   - progress.md (this log)
 - Next: user sign-off, then build the JTTL parser (easiest real data) first
 
+### Phase 4: Scraper tool — JTTL
+- **Status:** in_progress — `scrape-jttl.mjs` complete; STA and merge remain
+- **Started:** 2026-08-05
+- Actions taken:
+  - Re-probed the Phase 1 JTTL URL: **404**. Content had moved to the `www.`
+    host; the apex 404s on content paths
+  - Discovered the site runs on **LeagueRepublic** and exposes a full
+    server-rendered fixture archive — 14 seasons, not the season skeleton
+    Phase 1 assumed. Rewrote the phase around real data
+  - Mapped the readable surface: only `/fg/{divisionId}.html` is server-rendered;
+    `/matchHub/`, `/match/`, `/standingsForDate/`, `/results/` all answer 202
+    with an empty body. Cost: no venue data
+  - Found season switching is a POST to `/fg-set.html` held in a session cookie
+  - Pulled all 37 divisions of 2026 Season One (222 fixtures) and all 25 of
+    2025 Season Two (187 fixtures) to measure the real season shape
+  - Established that season weekends are **not consecutive** and that the two
+    halves of the year are spaced differently — so projection is grounded in the
+    last comparable season instead of guessed
+  - Built `tools/` as a zero-dependency component: `lib/http.mjs` (cookie jar),
+    `lib/jttl-parse.mjs`, `lib/jttl-season.mjs`, `scrape-jttl.mjs`
+  - Wrote 18 snapshot assertions over two real saved pages — no network
+  - Ran end-to-end: 222 real fixtures + 6 projected weekends written
+- Errors hit and fixed (both recorded in task_plan.md):
+  - First end-to-end run silently produced the **wrong season's** fixtures for
+    the reference scrape — AWS load-balancer session drift. Fixed by
+    re-selecting the season per request and asserting the response
+  - The added assertion then caught a second bug: passing a Season One division
+    key while requesting Season Two switched the season back. Fixed by entering
+    a season with the season ID alone
+- Files created:
+  - `tools/README.md`, `tools/package.json`, `tools/scrape-jttl.mjs`
+  - `tools/lib/{http,jttl-parse,jttl-season}.mjs`
+  - `tools/test/jttl.test.mjs` (18 assertions, passing)
+  - `tools/snapshots/` (3 real pages), `tools/data/jttl.json` (228 records)
+- Next: `scrape-sta.mjs` (Playwright) and `build-matches.mjs`; Phase 2 sign-off
+  is still formally open
+
 ## Prior work this session (v1.0.0, before planning started)
 
 | Step | Result |

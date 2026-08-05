@@ -9,11 +9,18 @@ around known match dates.
 
 ## Current Phase
 
-Phase 3 (training block planner) is **complete** — built, tested (83 assertions
-passing), documented, on branch `plan/v2-season-planner`. Not released; `main`
-still holds v1.0.0.
+Phase 4 (scraper tool) is **in progress**. `tools/scrape-jttl.mjs` is **built,
+tested (18 assertions) and producing real data** — 222 real fixtures across 37
+divisions plus 6 projected weekends for 2026 Season Two. Remaining in Phase 4:
+`scrape-sta.mjs` and `build-matches.mjs`.
 
-Next: Phase 4, the scraper tool, starting with `tools/scrape-jttl.mjs`.
+Phase 3 (training block planner) is complete — built, tested (83 assertions
+passing), documented. Not released; `main` still holds v1.0.0.
+
+The JTTL build overturned a Phase 1 assumption: the league's site exposes a
+**complete machine-readable fixture archive**, so JTTL matches are real data,
+not a generated skeleton. See findings.md, "Phase 4 — what JTTL actually
+exposes".
 
 Phase 2 (design) remains the reference; see findings.md. Reordering the phases
 changed sequencing, not architecture. The v2 data layer now exists with
@@ -58,12 +65,18 @@ no per-session start times, coach, or focus tags). The v1 hour maths survives
 unchanged.
 
 ### Phase 4: Scraper tool (separate component, `tools/`)
-- [ ] `scrape-jttl.mjs` — fetch + parse the static JTTL page (season windows,
-      divisions, start dates; fixtures when the draw is published)
+- [x] `scrape-jttl.mjs` — fetch + parse JTTL fixtures. Scope grew: the site
+      carries a full fixture archive (14 seasons), not just a season skeleton
+- [x] Season switching via the `/fg-set.html` POST + session cookie
+- [x] Projection of the next season's weekends from the last comparable season,
+      marked `provisional: true`
+- [x] Fail-loud guards: exits non-zero and writes nothing on zero fixtures or a
+      season mismatch
+- [x] Snapshot fixtures + tests so a source layout change fails loudly — 18
+      assertions, all passing, no network
 - [ ] `scrape-sta.mjs` — Playwright renders the STA SPA, extracts tournaments
 - [ ] `build-matches.mjs` — merge both into `vercel-deploy/data/matches.json`
-- [ ] Snapshot fixtures + tests so a source layout change fails loudly
-- **Status:** pending
+- **Status:** in_progress — JTTL done, STA and the merge step remain
 
 ### Phase 5: Visual design direction
 - [ ] Year-view visual language (the v1 court palette is built for 14 cells, not 365 days)
@@ -122,6 +135,11 @@ unchanged.
 | Generated JTTL weekends marked `provisional: true` | The Season 2 draw is "TBU" — estimated dates must never render as confirmed |
 | Staged delivery: v2.0 season view, then v2.1 block editor | The year view is the new value; the block editor is a port and can follow |
 | Drive STA's rendered page, not its internals | Chunk filenames are content-hashed and change every deploy |
+| JTTL fixtures are scraped as real data, not generated | The league publishes a complete fixture archive; generating a skeleton when real dates exist would be strictly worse |
+| `tools/` stays zero-dependency | The JTTL path must keep running once STA drags Playwright into the folder |
+| Re-select the season on every request and assert the response | Session drift behind the load balancer silently serves the wrong season — a complete, plausible, wrong-year fixture set |
+| Weekend spacing projected from the last same-half season | Seasons skip weekends around holidays; six-in-a-row would have put half of Season Two in the wrong month |
+| Provisional records carry an extra `note` field | Additive to the contract; records why a date is a projection so the UI can say so |
 
 ## Errors Encountered
 
@@ -130,13 +148,20 @@ unchanged.
 | WebFetch truncated the STA page; WebFetch got HTTP 403 from JTT | 1 | Switched to `curl` with a browser User-Agent — both returned 200 |
 | `xargs` chunk download wrote 0 files (shell quoting of `$UA`/`{}`) | 1 | Mutated the approach to a bounded `while read` loop with background jobs — all 85 chunks downloaded |
 | `/Tournament/GetTournamentList` returns the Nuxt 404 page (GET and POST) | 1 | Confirmed the endpoints are not on the public host; recorded that static analysis cannot recover the API base |
+| The JTTL URL from Phase 1 now 404s | 1 | Content moved to the `www.` host; the apex 404s on content paths. Scraper pins `www.` |
+| `/matchHub/`, `/match/`, `/standingsForDate/` answer 202 with an empty body | 1 | Client-rendered, not transient. Treated as "no data here"; `/fg/` is the only readable surface. Costs us venue data |
+| The JTTL information page body is now empty | 1 | Client-rendered. The season start date is no longer scrapeable — pinned as a constant, overridable with `--first-weekend` |
+| Reference-season scrape silently returned the wrong season's fixtures | 2 | AWS load-balancer session drift. Fixed by re-selecting the season per request and asserting the response; caught only because the assertion was added |
+| Passing a Season One division key while asking for Season Two switched the season back | 1 | Division keys are season-specific; entering a season now selects by season ID alone |
 
 ## Risks
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
 | STA changes their SPA layout | Scraper silently returns nothing or wrong dates | Snapshot tests over saved HTML; scraper exits non-zero on zero results rather than writing an empty `matches.json` |
-| JTTL draw stays "TBU" | The dates travel is planned around are estimates | `provisional: true` rendered visibly differently; never presented as confirmed |
+| JTTL draw stays "TBU" | The dates travel is planned around are estimates | `provisional: true` rendered visibly differently; never presented as confirmed. Projection is now grounded in the last comparable season rather than guessed |
+| JTTL session drift serves the wrong season | A full set of plausible fixtures, wrong year — worse than no data | Season re-selected per request and asserted; scraper aborts rather than mixing seasons |
+| JTTL fixtures carry no venue | Cannot tell which court a match is at | Accepted: the per-match page is client-rendered. Revisit only if the STA Playwright work makes a browser available to `tools/` |
 | Scope creep — v2 is much larger than v1 | Half-finished redesign replaces a working v1 | Ship v2.0 and v2.1 separately; v1.0.0 stays tagged and deployable |
 | `matches.json` fetch fails on `file://` | Page opens empty when double-clicked locally | Graceful fallback to manual/localStorage data plus a visible notice |
 | Playwright in the repo | Heavy dev dependency | Confined to `tools/`, never installed or shipped by the site |

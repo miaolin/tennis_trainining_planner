@@ -265,6 +265,84 @@ Design complete. **Awaiting user sign-off** before Phase 3 begins. First build
 step after sign-off: `tools/scrape-jttl.mjs`, because JTTL is the only source
 with real, verifiable data available today.
 
+## Phase 4 — what JTTL actually exposes (2026-08-05)
+
+Building the scraper overturned the Phase 1 reading of this source. Phase 1
+looked at one editorial page and concluded JTTL offered a *season skeleton* to
+be generated. It offers a **complete fixture archive**.
+
+### The correction
+
+The site runs on **LeagueRepublic**, a league-management platform. Its
+fixture-group pages are server-rendered and carry real fixtures with dates,
+times, teams and scores, for **14 seasons back to 2017**.
+
+- Entry point: `/fg/{divisionId}.html` — one page per division.
+- 2026 Season One: **37 divisions, 222 fixtures**, all parsed.
+- The Phase 1 URL (`jttsingapore.com/page/jttl_information.html`) now **404s**;
+  content moved to the `www.` host, and that page's body is now empty anyway.
+
+So JTTL matches are **real data** (`provisional: false`). Only the unpublished
+next season is projected.
+
+### What is still not available
+
+| Wanted | Status |
+|--------|--------|
+| Venue per fixture | **Unavailable.** `/match/{id}.html` is client-rendered — 202, empty body |
+| 2026 Season Two draw | **Unpublished.** Nav still says "Draw & Schedule TBU"; the season is absent from the dropdown |
+| Season start date | **No longer scrapeable.** The information page body is client-rendered |
+
+Only `/fg/` is server-rendered. `/matchHub/…`, `/match/…`,
+`/standingsForDate/…`, `/results/…` all answer `202` with an empty body. That is
+a permanent property, not a transient failure, so the scraper treats a 202-empty
+as "no data here" rather than retrying.
+
+### Season shape — measured, not assumed
+
+Phase 1 recorded "6 weekends, scheduled away from holidays". The archive shows
+what that means: the weekends are **not consecutive**, and the two halves of the
+year are spaced differently.
+
+| Season | Weekends | Week offsets from the first |
+|--------|----------|------------------------------|
+| 2026 Season One | Feb 7/8, Feb 14/15, Mar 7/8, Apr 18/19, Apr 25/26, May 9/10 | 0, 1, 4, 10, 11, 13 |
+| 2025 Season Two | Sep 20/21, Sep 27/28, Oct 4/5, Nov 1/2, Nov 8/9, Nov 15/16 | 0, 1, 2, 6, 7, 8 |
+
+This matters directly. Generating six consecutive weekends from the published
+2026 Season Two start (Sep 19) would have ended the season on Oct 25 — a month
+before it actually ends, and outside the documented Sep–Nov window. The scraper
+instead reads the offsets off the most recent season in the **same half of the
+year** and projects them forward:
+
+> 2026 Season Two (projected): Sep 19/20, Sep 26/27, Oct 3/4, Oct 31–Nov 1,
+> Nov 7/8, Nov 14/15 — all `provisional: true`.
+
+### Source quirks the scraper works around
+
+1. **Host.** The apex 404s on content paths; the default Node UA is rejected.
+2. **Season selection is a POST**, not a URL — `/fg-set.html` with
+   `fixtureGroupPageContent.filterSeasonID`, held in a session cookie. Node's
+   `fetch` keeps no cookie jar, so `tools/lib/http.mjs` carries one.
+3. **Session drift.** The site is behind an AWS load balancer. Over a 37-page
+   sweep a request eventually lands on a backend that has lost the session and
+   silently serves the *current* season. This produced a complete, plausible,
+   **wrong-year** fixture set on the first end-to-end run. Fixed by re-selecting
+   the season on every request and asserting the returned page agrees. It was
+   caught only because the assertion existed — worth keeping in mind for STA.
+4. **Division keys are season-specific.** Passing a Season One key while asking
+   for Season Two makes the site follow the division and switch season back.
+   Entering a season selects by season ID alone.
+
+### Contract note
+
+`matches.json` records are emitted exactly per the Phase 2 contract, with one
+**additive** field: provisional records carry `note`, a sentence naming the
+season the projection came from. Consumers that ignore unknown fields are
+unaffected. Division names go in `categories`; team names are folded into
+`name`. If the year view later needs per-team filtering ("only my kid's team"),
+that wants a real contract change, not more string parsing — flagged, not done.
+
 ## Resources
 
 - Repo: https://github.com/miaolin/tennis_trainining_planner
