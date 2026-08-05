@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two-week tennis camp planner</title>
+<meta name="description" content="Plan a two-week junior tennis camp: drag sessions onto morning and afternoon slots and get live load checks on daily and weekly hours.">
+<meta name="theme-color" content="#20486B">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23D6E64B'/%3E%3Cpath d='M4 8a16 16 0 0 1 0 16M28 8a16 16 0 0 0 0 16' fill='none' stroke='%2320486B' stroke-width='2'/%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Two-week tennis camp planner">
+<meta property="og:description" content="Drag sessions onto morning and afternoon slots and get live load checks on daily and weekly hours.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --court:#20486B;
+  --court-deep:#153650;
+  --court-line:#EAF0F4;
+  --ball:#D6E64B;
+  --clay:#B85C3C;
+  --ink:#0E2334;
+  --paper:#F4F6F3;
+  --mute:#7E93A3;
+  --hair:rgba(255,255,255,.16);
+  --ok:#4FA97C;
+  --warn:#E8A33D;
+  --bad:#D9603F;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--court);
+  color:var(--court-line);
+  font-family:'Karla',system-ui,sans-serif;
+  font-size:15px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:80px;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+
+/* ---------- header ---------- */
+header{
+  border-bottom:2px solid var(--court-line);
+  padding:26px 0 18px;
+  margin-bottom:22px;
+}
+.head-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:24px;justify-content:space-between}
+h1{
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:600;
+  font-size:38px;
+  letter-spacing:.01em;
+  line-height:1;
+  margin:0;
+  text-transform:uppercase;
+}
+h1 em{font-style:normal;color:var(--ball)}
+.sub{color:var(--mute);font-size:14px;margin:8px 0 0;max-width:46ch}
+.readout{display:flex;gap:26px}
+.stat{text-align:right}
+.stat .n{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:34px;font-weight:600;line-height:1;
+  display:block;
+}
+.stat .l{
+  font-size:11px;text-transform:uppercase;letter-spacing:.13em;
+  color:var(--mute);display:block;margin-top:5px;
+}
+
+/* ---------- controls ---------- */
+.bar{
+  display:flex;flex-wrap:wrap;gap:12px;align-items:center;
+  margin-bottom:20px;
+}
+button, input[type=date]{
+  font-family:'Karla',sans-serif;font-size:13px;
+  background:transparent;color:var(--court-line);
+  border:1px solid var(--hair);border-radius:3px;
+  padding:8px 14px;cursor:pointer;
+  transition:background .15s,border-color .15s;
+}
+button:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.4)}
+button:focus-visible,input:focus-visible,.chip:focus-visible,.slot:focus-visible{
+  outline:2px solid var(--ball);outline-offset:2px;
+}
+input[type=date]{color-scheme:dark}
+.spacer{flex:1}
+
+/* ---------- palette ---------- */
+.palette{
+  background:var(--court-deep);
+  border:1px solid var(--hair);
+  border-radius:4px;
+  padding:16px 18px;
+  margin-bottom:26px;
+}
+.palette h2{
+  font-family:'Barlow Condensed',sans-serif;font-weight:500;
+  font-size:13px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--mute);margin:0 0 12px;
+}
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.chip{
+  display:flex;align-items:center;gap:9px;
+  border:1px solid var(--hair);border-left:4px solid var(--c);
+  border-radius:3px;background:rgba(255,255,255,.05);
+  padding:9px 14px 9px 12px;cursor:grab;user-select:none;
+  transition:background .15s,transform .1s;
+}
+.chip:hover{background:rgba(255,255,255,.12)}
+.chip:active{cursor:grabbing}
+.chip.armed{background:var(--ball);color:var(--ink);border-color:var(--ball)}
+.chip.armed .dur{color:var(--ink);opacity:.7}
+.chip .nm{font-weight:700;font-size:13px}
+.chip .dur{
+  font-family:'Barlow Condensed',sans-serif;font-size:15px;
+  color:var(--mute);letter-spacing:.03em;
+}
+.hint{font-size:12.5px;color:var(--mute);margin:12px 0 0}
+
+/* ---------- calendar ---------- */
+.dow-row{
+  display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:8px;
+}
+.dow{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--mute);text-align:center;
+}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.day{
+  background:var(--court-deep);
+  border:1px solid var(--hair);
+  border-radius:4px;
+  min-height:150px;
+  padding:9px 9px 7px;
+  display:flex;flex-direction:column;
+  position:relative;
+}
+.day.blank{background:transparent;border:none;min-height:0}
+.day.rest{background:rgba(184,92,60,.16);border-color:rgba(184,92,60,.5)}
+.day.travel{background:rgba(255,255,255,.03)}
+.day-head{
+  display:flex;justify-content:space-between;align-items:baseline;
+  border-bottom:1px solid var(--hair);padding-bottom:6px;margin-bottom:7px;
+}
+.day-num{
+  font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:600;
+}
+.day-tag{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.slots{display:flex;flex-direction:column;gap:6px;flex:1}
+.slot{
+  border:1px dashed rgba(255,255,255,.22);
+  border-radius:3px;
+  min-height:44px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:rgba(255,255,255,.28);
+  cursor:pointer;transition:border-color .15s,background .15s;
+  padding:3px;
+}
+.slot:hover{border-color:rgba(255,255,255,.45)}
+.slot.over{border-color:var(--ball);background:rgba(214,230,75,.14);border-style:solid}
+.slot.filled{border:none;padding:0;cursor:default}
+.placed{
+  width:100%;height:100%;min-height:44px;
+  border-radius:3px;border-left:4px solid var(--c);
+  background:rgba(255,255,255,.09);
+  padding:7px 8px;text-align:left;
+  display:flex;flex-direction:column;justify-content:center;gap:1px;
+  position:relative;cursor:grab;
+}
+.placed .nm{font-size:11.5px;font-weight:700;line-height:1.25;text-transform:none;letter-spacing:0;color:var(--court-line)}
+.placed .dur{font-family:'Barlow Condensed',sans-serif;font-size:13px;color:var(--mute);letter-spacing:.03em}
+.placed .x{
+  position:absolute;top:2px;right:2px;
+  width:19px;height:19px;line-height:17px;text-align:center;
+  border:none;background:transparent;color:var(--mute);
+  font-size:14px;padding:0;border-radius:3px;cursor:pointer;
+}
+.placed .x:hover{background:rgba(255,255,255,.16);color:#fff}
+.rest-fill{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  border:1px solid rgba(184,92,60,.5);border-radius:3px;
+  font-family:'Barlow Condensed',sans-serif;font-size:15px;
+  letter-spacing:.18em;text-transform:uppercase;color:#E3A88F;
+  position:relative;cursor:pointer;
+}
+.day-foot{
+  display:flex;align-items:center;gap:7px;
+  margin-top:7px;padding-top:6px;border-top:1px solid var(--hair);
+}
+.load-bar{flex:1;height:3px;background:rgba(255,255,255,.12);border-radius:2px;overflow:hidden}
+.load-bar i{display:block;height:100%;background:var(--ball);transition:width .2s}
+.load-bar i.hot{background:var(--warn)}
+.load-bar i.over{background:var(--bad)}
+.day-hrs{font-family:'Barlow Condensed',sans-serif;font-size:14px;min-width:30px;text-align:right}
+
+/* ---------- week totals ---------- */
+.weekcap{
+  display:flex;justify-content:space-between;align-items:baseline;
+  margin:16px 0 8px;padding-bottom:5px;
+  border-bottom:1px solid var(--hair);
+}
+.weekcap h3{
+  font-family:'Barlow Condensed',sans-serif;font-weight:500;
+  font-size:13px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--mute);margin:0;
+}
+.weekcap .wt{font-family:'Barlow Condensed',sans-serif;font-size:17px}
+.weekcap .wt small{font-size:11px;color:var(--mute);letter-spacing:.1em;margin-left:4px}
+
+/* ---------- checks ---------- */
+.checks{margin-top:34px;border-top:2px solid var(--court-line);padding-top:20px}
+.checks h2{
+  font-family:'Barlow Condensed',sans-serif;font-weight:500;
+  font-size:13px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--mute);margin:0 0 14px;
+}
+.note{
+  display:flex;gap:11px;align-items:flex-start;
+  padding:10px 0;border-bottom:1px solid var(--hair);font-size:14px;
+}
+.note:last-child{border-bottom:none}
+.dot{width:7px;height:7px;border-radius:50%;flex:none;margin-top:7px}
+.note.ok .dot{background:var(--ok)}
+.note.warn .dot{background:var(--warn)}
+.note.bad .dot{background:var(--bad)}
+.note b{font-weight:700}
+.note span{color:var(--mute)}
+
+.noscript{
+  border:1px solid var(--bad);border-radius:4px;
+  padding:14px 16px;margin:20px 0;font-size:14px;
+}
+
+@media (max-width:820px){
+  h1{font-size:28px}
+  .stat .n{font-size:26px}
+  .dow-row{display:none}
+  .grid{grid-template-columns:1fr;gap:7px}
+  .day{min-height:0}
+  .day.blank{display:none}
+  .slots{flex-direction:row}
+  .slot{flex:1}
+}
+@media print{
+  body{background:#fff;color:#000}
+  .palette,.bar,.hint{display:none}
+  .day{background:#f4f4f4;border:1px solid #999}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="head-row">
+    <div>
+      <h1>Camp plan <em>/</em> <span id="range">&nbsp;</span></h1>
+      <p class="sub">Drag a session onto a morning or afternoon slot. On a phone, tap a session then tap the slot.</p>
+    </div>
+    <div class="readout">
+      <div class="stat"><span class="n" id="w1">0</span><span class="l">Week 1 hrs</span></div>
+      <div class="stat"><span class="n" id="w2">0</span><span class="l">Week 2 hrs</span></div>
+      <div class="stat"><span class="n" id="wtot">0</span><span class="l">Total hrs</span></div>
+    </div>
+  </div>
+</header>
+
+<noscript>
+  <div class="noscript">This planner needs JavaScript enabled to run.</div>
+</noscript>
+
+<div class="bar">
+  <label for="start" style="font-size:13px;color:var(--mute)">Arrival date</label>
+  <input type="date" id="start" value="2026-11-21">
+  <div class="spacer"></div>
+  <button id="btn-reset">Load suggested plan</button>
+  <button id="btn-clear">Clear all</button>
+  <button id="btn-copy">Copy as text</button>
+  <button id="btn-print">Print</button>
+</div>
+
+<div class="palette">
+  <h2>Sessions</h2>
+  <div class="chips" id="chips"></div>
+  <p class="hint">Drag a placed session to another slot to move it. Click the &times; to remove it. Rest clears the whole day. Your plan is saved in this browser.</p>
+</div>
+
+<div class="dow-row">
+  <div class="dow">Sun</div><div class="dow">Mon</div><div class="dow">Tue</div>
+  <div class="dow">Wed</div><div class="dow">Thu</div><div class="dow">Fri</div><div class="dow">Sat</div>
+</div>
+<div class="grid" id="grid"></div>
+
+<div class="checks">
+  <h2>Load check</h2>
+  <div id="notes"></div>
+</div>
+
+</div>
+
+<script>
+const TYPES = {
+  p1:   {nm:'Private',  dur:"1h",   hrs:1,   c:'#5B9BD5', tennis:true},
+  p15:  {nm:'Private',  dur:"1.5h", hrs:1.5, c:'#3C7CB8', tennis:true},
+  g2:   {nm:'Group',    dur:"2h",   hrs:2,   c:'#9B87D4', tennis:true},
+  phys: {nm:'Physical', dur:"1h",   hrs:1,   c:'#E8A33D', tennis:false},
+  rest: {nm:'Rest',     dur:"—",    hrs:0,   c:'#B85C3C', tennis:false}
+};
+
+const NDAYS = 14;          // two full weeks from the arrival date
+const DAY_CAP = 3.5;       // sensible ceiling for a 9-year-old
+const WEEK_CAP = 13;
+const STORE_KEY = 'tennis-camp-plan-v1';
+const DEFAULT_START = '2026-11-21';
+
+const SUGGESTED = {
+  0:{am:'p1'},                 // Sat  — assessment hit
+  1:{pm:'g2'},                 // Sun  — group
+  2:{am:'p1', pm:'phys'},      // Mon
+  3:{am:'p1', pm:'p1'},        // Tue
+  4:{am:'p1', pm:'phys'},      // Wed
+  5:{am:'rest'},               // Thu  — full rest
+  6:{am:'p1'},                 // Fri
+  7:{am:'rest'},               // Sat  — taper before group
+  8:{pm:'g2'},                 // Sun  — group
+  9:{am:'p1', pm:'phys'},      // Mon
+  10:{am:'p1', pm:'p1'},       // Tue
+  11:{am:'rest'},              // Wed  — full rest
+  12:{am:'p1', pm:'p1'},       // Thu
+  13:{am:'p1'}                 // Fri  — wrap-up, then fly
+};
+
+let plan = {};
+let armed = null;
+
+function blank(){ const o={}; for(let i=0;i<NDAYS;i++) o[i]={am:null,pm:null}; return o; }
+function loadSuggested(){
+  plan = blank();
+  for(const k in SUGGESTED){
+    plan[k].am = SUGGESTED[k].am || null;
+    plan[k].pm = SUGGESTED[k].pm || null;
+  }
+}
+
+/* ---- persistence ---- */
+function store(){
+  try{ return window.localStorage; }catch(e){ return null; }   // blocked in some privacy modes
+}
+function save(){
+  const s = store();
+  if(!s) return;
+  try{
+    s.setItem(STORE_KEY, JSON.stringify({
+      start: document.getElementById('start').value,
+      plan: plan
+    }));
+  }catch(e){}
+}
+// Accept only slot values we still know about, so an old save can never
+// wedge the grid with a type that no longer exists.
+function sanitise(raw){
+  const out = blank();
+  if(!raw || typeof raw !== 'object') return null;
+  let any = false;
+  for(let i=0;i<NDAYS;i++){
+    const d = raw[i];
+    if(!d || typeof d !== 'object') continue;
+    ['am','pm'].forEach(s=>{
+      if(d[s] && TYPES[d[s]]){ out[i][s] = d[s]; any = true; }
+    });
+  }
+  return any ? out : null;
+}
+function restore(){
+  const s = store();
+  if(!s) return false;
+  try{
+    const raw = s.getItem(STORE_KEY);
+    if(!raw) return false;
+    const saved = JSON.parse(raw);
+    const p = sanitise(saved && saved.plan);
+    if(!p) return false;
+    plan = p;
+    if(saved.start) document.getElementById('start').value = saved.start;
+    return true;
+  }catch(e){ return false; }
+}
+
+/* ---- dates ---- */
+function startDate(){
+  const s = document.getElementById('start').value || DEFAULT_START;
+  const d = new Date(s + 'T00:00:00');
+  return isNaN(d) ? new Date(DEFAULT_START + 'T00:00:00') : d;
+}
+function dateFor(i){
+  const d = startDate();
+  d.setDate(d.getDate() + i);
+  return d;
+}
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmt(d){ return `${d.getDate()} ${MON[d.getMonth()]}`; }
+
+/* ---- palette ---- */
+function buildChips(){
+  const box = document.getElementById('chips');
+  box.innerHTML = '';
+  for(const key in TYPES){
+    const t = TYPES[key];
+    const el = document.createElement('div');
+    el.className = 'chip';
+    el.style.setProperty('--c', t.c);
+    el.draggable = true;
+    el.tabIndex = 0;
+    el.dataset.type = key;
+    el.innerHTML = `<span class="nm">${t.nm}</span><span class="dur">${t.dur}</span>`;
+    el.addEventListener('dragstart', e=>{
+      e.dataTransfer.setData('text/plain', JSON.stringify({type:key}));
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+    el.addEventListener('click', ()=>arm(key));
+    el.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();arm(key);} });
+    box.appendChild(el);
+  }
+}
+function arm(key){
+  armed = (armed === key) ? null : key;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('armed', c.dataset.type===armed));
+}
+
+/* ---- placing ---- */
+function place(day, slot, type, from){
+  if(!TYPES[type]) return;
+  if(type === 'rest'){ plan[day] = {am:'rest', pm:null}; }
+  else{
+    if(plan[day].am === 'rest') plan[day].am = null;
+    if(from) plan[from.day][from.slot] = null;
+    plan[day][slot] = type;
+  }
+  render(); save();
+}
+function clearSlot(day, slot){ plan[day][slot] = null; render(); save(); }
+
+/* ---- render ---- */
+function render(){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+
+  // The camp can start on any weekday, so the leading gap is the arrival
+  // day's column and the trailing gap pads out to a whole week.
+  const lead = startDate().getDay();
+  for(let i=0;i<lead;i++){ const b=document.createElement('div'); b.className='day blank'; grid.appendChild(b); }
+
+  document.getElementById('range').textContent = `${fmt(dateFor(0))} – ${fmt(dateFor(NDAYS-1))}`;
+
+  for(let i=0;i<NDAYS;i++){
+    const d = document.createElement('div');
+    d.className = 'day';
+    const isRest = plan[i].am === 'rest';
+    if(isRest) d.classList.add('rest');
+    if(i===NDAYS-1) d.classList.add('travel');
+
+    const label = fmt(dateFor(i));
+    const tag = i===NDAYS-1 ? 'Depart' : `Day ${i+1}`;
+    d.innerHTML = `<div class="day-head"><span class="day-num">${label}</span><span class="day-tag">${tag}</span></div>`;
+
+    const slots = document.createElement('div');
+    slots.className = 'slots';
+
+    if(isRest){
+      const r = document.createElement('div');
+      r.className = 'rest-fill';
+      r.textContent = 'Rest';
+      r.title = 'Click to clear';
+      r.addEventListener('click', ()=>{ plan[i]={am:null,pm:null}; render(); save(); });
+      wireDrop(r, i, 'am');
+      slots.appendChild(r);
+    } else {
+      ['am','pm'].forEach(s=>{
+        const el = document.createElement('div');
+        el.className = 'slot';
+        el.tabIndex = 0;
+        const val = plan[i][s];
+        if(val){
+          const t = TYPES[val];
+          el.classList.add('filled');
+          const p = document.createElement('div');
+          p.className = 'placed';
+          p.style.setProperty('--c', t.c);
+          p.draggable = true;
+          p.innerHTML = `<span class="nm">${t.nm}</span><span class="dur">${t.dur}</span>
+                         <button class="x" aria-label="Remove">&times;</button>`;
+          p.addEventListener('dragstart', e=>{
+            e.dataTransfer.setData('text/plain', JSON.stringify({type:val, from:{day:i, slot:s}}));
+            e.dataTransfer.effectAllowed = 'move';
+          });
+          p.querySelector('.x').addEventListener('click', ev=>{ ev.stopPropagation(); clearSlot(i,s); });
+          el.appendChild(p);
+        } else {
+          el.textContent = s;
+        }
+        el.addEventListener('click', ()=>{ if(armed){ place(i,s,armed); } });
+        el.addEventListener('keydown', e=>{ if((e.key==='Enter'||e.key===' ')&&armed){e.preventDefault();place(i,s,armed);} });
+        wireDrop(el, i, s);
+        slots.appendChild(el);
+      });
+    }
+    d.appendChild(slots);
+
+    const hrs = dayHours(i);
+    const pct = Math.min(100, hrs/DAY_CAP*100);
+    const cls = hrs > DAY_CAP ? 'over' : (hrs >= 3 ? 'hot' : '');
+    const foot = document.createElement('div');
+    foot.className = 'day-foot';
+    foot.innerHTML = `<div class="load-bar"><i class="${cls}" style="width:${pct}%"></i></div>
+                      <span class="day-hrs">${hrs ? hrs.toFixed(1) : '—'}</span>`;
+    d.appendChild(foot);
+    grid.appendChild(d);
+  }
+  const filled = lead + NDAYS;
+  const total = Math.ceil(filled/7)*7;
+  for(let i=filled; i<total; i++){ const b=document.createElement('div'); b.className='day blank'; grid.appendChild(b); }
+
+  const a = weekHours(0), b = weekHours(1);
+  document.getElementById('w1').textContent = a.toFixed(1);
+  document.getElementById('w2').textContent = b.toFixed(1);
+  document.getElementById('wtot').textContent = (a+b).toFixed(1);
+  runChecks();
+}
+
+function wireDrop(el, day, slot){
+  el.addEventListener('dragover', e=>{ e.preventDefault(); el.classList.add('over'); });
+  el.addEventListener('dragleave', ()=>el.classList.remove('over'));
+  el.addEventListener('drop', e=>{
+    e.preventDefault(); el.classList.remove('over');
+    try{
+      const d = JSON.parse(e.dataTransfer.getData('text/plain'));
+      place(day, slot, d.type, d.from);
+    }catch(err){}
+  });
+}
+
+function dayHours(i){
+  const d = plan[i];
+  let h = 0;
+  if(d.am && TYPES[d.am]) h += TYPES[d.am].hrs;
+  if(d.pm && TYPES[d.pm]) h += TYPES[d.pm].hrs;
+  return h;
+}
+function weekHours(w){
+  let h = 0;
+  const from = w===0 ? 0 : 7, to = w===0 ? 6 : NDAYS-1;
+  for(let i=from;i<=to;i++) h += dayHours(i);
+  return h;
+}
+function isRestDay(i){ return dayHours(i) === 0; }
+
+/* ---- load checks ---- */
+function runChecks(){
+  const out = [];
+  const total = weekHours(0) + weekHours(1);
+
+  // heavy days
+  const heavy = [];
+  for(let i=0;i<NDAYS;i++) if(dayHours(i) > DAY_CAP) heavy.push(i+1);
+  if(heavy.length) out.push(['bad','Heavy days',
+    `Day ${heavy.join(', ')} exceed ${DAY_CAP}h. That is past the useful ceiling for a 9-year-old — she will stop learning and start surviving the session.`]);
+
+  // consecutive without rest
+  let run = 0, worst = 0;
+  for(let i=0;i<NDAYS;i++){ if(isRestDay(i)) run = 0; else { run++; worst = Math.max(worst, run); } }
+  if(worst >= 6) out.push(['bad','No rest day',
+    `${worst} days in a row on court. Put a full rest day in — off court means off court, not a light hit.`]);
+  else if(worst === 5) out.push(['warn','Long run',
+    `${worst} days in a row. Workable, but watch her energy on the last two.`]);
+
+  // group / peer time
+  let groups = 0;
+  for(let i=0;i<NDAYS;i++){ if(plan[i].am==='g2') groups++; if(plan[i].pm==='g2') groups++; }
+  if(groups === 0) out.push(['bad','No peer time',
+    'No group sessions. Two weeks of drilling with no other children means technique that never gets tested and a child who gets bored.']);
+  else if(groups <= 2) out.push(['warn','Thin peer time',
+    `Only ${groups} group session${groups>1?'s':''}. Ask the club to pair her with another junior for some privates, and end every private with live points.`]);
+
+  // private-heavy days
+  const twoPriv = [];
+  for(let i=0;i<NDAYS;i++){
+    const {am,pm} = plan[i];
+    if(am && pm && TYPES[am].tennis && TYPES[pm].tennis && !(am==='g2'||pm==='g2')) twoPriv.push(i+1);
+  }
+  if(twoPriv.length) out.push(['warn','Two tennis blocks',
+    `Day ${twoPriv.join(', ')} have two private sessions. Split them morning and late afternoon with a real break — never back to back.`]);
+
+  // physical balance
+  let phys = 0;
+  for(let i=0;i<NDAYS;i++){ if(plan[i].am==='phys') phys++; if(plan[i].pm==='phys') phys++; }
+  if(phys > 5) out.push(['warn','Heavy on physical',
+    `${phys} physical sessions. At 9, movement work belongs mostly in the warm-up — court time teaches more.`]);
+
+  // week totals
+  [0,1].forEach(w=>{
+    const h = weekHours(w);
+    if(h > WEEK_CAP) out.push(['bad',`Week ${w+1} too heavy`,
+      `${h.toFixed(1)}h. Trim a second session or two — private hours are far denser than group hours.`]);
+  });
+
+  if(total === 0) out.push(['warn','Empty plan',
+    'Nothing scheduled yet. Load the suggested plan, or start dragging sessions onto the days.']);
+  else if(!out.length) out.push(['ok','Balanced',
+    `${total.toFixed(1)}h across the fortnight with rest built in. Serves in the morning slot only, 40–50 balls, never two days running.`]);
+
+  document.getElementById('notes').innerHTML = out.map(([k,t,b])=>
+    `<div class="note ${k}"><span class="dot"></span><div><b>${t}.</b> <span>${b}</span></div></div>`
+  ).join('');
+}
+
+/* ---- export ---- */
+function asText(){
+  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  let s = 'TWO-WEEK TENNIS PLAN\n\n';
+  for(let i=0;i<NDAYS;i++){
+    const dt = dateFor(i);
+    const head = `${DOW[dt.getDay()]} ${fmt(dt)}`;
+    const bits = [];
+    ['am','pm'].forEach(sl=>{
+      const v = plan[i][sl];
+      if(v) bits.push(`${sl.toUpperCase()} ${TYPES[v].nm}${TYPES[v].hrs?' '+TYPES[v].dur:''}`);
+    });
+    s += `${head.padEnd(12)} ${bits.length ? bits.join('  |  ') : '—'}${dayHours(i)?'   ('+dayHours(i).toFixed(1)+'h)':''}\n`;
+  }
+  s += `\nWeek 1: ${weekHours(0).toFixed(1)}h   Week 2: ${weekHours(1).toFixed(1)}h   Total: ${(weekHours(0)+weekHours(1)).toFixed(1)}h\n`;
+  return s;
+}
+
+/* ---- wiring ---- */
+document.getElementById('btn-reset').addEventListener('click', ()=>{ loadSuggested(); render(); save(); });
+document.getElementById('btn-clear').addEventListener('click', ()=>{ plan = blank(); render(); save(); });
+document.getElementById('btn-print').addEventListener('click', ()=>window.print());
+document.getElementById('start').addEventListener('change', ()=>{ render(); save(); });
+document.getElementById('btn-copy').addEventListener('click', async ()=>{
+  const btn = document.getElementById('btn-copy');
+  try{ await navigator.clipboard.writeText(asText()); btn.textContent = 'Copied'; }
+  catch(e){ btn.textContent = 'Copy blocked'; }
+  setTimeout(()=>btn.textContent = 'Copy as text', 1400);
+});
+
+buildChips();
+if(!restore()) loadSuggested();
+render();
+</script>
+</body>
+</html>
