@@ -1,0 +1,93 @@
+# Progress Log
+
+## Session: 2026-08-05
+
+### Phase 1: Requirements & Discovery
+- **Status:** complete
+- **Started:** 2026-08-05
+- Actions taken:
+  - Ran session-catchup — no unsynced context from a previous session
+  - Captured the user's redesign brief into findings.md
+  - Inventoried v1.0.0: data model, storage key, load checks, interaction paths
+  - Identified the two structural pressures: time scale (14 days → 365) and the
+    date-offset data model
+  - Asked four architecture questions; got answers (see findings.md)
+  - Researched both named sources the user gave:
+    - STA: WebFetch truncated → curl with browser UA → Nuxt SPA, no data in HTML
+    - Downloaded all 85 JS chunks, recovered the backend API surface
+      (`/Tournament/GetTournamentList` etc.) — but those paths 404 on the public
+      host and no API hostname appears anywhere in the client bundles
+    - JTTL: WebFetch 403 → curl with browser UA → static HTML, fully readable.
+      Season structure captured; fixture dates are "TBU"
+  - Concluded: no usable public JSON API; live in-browser import is impossible
+- Files created/modified:
+  - task_plan.md (created, then updated with answers)
+  - findings.md (created, then two research passes appended)
+  - progress.md (created)
+- Next: user must decide how match data gets in (Q1), then design the data model
+
+### Phase 2: Information architecture & data model
+- **Status:** in_progress — design written, awaiting user sign-off
+- Actions taken:
+  - Established the key structural fact: matches are per-child, training blocks
+    are per-household (all kids train together)
+  - User decided: JTTL parsed from its website, STA gets a **separate scraper
+    tool**; both feed a generated `matches.json`
+  - Designed the repo shape (`tools/` decoupled from `vercel-deploy/`), the
+    `matches.json` contract, the `tennis-season-v2` state shape, the four views,
+    the conflict checks, and the v1 migration path — all in findings.md
+  - Split delivery into v2.0 (season view) and v2.1 (block editor)
+  - Presented the design to the user, including the two caveats (JTTL draw is
+    TBU; the STA scraper is the fragile component)
+  - Back-filled everything discussed into the planning files: decisions table
+    (11 rows), errors table (3 real errors), and a new Risks table
+- Files created/modified:
+  - task_plan.md (phases restructured 6 → 8; Current Phase corrected — it still
+    said "blocked on Q1" after Q1 was answered; decisions, errors, risks filled in)
+  - findings.md (Phase 2 design section, caveats, status)
+  - progress.md (this log)
+- Next: user sign-off, then build the JTTL parser (easiest real data) first
+
+## Prior work this session (v1.0.0, before planning started)
+
+| Step | Result |
+|------|--------|
+| Ported artifact HTML to a deployable static site | `vercel-deploy/index.html` |
+| Fixed dead `window.storage` persistence → `localStorage` | verified by jsdom round-trip |
+| Fixed hardcoded header date range | now derived from arrival date |
+| Fixed Saturday-only calendar alignment | lead/trail computed from arrival weekday |
+| Added README + CHANGELOG | committed `666b076` |
+| Tagged and released v1.0.0 | published on GitHub |
+
+## Test Results
+
+| Test | Input | Expected | Actual | Status |
+|------|-------|----------|--------|--------|
+| v1.0.0 jsdom suite | `vercel-deploy/index.html` | 33 assertions pass | 33 passed, 0 failed | ✓ |
+
+Note: the harness lives in the session scratchpad, not the repo. It covers cold
+boot, localStorage round-trip, four corrupt-state cases, grid alignment for
+Sat/Sun/Wed arrivals, buttons, and tap-to-place. Drag-and-drop is untested
+(jsdom has no real drag implementation).
+
+## Error Log
+
+| Timestamp | Error | Attempt | Resolution |
+|-----------|-------|---------|------------|
+| 2026-08-05 | WebFetch returned truncated content for the STA tournaments page | 1 | Re-fetched with `curl` + browser User-Agent → 200, 1.7 MB |
+| 2026-08-05 | WebFetch got HTTP 403 from the JTTL page | 1 | Same fix — `curl` + browser User-Agent → 200, 32 KB static HTML |
+| 2026-08-05 | `xargs` parallel chunk download wrote 0 files (shell quoting of `$UA` and `{}`) | 1 | Did not retry the same command; switched to a bounded `while read` loop with background jobs — all 85 chunks fetched |
+| 2026-08-05 | `/Tournament/GetTournamentList` returned the Nuxt 404 page on GET and POST | 1 | Confirmed the API is not on the public host; stopped static analysis and recorded that a headless browser is required |
+
+## 5-Question Reboot Check
+
+| Question | Answer |
+|----------|--------|
+| Where am I? | Phase 2 — design complete, awaiting user sign-off |
+| Where am I going? | Phase 3 scraper (`tools/`) → Phase 4 visual direction → Phase 5 v2.0 season view → Phase 6 v2.1 blocks → Phase 7 tests → Phase 8 release |
+| What's the goal? | Turn the two-week planner into a season planner with a year match calendar, so travel can be planned around match dates |
+| What have I learned? | See findings.md — v1.0.0 inventory, STA/JTTL source research, and the full v2 design |
+| What have I done? | Shipped and tagged v1.0.0; researched both match sources; designed the v2 architecture and recorded it |
+
+---
+*Update after completing each phase or encountering errors*
