@@ -163,6 +163,26 @@
 - Lesson recorded: static analysis of a bundled SPA proves what is in the
   bundle, not what the app does. One network trace beat 85 chunk greps.
 
+### Phase 6d: Bulk import from STA, filtered by age group
+- **Status:** complete
+- Actions taken:
+  - Analysed the live payload to find what age signal exists: no age field, but
+    `Junior (U10)` appears as a level (9), and `U10` (28), `14&U` (8), `16&U` (8)
+    appear as tokens in tournament titles
+  - Built five buckets (U10 / 14&U / 16&U / Junior — other / Adult+Open), with
+    the junior four and "Upcoming only" ticked by default
+  - Dedupe on STA tournament id, so re-import is a no-op
+  - Fixed a bug found while building: `sanitiseState` forced every locally held
+    match to `source:'manual'`, which would have stripped the STA badge on
+    reload. Now the source is preserved if it is one we know
+  - Made the delete button follow "is it held locally" rather than
+    "source === manual", so imported tournaments are removable too
+  - Verified live: 17 upcoming junior tournaments from 122, through Jul 2027;
+    re-import added 0; no console errors
+- Files created/modified:
+  - vercel-deploy/index.html, tests/planner.test.mjs (+23 assertions)
+  - README.md, CHANGELOG.md, task_plan.md, progress.md
+
 ## Test Results
 
 | Test | Input | Expected | Actual | Status |

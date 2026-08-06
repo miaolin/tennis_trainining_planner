@@ -64,6 +64,13 @@ the only part with no dependency on match data.
 no per-session start times, coach, or focus tags). The v1 hour maths survives
 unchanged.
 
+### Phase 6c/6d: STA link lookup + bulk import  ← DONE
+- [x] Found the real STA API by browser network trace, not static analysis
+- [x] Paste a tournament link → fills name, dates, deadline, categories
+- [x] Import all, filtered by age group, deduped, upcoming-only by default
+- **Status:** complete. **STA needs no scraper** — the API is public and
+  CORS-open, so Phase 4's `scrape-sta.mjs` is no longer needed.
+
 ### Phase 4: Scraper tool (separate component, `tools/`)
 - [x] `scrape-jttl.mjs` — fetch + parse JTTL fixtures. Scope grew: the site
       carries a full fixture archive (14 seasons), not just a season skeleton
@@ -74,7 +81,8 @@ unchanged.
       season mismatch
 - [x] Snapshot fixtures + tests so a source layout change fails loudly — 18
       assertions, all passing, no network
-- [ ] `scrape-sta.mjs` — Playwright renders the STA SPA, extracts tournaments
+- [x] ~~`scrape-sta.mjs` — Playwright renders the STA SPA~~ — **not needed.**
+      STA's API is public and CORS-open, so the page imports directly
 - [ ] `build-matches.mjs` — merge both into `vercel-deploy/data/matches.json`
 - **Status:** in_progress — JTTL done, STA and the merge step remain
 

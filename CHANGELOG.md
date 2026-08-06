@@ -10,6 +10,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Work toward v2: the two-week camp planner becomes a multi-block training
 planner, the first step of the season planner described in `task_plan.md`.
 
+### Added — import the whole STA calendar, filtered by age group
+
+- **Import from STA** pulls all 122 tournaments in one call and keeps the age
+  groups you tick: **U10**, **14&U**, **16&U**, **Junior — other**, and
+  **Adult / Open**. The four junior groups are ticked by default.
+- **Upcoming only** (on by default) drops tournaments that have already
+  finished.
+- Re-importing is a no-op — existing tournaments are matched by STA id, not
+  duplicated. The note reports added / already there / already finished.
+- Imported tournaments carry the STA badge, link back to their page, and can be
+  deleted like any locally held one.
+
+STA has no age-group field, so the bucket is derived: `Junior (U10)` as a level
+or a `U10` token in the title, then `14&U` / `16&U` tokens, then anything else
+marked Junior, with everything remaining as Adult / Open.
+
+Live against the real API this pulls 17 upcoming junior tournaments out of 122,
+running through July 2027.
+
 ### Added — paste a tournament link, get the details
 
 - **STA link lookup.** Paste a `singtennis.org.sg` tournament link into the add

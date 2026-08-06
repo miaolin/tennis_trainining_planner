@@ -332,6 +332,21 @@ input[type=number]#days{width:74px}
   font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--mute);
 }
 .fld input{width:100%}
+.agerow{display:flex;flex-wrap:wrap;gap:9px}
+.chk{
+  display:flex;align-items:center;gap:8px;
+  border:1px solid var(--hair);border-radius:3px;
+  background:rgba(255,255,255,.05);
+  padding:8px 13px;font-size:13px;cursor:pointer;user-select:none;
+  transition:background .15s,border-color .15s;
+}
+.chk:hover{background:rgba(255,255,255,.12)}
+.chk input{accent-color:var(--ball);margin:0;cursor:pointer}
+.chk.on{border-color:var(--ball)}
+.chk .n{font-family:'Barlow Condensed',sans-serif;font-size:14px;color:var(--mute)}
+#impnote.busy{color:var(--ball)}
+#impnote.bad{color:var(--bad)}
+#impnote.good{color:var(--ok)}
 .linkrow{display:flex;gap:10px;align-items:end;margin-bottom:6px}
 .linkrow button{white-space:nowrap}
 #lookupnote.busy{color:var(--ball)}
@@ -501,6 +516,16 @@ input[type=number]#days{width:74px}
   </div>
 
   <div class="addbox">
+    <h2>Import from STA</h2>
+    <div class="agerow" id="agerow"></div>
+    <div class="linkrow" style="margin-top:12px">
+      <label class="chk"><input type="checkbox" id="imp-upcoming" checked> Upcoming only</label>
+      <button id="imp-run">Import from STA</button>
+    </div>
+    <p class="hint" id="impnote">Pulls the whole STA tournament list and keeps the age groups you tick.</p>
+  </div>
+
+  <div class="addbox">
     <h2>Add a tournament</h2>
     <div class="linkrow">
       <div class="fld" style="flex:1">
@@ -633,8 +658,12 @@ function sanitiseState(raw){
     .map((p,i) => ({id:p.id, name:p.name.slice(0,24),
                     colour: /^#[0-9a-f]{6}$/i.test(p.colour) ? p.colour : KID_COLOURS[i % KID_COLOURS.length]}));
 
+  // Locally held matches keep whichever source they came from — an imported STA
+  // tournament must not lose its badge just because we store it alongside the
+  // hand-typed ones.
   if(Array.isArray(raw.manualMatches)) st.manualMatches = raw.manualMatches
-    .filter(validMatch).map(normaliseMatch).map(m => ({...m, source:'manual'}));
+    .filter(validMatch).map(normaliseMatch)
+    .map(m => ({...m, source: ['manual','sta','jttl'].includes(m.source) ? m.source : 'manual'}));
 
   // Drop entries whose player is gone. Entries are kept even when their match
   // is not currently known — the feed may simply be missing on this load, and
@@ -1154,6 +1183,101 @@ async function lookupLink(){
   }
 }
 
+/* ---- bulk import from STA ------------------------------------------------
+   STA has no age-group field. The level name carries U10, and the rest is in
+   the tournament title (14&U, 16&U). Anything junior with no age token lands
+   in "Junior — other", which is mostly the ITF/ATF events.
+   ------------------------------------------------------------------------ */
+const AGE_GROUPS = [
+  {key:'u10',    label:'U10'},
+  {key:'u14',    label:'14&U'},
+  {key:'u16',    label:'16&U'},
+  {key:'junior', label:'Junior — other'},
+  {key:'open',   label:'Adult / Open'}
+];
+const DEFAULT_AGES = ['u10','u14','u16','junior'];
+let agePick = DEFAULT_AGES.slice();
+
+function ageBucket(t){
+  const name = String(t.tournamentName || '').toUpperCase().replace(/\s+/g,'');
+  const level = String(t.tournamentLevelName || '');
+  if(level === 'Junior (U10)' || /U10/.test(name)) return 'u10';
+  if(/14&U/.test(name)) return 'u14';
+  if(/16&U/.test(name)) return 'u16';
+  if(level === 'Junior') return 'junior';
+  return 'open';
+}
+function staToMatch(t){
+  return {
+    id: 'sta-' + t.tournamentId,
+    source: 'sta',
+    name: t.tournamentName,
+    start: dmyToIso(t.startDate),
+    end: dmyToIso(t.endDate) || dmyToIso(t.startDate),
+    venue: '',                                    // STA does not publish it
+    categories: [t.tournamentTypeName, t.tournamentLevelName].filter(Boolean),
+    entryDeadline: dmyToIso(t.deadline) || null,
+    url: t.slug ? 'https://www-new.singtennis.org.sg/tournaments/' + t.slug : '',
+    provisional: false
+  };
+}
+function renderAgeRow(){
+  const row = document.getElementById('agerow');
+  row.innerHTML = AGE_GROUPS.map(g=>
+    `<label class="chk${agePick.includes(g.key) ? ' on' : ''}">` +
+    `<input type="checkbox" data-age="${g.key}"${agePick.includes(g.key) ? ' checked' : ''}> ${g.label}</label>`
+  ).join('');
+  row.querySelectorAll('input[data-age]').forEach(cb=>
+    cb.addEventListener('change', ()=>{
+      const k = cb.dataset.age;
+      agePick = cb.checked ? agePick.concat([k]).filter((v,i,a)=>a.indexOf(v)===i)
+                           : agePick.filter(x=>x!==k);
+      renderAgeRow();
+    }));
+}
+function impNote(msg, cls){
+  const el = document.getElementById('impnote');
+  el.textContent = msg;
+  el.className = 'hint' + (cls ? ' ' + cls : '');
+}
+async function importFromSta(){
+  if(!agePick.length){ impNote('Tick at least one age group first.', 'bad'); return false; }
+  impNote('Fetching the STA tournament list…', 'busy');
+  let rows;
+  try{
+    rows = await fetchStaList();
+  }catch(e){
+    impNote('Could not reach the STA API (' + e.message + '). Nothing imported.', 'bad');
+    return false;
+  }
+  const upcomingOnly = document.getElementById('imp-upcoming').checked;
+  const today = todayIso();
+  const have = new Set(allMatches().map(m=>m.id));
+
+  let matched = 0, added = 0, skippedOld = 0, dupes = 0;
+  rows.forEach(t=>{
+    if(!t || !dmyToIso(t.startDate)) return;
+    if(!agePick.includes(ageBucket(t))) return;
+    matched++;
+    const m = staToMatch(t);
+    if(upcomingOnly && m.end < today){ skippedOld++; return; }
+    if(have.has(m.id)){ dupes++; return; }
+    have.add(m.id);
+    state.manualMatches.push(m);
+    added++;
+  });
+
+  const bits = [`${added} added`];
+  if(dupes) bits.push(`${dupes} already there`);
+  if(skippedOld) bits.push(`${skippedOld} already finished`);
+  impNote(matched
+    ? `${bits.join(', ')}. Matched ${matched} of ${rows.length} STA tournaments on the ticked age groups.`
+    : `None of the ${rows.length} STA tournaments matched the ticked age groups.`,
+    added ? 'good' : 'bad');
+  render(); save();
+  return added > 0;
+}
+
 /* ---- players ---- */
 function addPlayer(name){
   const n = (name || '').trim();
@@ -1250,8 +1374,13 @@ function renderMatches(){
   document.getElementById('feednote').textContent = feedNote ||
     'No data/matches.json yet — tournaments added here are stored in this browser.';
 
+  renderAgeRow();
+
   const list = document.getElementById('tournlist');
   const ms = allMatches();
+  // Anything we hold locally can be deleted, however it got here. Only the
+  // generated feed is read-only.
+  const editable = new Set((state.manualMatches || []).map(m=>m.id));
   document.getElementById('nav-ct').textContent = ms.length ? ms.length : '';
 
   if(!ms.length){
@@ -1293,7 +1422,7 @@ function renderMatches(){
       <div class="tdate">${spanLabel(m)}<small>${DOW[d.getDay()]}</small></div>
       <div><div class="tnm">${bits.join('')}${escapeHtml(m.name)}</div>
         ${meta.length ? `<div class="tmeta">${meta.join(' · ')}</div>` : ''}</div>
-      <div class="joins">${joins}${m.source === 'manual'
+      <div class="joins">${joins}${editable.has(m.id)
         ? `<button class="tdel" data-del="${m.id}" aria-label="Delete">&times;</button>` : ''}</div>
     </div>`;
   });
@@ -1498,6 +1627,7 @@ document.getElementById('kid-name').addEventListener('keydown', e=>{
 });
 document.getElementById('t-add').addEventListener('click', addTournament);
 document.getElementById('t-lookup').addEventListener('click', lookupLink);
+document.getElementById('imp-run').addEventListener('click', importFromSta);
 document.getElementById('t-url').addEventListener('keydown', e=>{
   if(e.key === 'Enter'){ e.preventDefault(); lookupLink(); }
 });

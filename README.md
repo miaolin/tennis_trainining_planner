@@ -56,6 +56,18 @@ tests/                jsdom harness — dev only, never deployed
 - A tournament falling inside a training block shows that block's name, so
   build-up blocks are visible from the list.
 
+### Importing the STA calendar
+
+**Import from STA** pulls the whole tournament list in one call and keeps the
+age groups you tick — U10, 14&U, 16&U, Junior — other, Adult / Open. The four
+junior groups are on by default, as is **Upcoming only**. Re-importing never
+duplicates: tournaments are matched by their STA id, and the note tells you how
+many were added, already there, or already finished.
+
+STA publishes no age-group field, so the bucket is derived: the `Junior (U10)`
+level or a `U10` token in the title, then `14&U` / `16&U` tokens, then anything
+else marked Junior, with the rest as Adult / Open.
+
 ### Adding a tournament from its link
 
 Paste an STA tournament link (`https://www-new.singtennis.org.sg/tournaments/…`)

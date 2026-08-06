@@ -662,5 +662,137 @@ group('STA link lookup');
   }
 }
 
+group('bulk import from STA');
+{
+  const T = (id, name, level, type, start, end, deadline) => ({
+    tournamentId: id, slug: 'slug-' + id, tournamentName: name, entryOpen: false,
+    tournamentLevelName: level, tournamentTypeName: type,
+    startDate: start, endDate: end, deadline,
+  });
+  const dmy = n => {
+    const d = new Date(); d.setDate(d.getDate() + n);
+    const p = x => String(x).padStart(2, '0');
+    return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
+  };
+  const PAYLOAD = {
+    status: 'Success', data: [{ date: 'x', tournamentResps: [
+      T(1, 'STA SPEX U10 Red Competition I 2026', 'Junior (U10)', 'STA', dmy(30), dmy(32), dmy(10)),
+      T(2, 'ATF 14&U ActiveSG Cup Singapore (I) 2026', 'Junior', 'ATF', dmy(40), dmy(46), dmy(20)),
+      T(3, 'ATF 16&U ActiveSG Cup Singapore (I) 2026', 'Junior', 'ATF', dmy(50), dmy(56), dmy(25)),
+      T(4, 'J30 Singapore ITF Junior Championships (I) 2026', 'Junior', 'ITF', dmy(60), dmy(66), dmy(35)),
+      T(5, 'STA Advanced Singles & Doubles I 2026', 'Advanced', 'STA', dmy(70), dmy(72), dmy(45)),
+      T(6, 'M15 Singapore ITF World Tennis Tour 2026', 'Open', 'ITF', dmy(80), dmy(86), dmy(55)),
+      T(7, 'STA SPEX U10 Orange Competition 2024', 'Junior (U10)', 'STA', dmy(-400), dmy(-398), dmy(-420)),
+    ] }],
+  };
+  const bootImp = () => new JSDOM(SRC, {
+    runScripts: 'dangerously', url: 'https://example.test/', pretendToBeVisual: true,
+    beforeParse(window) {
+      window.fetch = url => String(url).includes('singtennis.org.sg')
+        ? Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(PAYLOAD) })
+        : Promise.resolve({ ok: false, status: 404 });
+    },
+  });
+  const settle = () => new Promise(r => setTimeout(r, 40));
+  const ages = d => $$(d, '#agerow input[data-age]');
+
+  {
+    const dom = bootImp();
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    ok('five age groups offered', ages(d).length === 5, ages(d).length);
+    ok('junior groups ticked by default, adult not',
+       ages(d).filter(c => c.checked).map(c => c.dataset.age).join(',') === 'u10,u14,u16,junior',
+       ages(d).filter(c => c.checked).map(c => c.dataset.age).join(','));
+
+    click(dom, $(d, '#imp-run'));
+    await settle();
+    ok('imports the four junior tournaments', $$(d, '.tourn').length === 4, $$(d, '.tourn').length);
+    ok('adult events excluded', !$(d, '#tournlist').textContent.includes('Advanced Singles'));
+    ok('finished U10 event excluded by "upcoming only"',
+       !$(d, '#tournlist').textContent.includes('Orange Competition'));
+    ok('note reports what happened', /4 added/.test($(d, '#impnote').textContent), $(d, '#impnote').textContent);
+    ok('note reports the skipped past event', /already finished/.test($(d, '#impnote').textContent),
+       $(d, '#impnote').textContent);
+    ok('imported rows carry the STA badge', $$(d, '.tourn .src.sta').length === 4, $$(d, '.tourn .src.sta').length);
+    ok('imported rows link back to STA', $$(d, '.tourn a.tlink').length === 4);
+    ok('imported rows are deletable', $$(d, '.tourn .tdel').length === 4);
+    ok('entry deadlines came through', $(d, '#tournlist').textContent.includes('Entry by'));
+
+    // re-import must not duplicate
+    click(dom, $(d, '#imp-run'));
+    await settle();
+    ok('re-import adds nothing', $$(d, '.tourn').length === 4, $$(d, '.tourn').length);
+    ok('re-import says they are already there', /already there/.test($(d, '#impnote').textContent),
+       $(d, '#impnote').textContent);
+
+    const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
+    const d2 = dom2.window.document;
+    click(dom2, $(d2, '#nav-matches'));
+    ok('imports survive reload', $$(d2, '.tourn').length === 4, $$(d2, '.tourn').length);
+    ok('STA source survives reload', $$(d2, '.tourn .src.sta').length === 4, $$(d2, '.tourn .src.sta').length);
+  }
+
+  {
+    // untick everything but U10
+    const dom = bootImp();
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    for (const key of ['u14', 'u16', 'junior']) {
+      const cb = ages(d).find(c => c.dataset.age === key);
+      cb.checked = false;
+      cb.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    }
+    click(dom, $(d, '#imp-run'));
+    await settle();
+    ok('U10 only imports one', $$(d, '.tourn').length === 1, $$(d, '.tourn').length);
+    ok('and it is the U10 one', $(d, '.tourn .tnm').textContent.includes('U10 Red'),
+       $(d, '.tourn .tnm').textContent);
+  }
+
+  {
+    // include past events
+    const dom = bootImp();
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    const up = $(d, '#imp-upcoming');
+    up.checked = false;
+    up.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    click(dom, $(d, '#imp-run'));
+    await settle();
+    ok('unticking "upcoming only" pulls the finished one too', $$(d, '.tourn').length === 5,
+       $$(d, '.tourn').length);
+    ok('the past row is dimmed', $$(d, '.tourn.past').length === 1, $$(d, '.tourn.past').length);
+  }
+
+  {
+    // no age groups ticked
+    const dom = bootImp();
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    for (const cb of ages(d)) { cb.checked = false; cb.dispatchEvent(new dom.window.Event('change', { bubbles: true })); }
+    click(dom, $(d, '#imp-run'));
+    await settle();
+    ok('no age groups ticked asks for one', $(d, '#impnote').textContent.includes('Tick at least one'),
+       $(d, '#impnote').textContent);
+    ok('and imports nothing', $$(d, '.tourn').length === 0);
+  }
+
+  {
+    // API down
+    const dom = new JSDOM(SRC, {
+      runScripts: 'dangerously', url: 'https://example.test/', pretendToBeVisual: true,
+      beforeParse(window) { window.fetch = () => Promise.reject(new Error('offline')); },
+    });
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    click(dom, $(d, '#imp-run'));
+    await settle();
+    ok('an unreachable API is reported', $(d, '#impnote').textContent.includes('Could not reach the STA API'),
+       $(d, '#impnote').textContent);
+    ok('nothing imported on failure', $$(d, '.tourn').length === 0);
+  }
+}
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('failed: ' + failures.join(' | ')); process.exit(1); }
