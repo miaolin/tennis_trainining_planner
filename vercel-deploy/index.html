@@ -45,8 +45,8 @@ body{
 /* ---------- header ---------- */
 header{
   border-bottom:2px solid var(--court-line);
-  padding:26px 0 18px;
-  margin-bottom:18px;
+  padding:18px 0 18px;
+  margin-bottom:20px;
 }
 .head-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:24px;justify-content:space-between}
 h1{
@@ -271,8 +271,10 @@ input[type=number]#days{width:74px}
 }
 
 /* ---------- top-level views ---------- */
+/* Page-level nav, above the header — it switches the whole page, so it sits
+   above the title rather than under it. */
 .mainnav{
-  display:flex;gap:0;margin:0 0 20px;
+  display:flex;gap:0;margin:0;padding-top:14px;
   border-bottom:1px solid var(--hair);
 }
 .navbtn{
@@ -407,13 +409,18 @@ input[type=number]#days{width:74px}
 }
 @media print{
   body{background:#fff;color:#000}
-  .palette,.bar,.blockbar,.hint{display:none}
+  .palette,.bar,.blockbar,.hint,.mainnav{display:none}
   .day{background:#f4f4f4;border:1px solid #999}
 }
 </style>
 </head>
 <body>
 <div class="wrap">
+
+<nav class="mainnav">
+  <button class="navbtn on" id="nav-training" data-view="training">Training</button>
+  <button class="navbtn" id="nav-matches" data-view="matches">Tournaments<span class="ct" id="nav-ct"></span></button>
+</nav>
 
 <header>
   <div class="head-row">
@@ -432,11 +439,6 @@ input[type=number]#days{width:74px}
 <noscript>
   <div class="noscript">This planner needs JavaScript enabled to run.</div>
 </noscript>
-
-<nav class="mainnav">
-  <button class="navbtn on" id="nav-training" data-view="training">Training</button>
-  <button class="navbtn" id="nav-matches" data-view="matches">Tournaments<span class="ct" id="nav-ct"></span></button>
-</nav>
 
 <section class="view on" id="view-training">
 
