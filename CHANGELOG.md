@@ -10,6 +10,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Work toward v2: the two-week camp planner becomes a multi-block training
 planner, the first step of the season planner described in `task_plan.md`.
 
+### Added — paste a tournament link, get the details
+
+- **STA link lookup.** Paste a `singtennis.org.sg` tournament link into the add
+  form and the name, start, end, entry deadline and categories fill themselves
+  in. Lookup fires on paste, on Enter, or from the button.
+- The link is stored on the tournament and shown as a "Tournament page" link.
+
+This runs entirely in the browser. `api.singtennis.org.sg` answers an
+unauthenticated `POST {}` with all 122 tournaments and sends
+`Access-Control-Allow-Origin: *`, so no proxy or scraper is involved — this
+corrects an earlier finding in `findings.md` that claimed no usable public API
+existed. JTTL links cannot be looked up this way (no CORS headers); those
+fixtures still come from the scraper in `tools/`.
+
+Venue is not filled — STA does not publish it in the API or on the tournament
+page — and the lookup says so rather than leaving you guessing.
+
+Only `http(s)` URLs are ever rendered as links; a stored `javascript:` URL is
+stripped rather than made clickable.
+
 ### Added — part 2, tournaments
 
 The page is now two top-level views, **Training** and **Tournaments**, switched

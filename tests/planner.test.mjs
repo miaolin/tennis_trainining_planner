@@ -541,5 +541,126 @@ group('corrupt part-2 state');
   ok('dateless manual match dropped', saved(df).manualMatches.length === 0, saved(df).manualMatches.length);
 }
 
+group('STA link lookup');
+{
+  // Shape copied from the live api.singtennis.org.sg response.
+  const STA_PAYLOAD = {
+    status: 'Success', message: '', data: [
+      { date: 'Aug 2026', tournamentResps: [
+        { tournamentId: 351, slug: 'j60-singapore-itf-junior-championships-vi-2026',
+          tournamentName: 'J60 Singapore ITF Junior Championships (VI) 2026',
+          entryOpen: false, tournamentLevelName: 'Junior', tournamentTypeName: 'ITF',
+          startDate: '23/08/2026', endDate: '29/08/2026', deadline: '04/08/2026' }] },
+    ],
+  };
+  // Boot with fetch stubbed. data/matches.json must still resolve as a 404.
+  const bootWithApi = (impl) => new JSDOM(SRC, {
+    runScripts: 'dangerously', url: 'https://example.test/', pretendToBeVisual: true,
+    beforeParse(window) {
+      window.fetch = (url, opts) => {
+        if (String(url).includes('singtennis.org.sg')) return impl(url, opts);
+        return Promise.resolve({ ok: false, status: 404 });
+      };
+    },
+  });
+  const okApi = () => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(STA_PAYLOAD) });
+  const settle = () => new Promise(r => setTimeout(r, 30));
+
+  {
+    const dom = bootWithApi(okApi);
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    input(dom, $(d, '#t-url'), 'https://www-new.singtennis.org.sg/tournaments/j60-singapore-itf-junior-championships-vi-2026?type=information');
+    click(dom, $(d, '#t-lookup'));
+    await settle();
+    ok('name filled from the link', $(d, '#t-name').value === 'J60 Singapore ITF Junior Championships (VI) 2026',
+       $(d, '#t-name').value);
+    ok('start date converted dd/mm/yyyy -> iso', $(d, '#t-start').value === '2026-08-23', $(d, '#t-start').value);
+    ok('end date converted', $(d, '#t-end').value === '2026-08-29', $(d, '#t-end').value);
+    ok('entry deadline converted', $(d, '#t-deadline').value === '2026-08-04', $(d, '#t-deadline').value);
+    ok('categories from type + level', $(d, '#t-cat').value === 'ITF · Junior', $(d, '#t-cat').value);
+    ok('note says what it found', $(d, '#lookupnote').textContent.includes('Found'), $(d, '#lookupnote').textContent);
+    ok('note admits venue is unavailable', $(d, '#lookupnote').textContent.includes('venue'));
+
+    click(dom, $(d, '#t-add'));
+    ok('the looked-up tournament is added', $$(d, '.tourn').length === 1, $$(d, '.tourn').length);
+    ok('link rendered on the row', $(d, '.tourn .tmeta a.tlink') !== null);
+    ok('link stored', (saved(dom).manualMatches[0].url || '').includes('singtennis.org.sg'),
+       saved(dom).manualMatches[0].url);
+    ok('link field cleared after add', $(d, '#t-url').value === '');
+  }
+
+  {
+    const dom = bootWithApi(okApi);
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    input(dom, $(d, '#t-url'), 'https://www.jttsingapore.com/page/jttl_information.html');
+    click(dom, $(d, '#t-lookup'));
+    await settle();
+    ok('a non-STA link is rejected with a reason',
+       $(d, '#lookupnote').textContent.includes('not an STA tournament link'), $(d, '#lookupnote').textContent);
+    ok('non-STA lookup fills nothing', $(d, '#t-name').value === '');
+  }
+
+  {
+    const dom = bootWithApi(okApi);
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    input(dom, $(d, '#t-url'), 'https://www-new.singtennis.org.sg/tournaments/does-not-exist');
+    click(dom, $(d, '#t-lookup'));
+    await settle();
+    ok('unknown slug reports no match', $(d, '#lookupnote').textContent.includes('No STA tournament matches'),
+       $(d, '#lookupnote').textContent);
+  }
+
+  {
+    const dom = bootWithApi(() => Promise.resolve({ ok: false, status: 503 }));
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    input(dom, $(d, '#t-url'), 'https://www-new.singtennis.org.sg/tournaments/whatever');
+    click(dom, $(d, '#t-lookup'));
+    await settle();
+    ok('an API failure is reported, not swallowed',
+       $(d, '#lookupnote').textContent.includes('Could not reach the STA API'), $(d, '#lookupnote').textContent);
+  }
+
+  {
+    const dom = bootWithApi(() => Promise.reject(new Error('offline')));
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    input(dom, $(d, '#t-url'), 'https://www-new.singtennis.org.sg/tournaments/whatever');
+    click(dom, $(d, '#t-lookup'));
+    await settle();
+    ok('a network error is reported', $(d, '#lookupnote').textContent.includes('Could not reach'),
+       $(d, '#lookupnote').textContent);
+  }
+
+  {
+    const dom = bootWithApi(okApi);
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    click(dom, $(d, '#t-lookup'));
+    await settle();
+    ok('empty link asks for one', $(d, '#lookupnote').textContent.includes('Paste a tournament link first'),
+       $(d, '#lookupnote').textContent);
+  }
+
+  // a javascript: URL must never become a clickable anchor
+  {
+    const seed = JSON.stringify({
+      version: 2,
+      blocks: [{ id: 'b1', name: 'B', start: '2026-11-21', days: 14, plan: {} }],
+      manualMatches: [{ id: 'm1', source: 'manual', name: 'Evil', start: '2026-11-25',
+                        url: 'javascript:alert(1)' }],
+    });
+    const dom = boot({ [KEY]: seed });
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    ok('tournament with a javascript: url still renders', $$(d, '.tourn').length === 1);
+    ok('javascript: url is not rendered as a link', $(d, '.tourn .tmeta a.tlink') === null);
+    ok('javascript: url is stripped from storage', !JSON.stringify(saved(dom)).includes('javascript:'));
+  }
+}
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('failed: ' + failures.join(' | ')); process.exit(1); }

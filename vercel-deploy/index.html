@@ -332,6 +332,13 @@ input[type=number]#days{width:74px}
   font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--mute);
 }
 .fld input{width:100%}
+.linkrow{display:flex;gap:10px;align-items:end;margin-bottom:6px}
+.linkrow button{white-space:nowrap}
+#lookupnote.busy{color:var(--ball)}
+#lookupnote.bad{color:var(--bad)}
+#lookupnote.good{color:var(--ok)}
+.tmeta a.tlink{color:#8FC0E6;text-decoration:none;border-bottom:1px dotted rgba(143,192,230,.5)}
+.tmeta a.tlink:hover{color:var(--court-line)}
 
 /* ---------- tournaments ---------- */
 .monthhead{
@@ -495,6 +502,14 @@ input[type=number]#days{width:74px}
 
   <div class="addbox">
     <h2>Add a tournament</h2>
+    <div class="linkrow">
+      <div class="fld" style="flex:1">
+        <label for="t-url">Tournament link</label>
+        <input type="url" id="t-url" placeholder="https://www-new.singtennis.org.sg/tournaments/…">
+      </div>
+      <button id="t-lookup">Look up</button>
+    </div>
+    <p class="hint" id="lookupnote">Paste an STA tournament link and the details fill themselves in.</p>
     <div class="formgrid">
       <div class="fld"><label for="t-name">Name</label><input type="text" id="t-name" maxlength="80" placeholder="STA Junior Championships"></div>
       <div class="fld"><label for="t-start">Starts</label><input type="date" id="t-start"></div>
@@ -1013,6 +1028,14 @@ function validMatch(m){
          typeof m.name === 'string' && m.name &&
          /^\d{4}-\d{2}-\d{2}$/.test(m.start);
 }
+// Only http(s) is ever rendered as a link — a stored javascript: URL must not
+// become a clickable anchor.
+function safeUrl(u){
+  try{
+    const p = new URL(String(u).trim());
+    return /^https?:$/.test(p.protocol) ? p.href : '';
+  }catch(e){ return ''; }
+}
 function normaliseMatch(m){
   return {
     id: m.id,
@@ -1023,7 +1046,7 @@ function normaliseMatch(m){
     venue: typeof m.venue === 'string' ? m.venue : '',
     categories: Array.isArray(m.categories) ? m.categories.filter(c=>typeof c==='string') : [],
     entryDeadline: /^\d{4}-\d{2}-\d{2}$/.test(m.entryDeadline) ? m.entryDeadline : null,
-    url: typeof m.url === 'string' ? m.url : '',
+    url: safeUrl(m.url),
     provisional: m.provisional === true
   };
 }
@@ -1056,6 +1079,78 @@ async function loadFeed(){
     }
   }catch(e){
     feedNote = '';   // no feed yet — manual entry only
+  }
+}
+
+/* ---- STA link lookup ------------------------------------------------------
+   api.singtennis.org.sg answers an unauthenticated POST and sends
+   Access-Control-Allow-Origin: *, so the page can read it directly — no
+   proxy, no scraper. One call returns every tournament; we match on the slug
+   in the pasted URL. Venue is not published anywhere in their API, so that
+   field stays manual.
+   ------------------------------------------------------------------------ */
+const STA_API = 'https://api.singtennis.org.sg/web-api/Tournament/GetTournamentList';
+let staCache = null;
+
+function slugFromUrl(raw){
+  let u;
+  try{ u = new URL(String(raw).trim()); }catch(e){ return null; }
+  if(!/^https?:$/.test(u.protocol)) return null;
+  if(!/(^|\.)singtennis\.org\.sg$/.test(u.hostname)) return null;
+  const parts = u.pathname.split('/').filter(Boolean);
+  const i = parts.indexOf('tournaments');
+  if(i < 0 || !parts[i+1]) return null;
+  return decodeURIComponent(parts[i+1]);
+}
+function dmyToIso(s){
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(s || '').trim());
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
+}
+async function fetchStaList(){
+  if(staCache) return staCache;
+  const r = await fetch(STA_API, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'
+  });
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+  const j = await r.json();
+  if(!j || j.status !== 'Success' || !Array.isArray(j.data)) throw new Error('unexpected response');
+  staCache = j.data.reduce((acc,g)=>
+    acc.concat(Array.isArray(g.tournamentResps) ? g.tournamentResps : []), []);
+  return staCache;
+}
+function setField(id, v){ if(v) document.getElementById(id).value = v; }
+function lookupNote(msg, cls){
+  const el = document.getElementById('lookupnote');
+  el.textContent = msg;
+  el.className = 'hint' + (cls ? ' ' + cls : '');
+}
+async function lookupLink(){
+  const raw = document.getElementById('t-url').value.trim();
+  if(!raw){ lookupNote('Paste a tournament link first.', 'bad'); return false; }
+  const slug = slugFromUrl(raw);
+  if(!slug){
+    lookupNote('That is not an STA tournament link. Only singtennis.org.sg links can be looked up — ' +
+               'JTTL fixtures come from the scraper in tools/.', 'bad');
+    return false;
+  }
+  lookupNote('Looking up…', 'busy');
+  try{
+    const rows = await fetchStaList();
+    const hit = rows.find(t => t && t.slug === slug);
+    if(!hit){
+      lookupNote(`No STA tournament matches “${slug}”. Check the link, or fill the fields in by hand.`, 'bad');
+      return false;
+    }
+    setField('t-name', hit.tournamentName);
+    setField('t-start', dmyToIso(hit.startDate));
+    setField('t-end', dmyToIso(hit.endDate));
+    setField('t-deadline', dmyToIso(hit.deadline));
+    setField('t-cat', [hit.tournamentTypeName, hit.tournamentLevelName].filter(Boolean).join(' · '));
+    lookupNote(`Found “${hit.tournamentName}”. STA does not publish a venue — add one by hand if you want it.`, 'good');
+    return true;
+  }catch(e){
+    lookupNote('Could not reach the STA API (' + e.message + '). Fill the fields in by hand.', 'bad');
+    return false;
   }
 }
 
@@ -1106,9 +1201,10 @@ function addTournament(){
     venue: g('t-venue'),
     categories: g('t-cat') ? g('t-cat').split(',').map(s=>s.trim()).filter(Boolean) : [],
     entryDeadline: /^\d{4}-\d{2}-\d{2}$/.test(g('t-deadline')) ? g('t-deadline') : null,
-    url:'', provisional:false
+    url: safeUrl(g('t-url')), provisional:false
   });
-  ['t-name','t-start','t-end','t-venue','t-cat','t-deadline'].forEach(id=>document.getElementById(id).value = '');
+  ['t-name','t-start','t-end','t-venue','t-cat','t-deadline','t-url'].forEach(id=>document.getElementById(id).value = '');
+  lookupNote('Paste an STA tournament link and the details fill themselves in.');
   render(); save();
   return true;
 }
@@ -1185,6 +1281,7 @@ function renderMatches(){
     if(m.entryDeadline) meta.push(`Entry by ${fmt(new Date(m.entryDeadline+'T00:00:00'))}${dl !== null && dl >= 0 && !past ? ` (${dl}d)` : ''}`);
     const cover = blockCovering(m);
     if(cover) meta.push(`During “${escapeHtml(cover.name)}”`);
+    if(m.url) meta.push(`<a class="tlink" href="${escapeHtml(m.url)}" target="_blank" rel="noopener noreferrer">Tournament page</a>`);
 
     const joins = state.players.map(p=>{
       const st = statusOf(m.id, p.id);
@@ -1400,6 +1497,12 @@ document.getElementById('kid-name').addEventListener('keydown', e=>{
   if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('kid-add').click(); }
 });
 document.getElementById('t-add').addEventListener('click', addTournament);
+document.getElementById('t-lookup').addEventListener('click', lookupLink);
+document.getElementById('t-url').addEventListener('keydown', e=>{
+  if(e.key === 'Enter'){ e.preventDefault(); lookupLink(); }
+});
+// Pasting a link is the whole point — do the lookup without a second click.
+document.getElementById('t-url').addEventListener('paste', ()=>setTimeout(lookupLink, 0));
 
 buildChips();
 load();

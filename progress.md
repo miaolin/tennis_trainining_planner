@@ -141,6 +141,28 @@
   - tests/planner.test.mjs (+57 assertions)
   - README.md, CHANGELOG.md, task_plan.md, progress.md
 
+### Phase 6c: STA link lookup
+- **Status:** complete
+- Actions taken:
+  - User asked to paste a tournament link and have the details filled in
+  - Re-probed STA **in a real browser** instead of by static analysis, and found
+    the API host that grepping 2.3 MB of chunks had missed:
+    `api.singtennis.org.sg/web-api/Tournament/GetTournamentList`
+  - Verified it: unauthenticated `POST {}` → 200, 122 tournaments,
+    `Access-Control-Allow-Origin: *`, preflight allows POST — so the **browser
+    can call it directly**. This overturns the Phase 1 conclusion
+  - Built the link field, slug matching, `DD/MM/YYYY` → ISO conversion, and
+    lookup on paste / Enter / button
+  - Confirmed venue is unavailable in both the API and the rendered detail page,
+    so the lookup says so rather than silently leaving it blank
+  - Verified live in Chromium against the real API, not just a stub
+  - Corrected findings.md — the old conclusion is left visible and marked wrong
+- Files created/modified:
+  - vercel-deploy/index.html, tests/planner.test.mjs (+20 assertions)
+  - findings.md (correction), README.md, CHANGELOG.md, task_plan.md, progress.md
+- Lesson recorded: static analysis of a bundled SPA proves what is in the
+  bundle, not what the app does. One network trace beat 85 chunk greps.
+
 ## Test Results
 
 | Test | Input | Expected | Actual | Status |

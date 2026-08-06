@@ -104,10 +104,51 @@ But:
 - Chunk filenames are content-hashed (`oTAYnuxS.js`), so they change on every
   STA deploy — anything built on them rots.
 
-**Conclusion: no usable public JSON API.** Extracting STA tournaments would
-require a headless browser (Playwright) rendering the SPA and reading the DOM or
-intercepting its network calls — a real sub-project with ongoing maintenance,
-not a small import feature.
+**Conclusion at the time: no usable public JSON API.** — **THIS WAS WRONG.
+Corrected 2026-08-06, see below.**
+
+### CORRECTION (2026-08-06) — STA does have a public, CORS-open JSON API
+
+Static analysis of the bundles could not find the API hostname because it is
+injected at runtime. Loading the page in a real browser and watching the
+network revealed it immediately:
+
+```
+POST https://api.singtennis.org.sg/web-api/Tournament/GetTournamentList
+body: {}
+```
+
+Verified directly with curl:
+
+| Property | Result |
+|---|---|
+| Auth | **None.** A bare `POST {}` returns 200 |
+| Payload | ~36 KB, **122 tournaments** grouped by month |
+| `GET` | 405 — it is POST-only |
+| `Access-Control-Allow-Origin` | **`*`** |
+| Preflight `OPTIONS` | 204, allows `POST` + `content-type` |
+
+Per tournament: `tournamentId`, `slug`, `tournamentName`, `entryOpen`,
+`tournamentLevelName`, `tournamentTypeName`, `startDate`, `endDate`, `deadline`
+(dates as `DD/MM/YYYY`).
+
+**What this changes:** the browser can call this API directly. No proxy, no
+serverless function, no headless browser, no scraper — for STA. The earlier
+"a static page physically cannot do it" conclusion held only because the
+endpoint was unknown; it is not a CORS limitation, since STA sends `*`.
+
+**What it does not change:** JTT/LeagueRepublic still sends no CORS headers, so
+JTTL data continues to come from the offline scraper in `tools/`.
+
+**Not available anywhere:** venue. It is absent from the list payload and from
+the rendered detail page (`?type=information` shows only deadlines and dates),
+so venue stays a manual field. `Tournament/GetTournamentInfo` exists but rejects
+`{id}`, `{tournamentId}` and `{slug}` — its request shape was not worth chasing
+since the list already carries everything obtainable.
+
+**Lesson:** static analysis of a bundled SPA proves what is *in the bundle*, not
+what the app *does*. One browser network trace was worth more than grepping
+2.3 MB of chunks.
 
 ### What this means for the design
 
@@ -139,7 +180,9 @@ block does not carry a player dimension — only matches do.
 
 | Decision | Rationale |
 |----------|-----------|
-| No live scraping from the browser | Cross-origin fetch to STA/JTT is blocked and neither sends CORS headers; a static site physically cannot do it |
+| ~~No live scraping from the browser~~ | **Superseded.** STA sends `Access-Control-Allow-Origin: *`, so the page reads its API directly. Still true for JTT, which sends no CORS headers |
+| STA link lookup runs in the browser | One unauthenticated POST returns all 122 tournaments; matching the slug out of a pasted URL fills the form with no server involved |
+| Venue stays a manual field | STA does not publish it in the API or on the tournament page |
 | Training blocks are household-level, not per-player | User confirmed all kids train together; putting a player key on blocks would model a distinction that does not exist |
 | Matches carry a player reference | Each child enters different events; the year view overlays them |
 

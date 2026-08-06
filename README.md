@@ -56,6 +56,21 @@ tests/                jsdom harness — dev only, never deployed
 - A tournament falling inside a training block shows that block's name, so
   build-up blocks are visible from the list.
 
+### Adding a tournament from its link
+
+Paste an STA tournament link (`https://www-new.singtennis.org.sg/tournaments/…`)
+into the add form. The name, start, end, entry deadline and categories fill
+themselves in; the link is kept on the row. Lookup fires on paste, on Enter, or
+from the **Look up** button.
+
+This works because `api.singtennis.org.sg` answers an unauthenticated
+`POST {}` with every tournament and sends `Access-Control-Allow-Origin: *`, so
+the page reads it directly — no proxy, no scraper. **Venue is not filled**: STA
+does not publish it anywhere, so add it by hand if you want it.
+
+JTTL links cannot be looked up — jttsingapore.com sends no CORS headers, so the
+browser cannot read it. Those fixtures come from the scraper in `tools/`.
+
 ### Where tournament data comes from
 
 Two places, merged:
@@ -67,10 +82,9 @@ Two places, merged:
 - **Anything you add in the browser** — stored in `localStorage` on that device,
   editable and deletable.
 
-Neither source can be fetched live from the page: STA is a single-page app with
-no public API, JTT sends no CORS headers, and a static site cannot make
-cross-origin requests. That is why the scraper is a separate offline tool.
-See `findings.md` for the full trace.
+STA can be read live from the page (see above). JTT cannot — it sends no CORS
+headers — which is why its scraper is a separate offline tool. See `findings.md`
+for the full trace of both.
 
 ## Using it
 
