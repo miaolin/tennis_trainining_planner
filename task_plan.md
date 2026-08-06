@@ -84,12 +84,25 @@ unchanged.
 - [ ] Verify it holds on a phone
 - **Status:** pending
 
-### Phase 6: Season view
-- [ ] `matches.json` loading with a `file://` fallback
+### Phase 6a: Tournaments view  ← DONE (user reorg: "two parts")
+The user asked for the page to become two parts: training planner, and
+tournaments + who is joining. Built as two top-level views rather than stacked
+sections, because the planner is already a tall page.
+- [x] Nav between Training and Tournaments; header adapts per view
+- [x] Kids: add, remove, per-child colour
+- [x] Manual tournament entry; grouped by month, sorted, past ones dimmed
+- [x] Per-child entry status cycle (planned/entered/confirmed/skipping/none)
+- [x] `data/matches.json` read at load and merged; ships empty
+- [x] Season checks: closing deadlines, clashes, provisional dates, travel window
+- [x] Tournament inside a training block names that block
+- **Status:** complete
+
+### Phase 6b: Season view — remaining
+- [x] `matches.json` loading with a `file://` fallback
+- [x] Players + per-child entry status
+- [x] Conflict checks (deadline approaching, clashes)
 - [ ] Year overview: matches, trips, blocks on one timeline
-- [ ] Players + per-child entry status
-- [ ] Trips CRUD
-- [ ] Conflict checks (trip vs. entered match, deadline approaching, clashes)
+- [ ] Trips CRUD, and trip-vs-entered-match conflicts
 - [ ] Activate `anchorMatchId`: taper warnings near match day
 - **Status:** pending
 

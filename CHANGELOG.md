@@ -10,7 +10,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Work toward v2: the two-week camp planner becomes a multi-block training
 planner, the first step of the season planner described in `task_plan.md`.
 
-### Added
+### Added — part 2, tournaments
+
+The page is now two top-level views, **Training** and **Tournaments**, switched
+from a nav under the header. Views rather than stacked sections, because the
+planner is already a tall page.
+
+- **Kids.** Add and remove children, each with its own colour.
+- **Tournaments.** Add by hand (name, dates, venue, categories, entry deadline),
+  grouped by month and sorted by date. Past ones dim.
+- **Per-child entry status** on every tournament: click to cycle
+  planned → entered → confirmed → skipping → not going.
+- **`data/matches.json`** is read at load if present, and merged with anything
+  added by hand. Ships empty; `tools/` will fill it. Feed tournaments are shown
+  with an STA/JTTL badge and cannot be edited in the browser; a `provisional`
+  flag renders as its own badge.
+- **Season checks** — entry deadline inside 21 days that nobody has committed
+  to, the same child in two overlapping tournaments, provisional dates present,
+  and the longest clear gap between tournaments as the travel window.
+- A tournament falling inside a training block is labelled with that block's
+  name, so build-up blocks are visible from the tournament list.
+
+### Added — part 1, training blocks
 
 - **Multiple training blocks.** Create, rename, switch and delete named blocks;
   a new block starts the day after the previous one ends.

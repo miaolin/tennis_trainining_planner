@@ -331,5 +331,215 @@ group('deploy hygiene');
      SRC.includes("setItem(STORE_KEY") && !SRC.includes('setItem(LEGACY_KEY'));
 }
 
+/* ================================ part 2: tournaments ================== */
+
+// Deadline logic is relative to today, so build dates relative to today too.
+const offset = n => {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  const p = x => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
+const addKid = (dom, d, name) => { input(dom, $(d, '#kid-name'), name); click(dom, $(d, '#kid-add')); };
+const addTourn = (dom, d, { name, start, end, venue, cat, deadline }) => {
+  input(dom, $(d, '#t-name'), name);
+  input(dom, $(d, '#t-start'), start);
+  if (end) input(dom, $(d, '#t-end'), end);
+  if (venue) input(dom, $(d, '#t-venue'), venue);
+  if (cat) input(dom, $(d, '#t-cat'), cat);
+  if (deadline) input(dom, $(d, '#t-deadline'), deadline);
+  click(dom, $(d, '#t-add'));
+};
+
+group('two views');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  ok('training view visible by default', $(d, '#view-training').classList.contains('on'));
+  ok('tournaments view hidden by default', !$(d, '#view-matches').classList.contains('on'));
+  ok('training nav marked active', $(d, '#nav-training').classList.contains('on'));
+
+  click(dom, $(d, '#nav-matches'));
+  ok('switches to tournaments', $(d, '#view-matches').classList.contains('on'));
+  ok('training hidden', !$(d, '#view-training').classList.contains('on'));
+  ok('header retitles', $(d, '#title').textContent === 'Tournaments', $(d, '#title').textContent);
+  ok('stat labels swap', $(d, '#lab1').textContent === 'Upcoming', $(d, '#lab1').textContent);
+
+  click(dom, $(d, '#nav-training'));
+  ok('switches back', $(d, '#view-training').classList.contains('on'));
+  ok('training header restored', $(d, '#lab1').textContent === 'Total hrs', $(d, '#lab1').textContent);
+  ok('block total intact after view switching', $(d, '#tot').textContent === '19.0', $(d, '#tot').textContent);
+}
+
+group('kids');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-matches'));
+  ok('starts with no kids', $(d, '#kidrow').textContent.includes('No kids yet'));
+
+  addKid(dom, d, 'Mia');
+  addKid(dom, d, 'Leo');
+  ok('two kids listed', $$(d, '.kid').length === 2, $$(d, '.kid').length);
+  ok('kid count in header', $(d, '#ondays').textContent === '2', $(d, '#ondays').textContent);
+  ok('kids get distinct colours',
+     $$(d, '.kid').map(e => e.getAttribute('style'))[0] !== $$(d, '.kid').map(e => e.getAttribute('style'))[1]);
+  ok('blank name is ignored', (addKid(dom, d, '   '), $$(d, '.kid').length === 2), $$(d, '.kid').length);
+  ok('kids persist', saved(dom).players.length === 2);
+
+  dom.window.confirm = () => true;
+  click(dom, $(d, '.kid .kx'));
+  ok('removing a kid works', $$(d, '.kid').length === 1, $$(d, '.kid').length);
+}
+
+group('adding tournaments');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-matches'));
+  ok('empty state shown', $(d, '#tournlist').textContent.includes('No tournaments yet'));
+  ok('no feed note explains the missing file',
+     $(d, '#feednote').textContent.includes('No data/matches.json'));
+
+  addTourn(dom, d, { name: 'STA Junior Champs', start: '2026-11-21', end: '2026-11-23',
+                     venue: 'Kallang', cat: '12U Girls, 14U Girls', deadline: '2026-11-01' });
+  ok('one tournament row', $$(d, '.tourn').length === 1, $$(d, '.tourn').length);
+  ok('date span collapses to one month', $(d, '.tourn .tdate').textContent.includes('21–23 Nov'),
+     $(d, '.tourn .tdate').textContent);
+  ok('venue and categories shown', $(d, '.tourn .tmeta').textContent.includes('Kallang') &&
+     $(d, '.tourn .tmeta').textContent.includes('12U Girls'));
+  ok('month heading rendered', $(d, '.monthhead').textContent === 'Nov 2026', $(d, '.monthhead')?.textContent);
+  ok('nav shows the count', $(d, '#nav-ct').textContent === '1', $(d, '#nav-ct').textContent);
+  ok('form cleared after add', $(d, '#t-name').value === '');
+  ok('tournament persisted', saved(dom).manualMatches.length === 1);
+
+  addTourn(dom, d, { name: 'No date', start: '' });
+  ok('a tournament with no start date is rejected', $$(d, '.tourn').length === 1, $$(d, '.tourn').length);
+
+  addTourn(dom, d, { name: 'Single day', start: '2026-12-05' });
+  ok('single-day tournament shows one date',
+     $$(d, '.tourn .tdate')[1].textContent.includes('5 Dec'), $$(d, '.tourn .tdate')[1].textContent);
+  ok('sorted by date', $$(d, '.tourn .tnm').map(e => e.textContent).join('|').indexOf('STA Junior Champs') === 0);
+
+  dom.window.confirm = () => true;
+  click(dom, $(d, '.tdel'));
+  ok('delete removes it', $$(d, '.tourn').length === 1, $$(d, '.tourn').length);
+}
+
+group('entry status per kid');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-matches'));
+  addKid(dom, d, 'Mia');
+  addKid(dom, d, 'Leo');
+  addTourn(dom, d, { name: 'Champs', start: offset(60) });
+
+  ok('one join button per kid', $$(d, '.join').length === 2, $$(d, '.join').length);
+  ok('no status initially', !$(d, '.join').className.includes('s-'));
+
+  click(dom, $(d, '.join'));
+  ok('first click -> planned', $(d, '.join').className.includes('s-planned'), $(d, '.join').className);
+  click(dom, $(d, '.join'));
+  ok('second -> entered', $(d, '.join').className.includes('s-entered'), $(d, '.join').className);
+  ok('entered counts in the header', $(d, '#restdays').textContent === '1', $(d, '#restdays').textContent);
+  click(dom, $(d, '.join'));
+  ok('third -> confirmed', $(d, '.join').className.includes('s-confirmed'), $(d, '.join').className);
+  click(dom, $(d, '.join'));
+  ok('fourth -> skipped', $(d, '.join').className.includes('s-skipped'), $(d, '.join').className);
+  click(dom, $(d, '.join'));
+  ok('fifth clears it', !$(d, '.join').className.includes('s-'), $(d, '.join').className);
+
+  click(dom, $(d, '.join'));
+  ok('entry persisted', saved(dom).entries.length === 1, saved(dom).entries.length);
+  const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
+  const d2 = dom2.window.document;
+  click(dom2, $(d2, '#nav-matches'));
+  ok('entry survives reload', $(d2, '.join').className.includes('s-planned'), $(d2, '.join').className);
+}
+
+group('season checks');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-matches'));
+  addKid(dom, d, 'Mia');
+
+  // deadline inside the warning window, nobody committed
+  addTourn(dom, d, { name: 'Closing soon', start: offset(40), deadline: offset(5) });
+  ok('a closing deadline is flagged', $(d, '#mnotes').textContent.includes('Entry deadline closing'),
+     $(d, '#mnotes').textContent.slice(0, 120));
+  ok('the row is marked', $(d, '.tourn').classList.contains('soon'));
+
+  // marking as skipping should silence it
+  click(dom, $(d, '.join'));  // planned
+  click(dom, $(d, '.join'));  // entered
+  ok('entering it clears the deadline warning',
+     !$(d, '#mnotes').textContent.includes('Entry deadline closing'),
+     $(d, '#mnotes').textContent.slice(0, 120));
+
+  // overlapping tournaments for the same kid
+  addTourn(dom, d, { name: 'Clash A', start: offset(90), end: offset(93) });
+  addTourn(dom, d, { name: 'Clash B', start: offset(92), end: offset(95) });
+  const joins = $$(d, '.join');
+  click(dom, joins[joins.length - 2]);
+  click(dom, joins[joins.length - 1]);
+  ok('overlapping tournaments are flagged', $(d, '#mnotes').textContent.includes('Overlapping tournaments'),
+     $(d, '#mnotes').textContent.slice(0, 200));
+
+  // travel window
+  const dom2 = boot();
+  const d2 = dom2.window.document;
+  click(dom2, $(d2, '#nav-matches'));
+  addKid(dom2, d2, 'Mia');
+  addTourn(dom2, d2, { name: 'Early', start: offset(10) });
+  addTourn(dom2, d2, { name: 'Late', start: offset(60) });
+  ok('a long gap is reported as a travel window',
+     $(d2, '#mnotes').textContent.includes('Travel window'), $(d2, '#mnotes').textContent.slice(0, 160));
+  ok('the gap length is stated', /\b50 clear days\b/.test($(d2, '#mnotes').textContent),
+     $(d2, '#mnotes').textContent.slice(0, 160));
+}
+
+group('training block linkage');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-matches'));
+  // default block is 21 Nov - 4 Dec
+  addTourn(dom, d, { name: 'Inside the block', start: '2026-11-28' });
+  ok('a tournament inside a block names it',
+     $(d, '.tourn .tmeta').textContent.includes('During “Camp plan”'), $(d, '.tourn .tmeta').textContent);
+
+  addTourn(dom, d, { name: 'Well outside', start: '2027-05-01' });
+  const metas = $$(d, '.tourn .tmeta').map(e => e.textContent);
+  ok('a tournament outside every block says nothing',
+     !metas.some(m => m.includes('Well outside') && m.includes('During')));
+}
+
+group('corrupt part-2 state');
+{
+  const base = { version: 2, blocks: [{ id: 'b1', name: 'B', start: '2026-11-21', days: 14, plan: {} }] };
+  const cases = [
+    ['players not an array', { ...base, players: 'nope' }],
+    ['player missing a name', { ...base, players: [{ id: 'p1' }] }],
+    ['entry with unknown status', { ...base, players: [{ id: 'p1', name: 'Mia' }], entries: [{ matchId: 'm1', playerId: 'p1', status: 'vibes' }] }],
+    ['entry for a deleted kid', { ...base, players: [], entries: [{ matchId: 'm1', playerId: 'ghost', status: 'entered' }] }],
+    ['manual match with no date', { ...base, manualMatches: [{ id: 'm1', name: 'X' }] }],
+    ['manual match not an object', { ...base, manualMatches: [42, null, 'x'] }],
+  ];
+  for (const [label, seed] of cases) {
+    const dom = boot({ [KEY]: JSON.stringify(seed) });
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    ok(`${label} -> page still renders`, realDays(d) === 14 && $(d, '#tournlist') !== null);
+  }
+  const dd = boot({ [KEY]: JSON.stringify(cases[2][1]) }).window.document;
+  ok('bad status dropped', !JSON.stringify(dd.defaultView.localStorage.getItem(KEY)).includes('vibes'));
+  const de = boot({ [KEY]: JSON.stringify(cases[3][1]) });
+  ok('orphaned entry dropped', saved(de).entries.length === 0, saved(de).entries.length);
+  const df = boot({ [KEY]: JSON.stringify(cases[4][1]) });
+  ok('dateless manual match dropped', saved(df).manualMatches.length === 0, saved(df).manualMatches.length);
+}
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('failed: ' + failures.join(' | ')); process.exit(1); }

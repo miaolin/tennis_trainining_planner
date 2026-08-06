@@ -118,12 +118,38 @@
   - README.md, CHANGELOG.md (updated)
   - task_plan.md, progress.md (updated)
 
+### Phase 6a: Tournaments view
+- **Status:** complete
+- Actions taken:
+  - User asked for the page to become two parts: training, and tournaments +
+    who is joining. Built as two top-level views (nav under the header) rather
+    than stacked sections — the planner alone is already ~6000px on a phone
+  - Kept the tested training code untouched: renamed `render()` to
+    `renderTraining()` and added a dispatcher, so every existing call site
+    stayed correct and all 83 prior assertions passed unchanged
+  - Built kids, manual tournament entry, the per-child entry-status cycle,
+    month grouping, and the season checks
+  - Wired `data/matches.json` loading, merged with manual entries
+  - Shipped an empty `data/matches.json` so the page does not 404 on every
+    load and the scraper has a target file
+  - Drove it in Chromium: 4 tournaments, 2 kids, statuses set, reload
+    persistence confirmed, phone layout checked, zero console errors
+  - Grew the suite 83 → 140 assertions
+- Files created/modified:
+  - vercel-deploy/index.html (two views)
+  - vercel-deploy/data/matches.json (created, empty)
+  - tests/planner.test.mjs (+57 assertions)
+  - README.md, CHANGELOG.md, task_plan.md, progress.md
+
 ## Test Results
 
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
 | v1.0.0 jsdom suite | `vercel-deploy/index.html` | 33 assertions pass | 33 passed, 0 failed | ✓ |
 | v2 block planner suite | `tests/planner.test.mjs` | all pass | 83 passed, 0 failed | ✓ |
+| v2 two-view suite | `tests/planner.test.mjs` | all pass | 140 passed, 0 failed | ✓ |
+| Chromium drive, part 1 | headless Playwright | renders + drag works | moved not duplicated; no console errors | ✓ |
+| Chromium drive, part 2 | headless Playwright | tournaments + statuses persist | 4 tournaments, 2 kids, survives reload; no console errors | ✓ |
 
 Four failures on the first v2 run, all resolved:
 

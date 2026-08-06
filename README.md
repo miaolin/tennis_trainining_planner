@@ -2,13 +2,17 @@
 
 **Released: 1.0.0** · unreleased v2 work in progress · [Changelog](CHANGELOG.md)
 
-A single-page planner for junior tennis training blocks. Drop session types onto
-morning and afternoon slots; the page keeps a running tally of daily and weekly
-hours and flags a plan that is too heavy, too relentless, or too solitary for a
-young player.
+A single-page planner for a junior tennis season, in two parts:
 
-This is step one of a season planner — a year view of matches and trips follows.
-The design and source research are in `task_plan.md` and `findings.md`.
+1. **Training** — build training blocks by dropping session types onto morning
+   and afternoon slots. The page tallies daily and weekly hours and flags a plan
+   that is too heavy, too relentless, or too solitary for a young player.
+2. **Tournaments** — every tournament with its dates, venue, categories and
+   entry deadline, plus which of your kids is going to each one. Surfaces
+   closing deadlines, clashes, and the longest clear gap to book a trip into.
+
+The design and the source research behind it are in `task_plan.md` and
+`findings.md`.
 
 Everything lives in `vercel-deploy/index.html` — no build step, no dependencies,
 no backend. Plans are saved to the browser's `localStorage`, so they persist
@@ -16,12 +20,13 @@ per-device.
 
 ```
 vercel-deploy/
-  index.html    the entire site
-  vercel.json   cache + security headers
-tests/          jsdom harness — dev only, never deployed
+  index.html          the entire site
+  data/matches.json   GENERATED tournament feed — ships empty
+  vercel.json         cache + security headers
+tests/                jsdom harness — dev only, never deployed
 ```
 
-## What it does
+## What it does — Training
 
 - **Multiple training blocks.** Name them, give each a start date and a length
   (1–60 days), and switch between them from the tab row. A new block starts the
@@ -37,6 +42,35 @@ tests/          jsdom harness — dev only, never deployed
   day, physical work crowding out court time, and weeks over the weekly cap.
 - **Export** the plan as plain text to the clipboard, or print it — the print
   stylesheet drops the controls and prints the grid on white.
+
+## What it does — Tournaments
+
+- **Kids** — add each child; they get their own colour.
+- **Tournaments** — name, dates, venue, categories and entry deadline, grouped
+  by month. Past ones dim.
+- **Who's going** — one button per child per tournament, cycling
+  planned → entered → confirmed → skipping → not going.
+- **Season checks** — an entry deadline inside 21 days that nobody has committed
+  to, the same child booked into two overlapping tournaments, provisional dates,
+  and the longest clear gap between tournaments as the window to book travel.
+- A tournament falling inside a training block shows that block's name, so
+  build-up blocks are visible from the list.
+
+### Where tournament data comes from
+
+Two places, merged:
+
+- **`vercel-deploy/data/matches.json`** — generated, committed, read-only in the
+  browser. Ships empty; the scrapers in `tools/` will fill it. Entries carry an
+  STA or JTTL badge, and a `provisional: true` flag renders as its own badge for
+  dates that are estimates rather than a published draw.
+- **Anything you add in the browser** — stored in `localStorage` on that device,
+  editable and deletable.
+
+Neither source can be fetched live from the page: STA is a single-page app with
+no public API, JTT sends no CORS headers, and a static site cannot make
+cross-origin requests. That is why the scraper is a separate offline tool.
+See `findings.md` for the full trace.
 
 ## Using it
 
@@ -112,10 +146,12 @@ the previous deploy still finds its data.
 cd tests && npm install && npm test
 ```
 
-83 assertions driving the real page under jsdom: cold boot, the v1.0.0
-migration, state round-trips, seven kinds of corrupt saved state, block
+140 assertions driving the real page under jsdom: cold boot, the v1.0.0
+migration, state round-trips, thirteen kinds of corrupt saved state, block
 create/rename/switch/delete, variable length and its clamps, calendar alignment
-for different start weekdays, the load checks, and a timezone regression.
+for different start weekdays, the load checks, a timezone regression, view
+switching, kids, tournament add/delete, the entry-status cycle, and the season
+checks.
 
 Drag-and-drop is **not** covered — jsdom has no real drag implementation. The
 tap-to-place and keyboard paths are.

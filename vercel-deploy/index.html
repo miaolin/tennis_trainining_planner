@@ -270,8 +270,133 @@ input[type=number]#days{width:74px}
   padding:14px 16px;margin:20px 0;font-size:14px;
 }
 
+/* ---------- top-level views ---------- */
+.mainnav{
+  display:flex;gap:0;margin:0 0 20px;
+  border-bottom:1px solid var(--hair);
+}
+.navbtn{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:15px;letter-spacing:.14em;text-transform:uppercase;
+  background:transparent;color:var(--mute);
+  border:none;border-bottom:2px solid transparent;border-radius:0;
+  padding:10px 20px;cursor:pointer;
+  transition:color .15s,border-color .15s;
+}
+.navbtn:hover{background:transparent;color:var(--court-line)}
+.navbtn.on{color:var(--ball);border-bottom-color:var(--ball)}
+.navbtn .ct{
+  font-family:'Karla',sans-serif;font-size:11px;
+  color:var(--mute);margin-left:7px;letter-spacing:.04em;
+}
+.view{display:none}
+.view.on{display:block}
+
+/* ---------- players ---------- */
+.kids{
+  background:var(--court-deep);border:1px solid var(--hair);border-radius:4px;
+  padding:16px 18px;margin-bottom:22px;
+}
+.kids h2, .addbox h2{
+  font-family:'Barlow Condensed',sans-serif;font-weight:500;
+  font-size:13px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--mute);margin:0 0 12px;
+}
+.kidrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.kid{
+  display:flex;align-items:center;gap:9px;
+  border:1px solid var(--hair);border-left:4px solid var(--c);
+  border-radius:3px;background:rgba(255,255,255,.05);
+  padding:8px 8px 8px 12px;
+}
+.kid .knm{font-weight:700;font-size:13px}
+.kid .kx{
+  border:none;background:transparent;color:var(--mute);
+  font-size:14px;line-height:1;padding:2px 5px;border-radius:3px;cursor:pointer;
+}
+.kid .kx:hover{background:rgba(255,255,255,.16);color:#fff}
+
+/* ---------- add form ---------- */
+.addbox{
+  background:var(--court-deep);border:1px solid var(--hair);border-radius:4px;
+  padding:16px 18px;margin-bottom:22px;
+}
+.formgrid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
+  gap:10px;align-items:end;
+}
+.fld{display:flex;flex-direction:column;gap:5px}
+.fld label{
+  font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--mute);
+}
+.fld input{width:100%}
+
+/* ---------- tournaments ---------- */
+.monthhead{
+  font-family:'Barlow Condensed',sans-serif;font-weight:500;
+  font-size:13px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--mute);margin:22px 0 9px;
+  padding-bottom:5px;border-bottom:1px solid var(--hair);
+}
+.tourn{
+  display:grid;
+  grid-template-columns:118px 1fr auto;
+  gap:14px;align-items:center;
+  background:var(--court-deep);border:1px solid var(--hair);
+  border-left:3px solid var(--court-deep);
+  border-radius:4px;padding:12px 14px;margin-bottom:8px;
+}
+.tourn.soon{border-left-color:var(--warn)}
+.tourn.past{opacity:.5}
+.tourn .tdate{
+  font-family:'Barlow Condensed',sans-serif;font-size:17px;line-height:1.15;
+}
+.tourn .tdate small{
+  display:block;font-family:'Karla',sans-serif;font-size:10.5px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-top:3px;
+}
+.tourn .tnm{font-weight:700;font-size:14px}
+.tourn .tmeta{font-size:12px;color:var(--mute);margin-top:3px}
+.tourn .tmeta a{color:var(--mute)}
+.src{
+  display:inline-block;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+  border:1px solid var(--hair);border-radius:2px;padding:1px 5px;margin-right:7px;
+  color:var(--mute);vertical-align:1px;
+}
+.src.sta{border-color:#5B9BD5;color:#8FC0E6}
+.src.jttl{border-color:#9B87D4;color:#BCACE8}
+.src.prov{border-color:var(--warn);color:var(--warn)}
+.joins{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center}
+.join{
+  display:flex;align-items:center;gap:6px;
+  border:1px solid var(--hair);border-radius:3px;
+  background:transparent;color:var(--mute);
+  font-size:12px;padding:5px 9px;cursor:pointer;
+  transition:background .15s,border-color .15s,color .15s;
+}
+.join .pip{width:7px;height:7px;border-radius:50%;background:var(--c);flex:none;opacity:.35}
+.join.s-planned{border-color:rgba(255,255,255,.4);color:var(--court-line)}
+.join.s-planned .pip{opacity:1}
+.join.s-entered{border-color:var(--ball);color:var(--ball)}
+.join.s-entered .pip{opacity:1;background:var(--ball)}
+.join.s-confirmed{border-color:var(--ok);background:rgba(79,169,124,.18);color:#9BD7B7}
+.join.s-confirmed .pip{opacity:1;background:var(--ok)}
+.join.s-skipped{opacity:.45;text-decoration:line-through}
+.tdel{
+  border:none;background:transparent;color:var(--mute);
+  font-size:15px;padding:3px 7px;border-radius:3px;cursor:pointer;
+}
+.tdel:hover{background:rgba(217,96,63,.25);color:#fff}
+.empty{
+  border:1px dashed var(--hair);border-radius:4px;
+  padding:26px 18px;text-align:center;color:var(--mute);font-size:14px;
+}
+
 @media (max-width:820px){
   h1{font-size:28px}
+  .tourn{grid-template-columns:1fr;gap:9px}
+  .joins{justify-content:flex-start}
+  .navbtn{padding:10px 13px;font-size:13px}
   .stat .n{font-size:26px}
   .dow-row{display:none}
   .grid{grid-template-columns:1fr;gap:7px}
@@ -294,12 +419,12 @@ input[type=number]#days{width:74px}
   <div class="head-row">
     <div>
       <h1><span id="title">Training block</span> <em>/</em> <span id="range">&nbsp;</span></h1>
-      <p class="sub">Drag a session onto a morning or afternoon slot. On a phone, tap a session then tap the slot.</p>
+      <p class="sub" id="sub">Drag a session onto a morning or afternoon slot. On a phone, tap a session then tap the slot.</p>
     </div>
     <div class="readout">
-      <div class="stat"><span class="n" id="tot">0</span><span class="l">Total hrs</span></div>
-      <div class="stat"><span class="n" id="ondays">0</span><span class="l">On-court days</span></div>
-      <div class="stat"><span class="n" id="restdays">0</span><span class="l">Rest days</span></div>
+      <div class="stat"><span class="n" id="tot">0</span><span class="l" id="lab1">Total hrs</span></div>
+      <div class="stat"><span class="n" id="ondays">0</span><span class="l" id="lab2">On-court days</span></div>
+      <div class="stat"><span class="n" id="restdays">0</span><span class="l" id="lab3">Rest days</span></div>
     </div>
   </div>
 </header>
@@ -307,6 +432,13 @@ input[type=number]#days{width:74px}
 <noscript>
   <div class="noscript">This planner needs JavaScript enabled to run.</div>
 </noscript>
+
+<nav class="mainnav">
+  <button class="navbtn on" id="nav-training" data-view="training">Training</button>
+  <button class="navbtn" id="nav-matches" data-view="matches">Tournaments<span class="ct" id="nav-ct"></span></button>
+</nav>
+
+<section class="view on" id="view-training">
 
 <div class="blockbar" id="blockbar"></div>
 
@@ -343,6 +475,44 @@ input[type=number]#days{width:74px}
   <h2>Load check</h2>
   <div id="notes"></div>
 </div>
+
+</section>
+
+<section class="view" id="view-matches">
+
+  <div class="kids">
+    <h2>Kids</h2>
+    <div class="kidrow" id="kidrow"></div>
+    <div class="kidrow" style="margin-top:11px">
+      <input type="text" id="kid-name" maxlength="24" placeholder="Name">
+      <button id="kid-add">Add kid</button>
+    </div>
+    <p class="hint">Each tournament below has a button per child. Click it to cycle
+      planned &rarr; entered &rarr; confirmed &rarr; skipped &rarr; not going.</p>
+  </div>
+
+  <div class="addbox">
+    <h2>Add a tournament</h2>
+    <div class="formgrid">
+      <div class="fld"><label for="t-name">Name</label><input type="text" id="t-name" maxlength="80" placeholder="STA Junior Championships"></div>
+      <div class="fld"><label for="t-start">Starts</label><input type="date" id="t-start"></div>
+      <div class="fld"><label for="t-end">Ends</label><input type="date" id="t-end"></div>
+      <div class="fld"><label for="t-venue">Venue</label><input type="text" id="t-venue" maxlength="60" placeholder="Kallang"></div>
+      <div class="fld"><label for="t-cat">Categories</label><input type="text" id="t-cat" maxlength="60" placeholder="12U Girls"></div>
+      <div class="fld"><label for="t-deadline">Entry deadline</label><input type="date" id="t-deadline"></div>
+      <div class="fld"><label for="t-add">&nbsp;</label><button id="t-add">Add tournament</button></div>
+    </div>
+    <p class="hint" id="feednote"></p>
+  </div>
+
+  <div id="tournlist"></div>
+
+  <div class="checks">
+    <h2>Season check</h2>
+    <div id="mnotes"></div>
+  </div>
+
+</section>
 
 </div>
 
@@ -440,9 +610,26 @@ function sanitiseState(raw){
   if(!st.blocks.length) return null;
   const wanted = st.blocks.find(b => b.id === raw.activeBlockId);
   st.activeBlockId = wanted ? wanted.id : st.blocks[0].id;
-  ['players','entries','trips','manualMatches'].forEach(k=>{
-    if(Array.isArray(raw[k])) st[k] = raw[k];
-  });
+
+  if(Array.isArray(raw.players)) st.players = raw.players
+    .filter(p => p && typeof p.id === 'string' && typeof p.name === 'string' && p.name)
+    .map((p,i) => ({id:p.id, name:p.name.slice(0,24),
+                    colour: /^#[0-9a-f]{6}$/i.test(p.colour) ? p.colour : KID_COLOURS[i % KID_COLOURS.length]}));
+
+  if(Array.isArray(raw.manualMatches)) st.manualMatches = raw.manualMatches
+    .filter(validMatch).map(normaliseMatch).map(m => ({...m, source:'manual'}));
+
+  // Drop entries whose player is gone. Entries are kept even when their match
+  // is not currently known — the feed may simply be missing on this load, and
+  // discarding them would silently lose the user's entry status.
+  if(Array.isArray(raw.entries)){
+    const kids = new Set(st.players.map(p=>p.id));
+    st.entries = raw.entries.filter(e =>
+      e && typeof e.matchId === 'string' && typeof e.playerId === 'string' &&
+      STATUSES.includes(e.status) && kids.has(e.playerId));
+  }
+
+  if(Array.isArray(raw.trips)) st.trips = raw.trips;
   return st;
 }
 
@@ -626,7 +813,7 @@ function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-function render(){
+function renderTraining(){
   const b = active();
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
@@ -805,6 +992,324 @@ function runChecks(b){
   ).join('');
 }
 
+/* =================================================== part 2: tournaments ===
+   Matches come from two places: a generated data/matches.json written by the
+   scraper in tools/, and whatever the user adds by hand. They are merged for
+   display; only the manual ones are editable here.
+   ========================================================================= */
+const STATUSES = ['planned','entered','confirmed','skipped'];
+const STATUS_LABEL = {planned:'Planned', entered:'Entered', confirmed:'Confirmed', skipped:'Skipping'};
+const KID_COLOURS = ['#5B9BD5','#D6E64B','#9B87D4','#4FA97C','#E8A33D','#D9603F'];
+const DEADLINE_WARN_DAYS = 21;
+
+let feed = [];            // from data/matches.json, read-only
+let feedNote = '';
+
+function validMatch(m){
+  return m && typeof m === 'object' &&
+         typeof m.id === 'string' && m.id &&
+         typeof m.name === 'string' && m.name &&
+         /^\d{4}-\d{2}-\d{2}$/.test(m.start);
+}
+function normaliseMatch(m){
+  return {
+    id: m.id,
+    source: typeof m.source === 'string' ? m.source : 'manual',
+    name: m.name,
+    start: m.start,
+    end: /^\d{4}-\d{2}-\d{2}$/.test(m.end) ? m.end : m.start,
+    venue: typeof m.venue === 'string' ? m.venue : '',
+    categories: Array.isArray(m.categories) ? m.categories.filter(c=>typeof c==='string') : [],
+    entryDeadline: /^\d{4}-\d{2}-\d{2}$/.test(m.entryDeadline) ? m.entryDeadline : null,
+    url: typeof m.url === 'string' ? m.url : '',
+    provisional: m.provisional === true
+  };
+}
+function allMatches(){
+  const seen = new Set();
+  const out = [];
+  feed.concat(state.manualMatches || []).forEach(m=>{
+    if(!validMatch(m) || seen.has(m.id)) return;
+    seen.add(m.id);
+    out.push(normaliseMatch(m));
+  });
+  out.sort((a,b)=> a.start < b.start ? -1 : a.start > b.start ? 1 : 0);
+  return out;
+}
+
+// The site is static, so this is a same-origin read of a committed file. It
+// fails harmlessly on file:// and before the scraper has ever run.
+async function loadFeed(){
+  try{
+    const r = await fetch('data/matches.json', {cache:'no-store'});
+    if(!r.ok){ feedNote = ''; return; }
+    const j = await r.json();
+    if(j && Array.isArray(j.matches)){
+      feed = j.matches.filter(validMatch).map(normaliseMatch);
+      feedNote = feed.length
+        ? `${feed.length} tournament${feed.length===1?'':'s'} loaded from data/matches.json` +
+          (j.generatedAt ? ` (generated ${String(j.generatedAt).slice(0,10)})` : '')
+        : 'data/matches.json is empty — run the scraper in tools/ to fill it. ' +
+          'Tournaments added here are stored in this browser.';
+    }
+  }catch(e){
+    feedNote = '';   // no feed yet — manual entry only
+  }
+}
+
+/* ---- players ---- */
+function addPlayer(name){
+  const n = (name || '').trim();
+  if(!n) return false;
+  state.players.push({id: uid(), name: n, colour: KID_COLOURS[state.players.length % KID_COLOURS.length]});
+  render(); save();
+  return true;
+}
+function removePlayer(id){
+  const p = state.players.find(x=>x.id===id);
+  if(p && !window.confirm(`Remove ${p.name}? Their tournament entries go too.`)) return;
+  state.players = state.players.filter(x=>x.id !== id);
+  state.entries = state.entries.filter(e=>e.playerId !== id);
+  render(); save();
+}
+
+/* ---- entries ---- */
+function statusOf(matchId, playerId){
+  const e = (state.entries || []).find(x=>x.matchId===matchId && x.playerId===playerId);
+  return e ? e.status : null;
+}
+function cycleEntry(matchId, playerId){
+  const i = state.entries.findIndex(x=>x.matchId===matchId && x.playerId===playerId);
+  if(i < 0){
+    state.entries.push({matchId, playerId, status:'planned'});
+  } else {
+    const next = STATUSES.indexOf(state.entries[i].status) + 1;
+    if(next >= STATUSES.length || next === 0) state.entries.splice(i, 1);
+    else state.entries[i].status = STATUSES[next];
+  }
+  render(); save();
+}
+
+/* ---- manual tournaments ---- */
+function addTournament(){
+  const g = id => document.getElementById(id).value.trim();
+  const name = g('t-name'), start = g('t-start');
+  if(!name || !/^\d{4}-\d{2}-\d{2}$/.test(start)){
+    document.getElementById('t-name').focus();
+    return false;
+  }
+  const end = /^\d{4}-\d{2}-\d{2}$/.test(g('t-end')) && g('t-end') >= start ? g('t-end') : start;
+  state.manualMatches.push({
+    id: 'm' + uid(), source:'manual', name, start, end,
+    venue: g('t-venue'),
+    categories: g('t-cat') ? g('t-cat').split(',').map(s=>s.trim()).filter(Boolean) : [],
+    entryDeadline: /^\d{4}-\d{2}-\d{2}$/.test(g('t-deadline')) ? g('t-deadline') : null,
+    url:'', provisional:false
+  });
+  ['t-name','t-start','t-end','t-venue','t-cat','t-deadline'].forEach(id=>document.getElementById(id).value = '');
+  render(); save();
+  return true;
+}
+function removeTournament(id){
+  const m = (state.manualMatches || []).find(x=>x.id===id);
+  if(m && !window.confirm(`Delete “${m.name}”?`)) return;
+  state.manualMatches = state.manualMatches.filter(x=>x.id !== id);
+  state.entries = state.entries.filter(e=>e.matchId !== id);
+  render(); save();
+}
+
+/* ---- dates for part 2 ---- */
+function todayIso(){ return iso(new Date()); }
+function daysBetween(aIso, bIso){
+  const a = new Date(aIso + 'T00:00:00'), b = new Date(bIso + 'T00:00:00');
+  return Math.round((b - a) / 86400000);
+}
+function spanLabel(m){
+  const a = new Date(m.start + 'T00:00:00'), b = new Date(m.end + 'T00:00:00');
+  if(m.start === m.end) return `${a.getDate()} ${MON[a.getMonth()]}`;
+  if(a.getMonth() === b.getMonth()) return `${a.getDate()}–${b.getDate()} ${MON[a.getMonth()]}`;
+  return `${fmt(a)} – ${fmt(b)}`;
+}
+// A tournament sitting inside a training block is the useful case: that block
+// is its build-up.
+function blockCovering(m){
+  return state.blocks.find(b=>{
+    const s = b.start, e = iso(dateFor(b, b.days - 1));
+    return m.start <= e && m.end >= s;
+  }) || null;
+}
+
+/* ---- render part 2 ---- */
+function renderMatches(){
+  const kidrow = document.getElementById('kidrow');
+  kidrow.innerHTML = state.players.map(p=>
+    `<span class="kid" style="--c:${p.colour}"><span class="knm">${escapeHtml(p.name)}</span>` +
+    `<button class="kx" data-kid="${p.id}" aria-label="Remove ${escapeHtml(p.name)}">&times;</button></span>`
+  ).join('') || '<span class="hint" style="margin:0">No kids yet — add one to start tracking entries.</span>';
+  kidrow.querySelectorAll('.kx').forEach(btn=>
+    btn.addEventListener('click', ()=>removePlayer(btn.dataset.kid)));
+
+  document.getElementById('feednote').textContent = feedNote ||
+    'No data/matches.json yet — tournaments added here are stored in this browser.';
+
+  const list = document.getElementById('tournlist');
+  const ms = allMatches();
+  document.getElementById('nav-ct').textContent = ms.length ? ms.length : '';
+
+  if(!ms.length){
+    list.innerHTML = '<div class="empty">No tournaments yet. Add one above, or run the scraper in <code>tools/</code> to generate <code>data/matches.json</code>.</div>';
+    runSeasonChecks(ms);
+    return;
+  }
+
+  const today = todayIso();
+  let html = '', lastMonth = '';
+  ms.forEach(m=>{
+    const d = new Date(m.start + 'T00:00:00');
+    const monthKey = `${MON[d.getMonth()]} ${d.getFullYear()}`;
+    if(monthKey !== lastMonth){ html += `<div class="monthhead">${monthKey}</div>`; lastMonth = monthKey; }
+
+    const past = m.end < today;
+    const dl = m.entryDeadline ? daysBetween(today, m.entryDeadline) : null;
+    const soon = !past && dl !== null && dl >= 0 && dl <= DEADLINE_WARN_DAYS;
+
+    const bits = [];
+    if(m.source === 'sta') bits.push('<span class="src sta">STA</span>');
+    else if(m.source === 'jttl') bits.push('<span class="src jttl">JTTL</span>');
+    if(m.provisional) bits.push('<span class="src prov">Provisional</span>');
+    const meta = [];
+    if(m.venue) meta.push(escapeHtml(m.venue));
+    if(m.categories.length) meta.push(escapeHtml(m.categories.join(', ')));
+    if(m.entryDeadline) meta.push(`Entry by ${fmt(new Date(m.entryDeadline+'T00:00:00'))}${dl !== null && dl >= 0 && !past ? ` (${dl}d)` : ''}`);
+    const cover = blockCovering(m);
+    if(cover) meta.push(`During “${escapeHtml(cover.name)}”`);
+
+    const joins = state.players.map(p=>{
+      const st = statusOf(m.id, p.id);
+      return `<button class="join${st ? ' s-'+st : ''}" data-m="${m.id}" data-p="${p.id}" style="--c:${p.colour}">` +
+             `<span class="pip"></span>${escapeHtml(p.name)}${st ? ' · ' + STATUS_LABEL[st] : ''}</button>`;
+    }).join('');
+
+    html += `<div class="tourn${soon?' soon':''}${past?' past':''}">
+      <div class="tdate">${spanLabel(m)}<small>${DOW[d.getDay()]}</small></div>
+      <div><div class="tnm">${bits.join('')}${escapeHtml(m.name)}</div>
+        ${meta.length ? `<div class="tmeta">${meta.join(' · ')}</div>` : ''}</div>
+      <div class="joins">${joins}${m.source === 'manual'
+        ? `<button class="tdel" data-del="${m.id}" aria-label="Delete">&times;</button>` : ''}</div>
+    </div>`;
+  });
+  list.innerHTML = html;
+
+  list.querySelectorAll('.join').forEach(btn=>
+    btn.addEventListener('click', ()=>cycleEntry(btn.dataset.m, btn.dataset.p)));
+  list.querySelectorAll('.tdel').forEach(btn=>
+    btn.addEventListener('click', ()=>removeTournament(btn.dataset.del)));
+
+  runSeasonChecks(ms);
+}
+
+function runSeasonChecks(ms){
+  const out = [];
+  const today = todayIso();
+  const upcoming = ms.filter(m => m.end >= today);
+
+  if(!state.players.length){
+    out.push(['warn','No kids yet','Add a child above and you can track who is entered for what.']);
+  }
+  if(!ms.length){
+    out.push(['warn','No tournaments','Nothing to plan around yet. Add the dates you know.']);
+  }
+
+  // deadlines closing on something nobody has committed to
+  const closing = upcoming.filter(m=>{
+    if(!m.entryDeadline) return false;
+    const d = daysBetween(today, m.entryDeadline);
+    if(d < 0 || d > DEADLINE_WARN_DAYS) return false;
+    return state.players.some(p=>{
+      const st = statusOf(m.id, p.id);
+      return st === 'planned' || st === null;
+    });
+  });
+  if(closing.length) out.push(['bad','Entry deadline closing',
+    closing.map(m=>`${m.name} (${daysBetween(today, m.entryDeadline)}d)`).join('; ') +
+    '. Enter or mark as skipping so it stops nagging.']);
+
+  // the same child in two overlapping tournaments
+  const clashes = [];
+  state.players.forEach(p=>{
+    const committed = upcoming.filter(m=>['planned','entered','confirmed'].includes(statusOf(m.id, p.id)));
+    for(let i=0;i<committed.length;i++)
+      for(let j=i+1;j<committed.length;j++)
+        if(committed[i].start <= committed[j].end && committed[j].start <= committed[i].end)
+          clashes.push(`${p.name}: ${committed[i].name} vs ${committed[j].name}`);
+  });
+  if(clashes.length) out.push(['bad','Overlapping tournaments', clashes.join('; ') + '.']);
+
+  if(ms.some(m=>m.provisional)) out.push(['warn','Provisional dates',
+    'Some dates are generated estimates, not a published draw. Confirm them before booking anything.']);
+
+  // the travel window
+  if(upcoming.length >= 2){
+    let best = 0, from = '', to = '';
+    for(let i=0;i<upcoming.length-1;i++){
+      const gap = daysBetween(upcoming[i].end, upcoming[i+1].start);
+      if(gap > best){ best = gap; from = upcoming[i].name; to = upcoming[i+1].name; }
+    }
+    if(best >= 10) out.push(['ok','Travel window',
+      `${best} clear days between “${from}” and “${to}”. That is the gap to book a trip into.`]);
+  }
+
+  if(!out.length && ms.length) out.push(['ok','Season looks clear',
+    `${upcoming.length} tournament${upcoming.length===1?'':'s'} ahead, no deadline or clash problems.`]);
+
+  document.getElementById('mnotes').innerHTML = out.map(([k,t,body])=>
+    `<div class="note ${k}"><span class="dot"></span><div><b>${t}.</b> <span>${body}</span></div></div>`
+  ).join('');
+}
+
+/* ------------------------------------------------------------ views --- */
+let view = 'training';
+
+function setView(v){
+  view = (v === 'matches') ? 'matches' : 'training';
+  render();
+}
+function renderHeader(){
+  const sub = document.getElementById('sub');
+  if(view === 'matches'){
+    const ms = allMatches(), today = todayIso();
+    const upcoming = ms.filter(m => m.end >= today);
+    document.getElementById('title').textContent = 'Tournaments';
+    document.getElementById('range').textContent = upcoming.length
+      ? `next ${spanLabel(upcoming[0])}` : 'season';
+    sub.textContent = 'Every tournament and who is going. Click a child on a row to cycle their status.';
+    document.getElementById('tot').textContent = upcoming.length;
+    document.getElementById('ondays').textContent = state.players.length;
+    document.getElementById('restdays').textContent =
+      state.entries.filter(e=>e.status==='entered'||e.status==='confirmed').length;
+    document.getElementById('lab1').textContent = 'Upcoming';
+    document.getElementById('lab2').textContent = 'Kids';
+    document.getElementById('lab3').textContent = 'Entered';
+  } else {
+    sub.textContent = 'Drag a session onto a morning or afternoon slot. On a phone, tap a session then tap the slot.';
+    document.getElementById('lab1').textContent = 'Total hrs';
+    document.getElementById('lab2').textContent = 'On-court days';
+    document.getElementById('lab3').textContent = 'Rest days';
+  }
+  document.getElementById('view-training').classList.toggle('on', view === 'training');
+  document.getElementById('view-matches').classList.toggle('on', view === 'matches');
+  document.getElementById('nav-training').classList.toggle('on', view === 'training');
+  document.getElementById('nav-matches').classList.toggle('on', view === 'matches');
+}
+
+// Both views always re-render; the header decides which numbers are on show.
+// That keeps every existing render() call site correct.
+function render(){
+  renderTraining();
+  renderMatches();
+  renderHeader();
+}
+
 /* ------------------------------------------------------------ export --- */
 function asText(){
   const b = active();
@@ -882,10 +1387,25 @@ document.getElementById('btn-copy').addEventListener('click', async ()=>{
   setTimeout(()=>btn.textContent = 'Copy as text', 1400);
 });
 
+document.getElementById('nav-training').addEventListener('click', ()=>setView('training'));
+document.getElementById('nav-matches').addEventListener('click', ()=>setView('matches'));
+
+document.getElementById('kid-add').addEventListener('click', ()=>{
+  const el = document.getElementById('kid-name');
+  if(addPlayer(el.value)) el.value = '';
+});
+document.getElementById('kid-name').addEventListener('keydown', e=>{
+  if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('kid-add').click(); }
+});
+document.getElementById('t-add').addEventListener('click', addTournament);
+
 buildChips();
 load();
 render();
 save();   // persist the default/migrated block immediately, not on first edit
+
+// The feed is optional and arrives late; re-render once it lands.
+loadFeed().then(()=>{ if(feed.length || feedNote) render(); });
 </script>
 </body>
 </html>
