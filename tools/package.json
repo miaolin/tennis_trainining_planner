@@ -2,9 +2,10 @@
   "name": "tennis-planner-tools",
   "private": true,
   "type": "module",
-  "description": "Match-data scrapers — dev only, never deployed. Output is vercel-deploy/data/matches.json.",
+  "description": "Match-data scrapers \u2014 dev only, never deployed. Output is vercel-deploy/data/matches.json.",
   "scripts": {
     "scrape:jttl": "node scrape-jttl.mjs",
-    "test": "node --test \"test/*.test.mjs\""
+    "test": "node --test \"test/*.test.mjs\"",
+    "build": "node build-matches.mjs"
   }
 }

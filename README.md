@@ -91,9 +91,23 @@ browser cannot read it. Those fixtures come from the scraper in `tools/`.
 Two places, merged:
 
 - **`vercel-deploy/data/matches.json`** — generated, committed, read-only in the
-  browser. Ships empty; the scrapers in `tools/` will fill it. Entries carry an
-  STA or JTTL badge, and a `provisional: true` flag renders as its own badge for
-  dates that are estimates rather than a published draw.
+  browser. Entries carry an STA or JTTL badge, and `provisional: true` renders
+  as its own badge plus a note saying why the date is an estimate. Currently
+  holds the 6 provisional JTTL Season Two weekends.
+
+  Rebuild it after scraping:
+
+  ```sh
+  cd tools
+  npm run scrape:jttl   # hits the live site -> tools/data/jttl.json
+  npm run build         # merge -> ../vercel-deploy/data/matches.json
+  ```
+
+  `npm run build` drops fixtures that have already finished. JTTL publishes
+  every team fixture in every division — 222 for a single past season — which
+  buries the dates you can still plan around. Pass `--all` to keep the history,
+  or `--since YYYY-MM-DD` for a different cutoff. Provisional records are always
+  kept, and the build refuses to write an empty feed.
 - **Anything you add in the browser** — stored in `localStorage` on that device,
   editable and deletable.
 

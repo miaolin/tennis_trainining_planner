@@ -61,7 +61,16 @@ navigation.
 **Data and tooling**
 
 - `data/matches.json` — generated tournament feed, read at load and merged with
-  locally held tournaments. Ships empty.
+  locally held tournaments. Ships with the **6 provisional JTTL Season Two
+  weekends**, built from the scraper output.
+- `tools/build-matches.mjs` — merges the scraped fragments in `tools/data/` into
+  that feed. Finished fixtures are dropped by default (`--all` keeps them):
+  JTTL publishes every team fixture in every division — 222 for one past season
+  — and shipping those buries the dates you can still plan around. Provisional
+  records are always kept, and the build refuses to write an empty feed.
+- Provisional tournaments show **why** their dates are estimates, e.g. "Draw not
+  yet published; weekend spacing taken from 2025 Season Two", rather than a bare
+  badge.
 - `data/sg-school-holidays.json` — Singapore MOE school calendar for 2026 and
   2027, hand-entered from the MOE press releases with source URLs and a
   `verifiedOn` date. Add a year when MOE publishes one.

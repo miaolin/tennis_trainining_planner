@@ -355,6 +355,7 @@ input[type=number]#days{width:74px}
 #lookupnote.good{color:var(--ok)}
 .tmeta a.tlink{color:#8FC0E6;text-decoration:none;border-bottom:1px dotted rgba(143,192,230,.5)}
 .tmeta a.tlink:hover{color:var(--court-line)}
+.tmeta .tnote{color:var(--warn)}
 
 /* ---------- tournaments ---------- */
 .monthhead{
@@ -1170,7 +1171,11 @@ function normaliseMatch(m){
     categories: Array.isArray(m.categories) ? m.categories.filter(c=>typeof c==='string') : [],
     entryDeadline: /^\d{4}-\d{2}-\d{2}$/.test(m.entryDeadline) ? m.entryDeadline : null,
     url: safeUrl(m.url),
-    provisional: m.provisional === true
+    provisional: m.provisional === true,
+    // Why a date is an estimate, e.g. "Draw not yet published; weekend spacing
+    // taken from 2025 Season Two." Worth showing — a provisional badge alone
+    // does not say how much to trust it.
+    note: typeof m.note === 'string' ? m.note : ''
   };
 }
 function allMatches(){
@@ -1505,6 +1510,7 @@ function renderMatches(){
     const cover = blockCovering(m);
     if(cover) meta.push(`During “${escapeHtml(cover.name)}”`);
     if(m.url) meta.push(`<a class="tlink" href="${escapeHtml(m.url)}" target="_blank" rel="noopener noreferrer">Tournament page</a>`);
+    if(m.note) meta.push(`<span class="tnote">${escapeHtml(m.note)}</span>`);
 
     const joins = state.players.map(p=>{
       const st = statusOf(m.id, p.id);

@@ -806,6 +806,56 @@ group('bulk import from STA');
   }
 }
 
+group('generated matches.json feed');
+{
+  const FEED = {
+    generatedAt: '2026-08-07T00:00:00.000Z',
+    sources: [{ id: 'jttl', fetchedAt: '2026-08-05T04:52:54.315Z', ok: true, count: 2 }],
+    matches: [
+      { id: 'jttl-p1', source: 'jttl', name: 'JTTL 2026 Season Two — weekend 1 of 6 (provisional)',
+        start: '2026-09-19', end: '2026-09-20', venue: '', categories: ['JTTL'],
+        entryDeadline: null, url: 'https://www.jttsingapore.com/x.html', provisional: true,
+        note: 'Draw not yet published; weekend spacing taken from 2025 Season Two.' },
+      { id: 'jttl-r1', source: 'jttl', name: 'Real fixture', start: '2026-10-10', end: '2026-10-10',
+        venue: '', categories: [], entryDeadline: null, url: '', provisional: false },
+    ],
+  };
+  const bootFeed = feed => new JSDOM(SRC, {
+    runScripts: 'dangerously', url: 'https://example.test/', pretendToBeVisual: true,
+    beforeParse(window) {
+      window.fetch = url => String(url).includes('matches.json')
+        ? Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(feed) })
+        : Promise.resolve({ ok: false, status: 404 });
+    },
+  });
+  const settle = () => new Promise(r => setTimeout(r, 40));
+
+  const dom = bootFeed(FEED);
+  const d = dom.window.document;
+  await settle();
+  click(dom, $(d, '#nav-matches'));
+  ok('feed tournaments listed', $$(d, '.tourn').length === 2, $$(d, '.tourn').length);
+  ok('feed note reports the count and date',
+     /2 tournaments loaded/.test($(d, '#feednote').textContent), $(d, '#feednote').textContent);
+  ok('JTTL badge shown', $$(d, '.src.jttl').length === 2, $$(d, '.src.jttl').length);
+  ok('provisional badge only on the provisional one', $$(d, '.src.prov').length === 1,
+     $$(d, '.src.prov').length);
+  ok('the provisional note is shown, not just the badge',
+     $(d, '.tourn .tnote').textContent.includes('Draw not yet published'),
+     $(d, '.tourn .tnote') && $(d, '.tourn .tnote').textContent);
+  ok('feed tournaments are not deletable', $$(d, '.tourn .tdel').length === 0,
+     $$(d, '.tourn .tdel').length);
+  ok('season check warns about provisional dates',
+     $(d, '#mnotes').textContent.includes('Provisional dates'), $(d, '#mnotes').textContent.slice(0, 120));
+  ok('feed matches are not written into local state',
+     (saved(dom).manualMatches || []).length === 0);
+
+  click(dom, $(d, '#nav-calendar'));
+  while ($(d, '#cal-year').textContent !== '2026') click(dom, $(d, '#cal-prev'));
+  ok('feed tournaments reach the calendar', $$(d, '.cell.ev').length === 3,
+     $$(d, '.cell.ev').length);
+}
+
 group('year calendar');
 {
   const HOLIDAYS = {
