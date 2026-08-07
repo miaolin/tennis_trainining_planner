@@ -30,7 +30,8 @@ function ok(name, cond, extra) {
 }
 function group(name) { console.log('\n[' + name + ']'); }
 
-function boot(seed) {
+// seed must land BEFORE the inline script runs, or restore() never sees it
+function bootRaw(seed) {
   return new JSDOM(SRC, {
     runScripts: 'dangerously',
     url: 'https://example.test/',
@@ -39,6 +40,13 @@ function boot(seed) {
       if (seed) for (const [k, v] of Object.entries(seed)) window.localStorage.setItem(k, v);
     },
   });
+}
+// Calendar is the landing view, but most of these tests read the training
+// header, so switch to it on boot. Use bootRaw() to assert the real default.
+function boot(seed) {
+  const dom = bootRaw(seed);
+  click(dom, dom.window.document.getElementById('nav-training'));
+  return dom;
 }
 const click = (dom, el) => el.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
 const change = (dom, el, value) => {
@@ -351,13 +359,17 @@ const addTourn = (dom, d, { name, start, end, venue, cat, deadline }) => {
   click(dom, $(d, '#t-add'));
 };
 
-group('two views');
+group('three views');
 {
-  const dom = boot();
+  const dom = bootRaw();
   const d = dom.window.document;
-  ok('training view visible by default', $(d, '#view-training').classList.contains('on'));
-  ok('tournaments view hidden by default', !$(d, '#view-matches').classList.contains('on'));
-  ok('training nav marked active', $(d, '#nav-training').classList.contains('on'));
+  ok('calendar is the default view', $(d, '#view-calendar').classList.contains('on'));
+  ok('calendar nav marked active', $(d, '#nav-calendar').classList.contains('on'));
+  ok('training hidden by default', !$(d, '#view-training').classList.contains('on'));
+  ok('tournaments hidden by default', !$(d, '#view-matches').classList.contains('on'));
+  ok('tab order is calendar, tournaments, training',
+     $$(d, '.navbtn').map(b => b.id).join(',') === 'nav-calendar,nav-matches,nav-training',
+     $$(d, '.navbtn').map(b => b.id).join(','));
 
   click(dom, $(d, '#nav-matches'));
   ok('switches to tournaments', $(d, '#view-matches').classList.contains('on'));

@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Work toward v2: the two-week camp planner becomes a multi-block training
 planner, the first step of the season planner described in `task_plan.md`.
 
+### Changed — tab order and size
+
+- Tabs run **Calendar, Tournaments, Training**, and **Calendar is now the
+  landing view** — the year is the question the app exists to answer.
+- Tabs are larger and clearer: 22px, a 152×53 target, with the active one
+  carrying a tinted background as well as the underline.
+
 ### Added — part 3, year calendar
 
 A third view: twelve months on one page, with year navigation.

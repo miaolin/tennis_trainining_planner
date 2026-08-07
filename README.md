@@ -4,15 +4,15 @@
 
 A single-page planner for a junior tennis season, in three parts:
 
-1. **Training** — build training blocks by dropping session types onto morning
-   and afternoon slots. The page tallies daily and weekly hours and flags a plan
-   that is too heavy, too relentless, or too solitary for a young player.
+1. **Calendar** (the landing view) — twelve months on one page: who is playing
+   when (a coloured dot per child), where the training blocks sit, and the
+   Singapore school holidays behind it all.
 2. **Tournaments** — every tournament with its dates, venue, categories and
    entry deadline, plus which of your kids is going to each one. Surfaces
    closing deadlines, clashes, and the longest clear gap to book a trip into.
-3. **Calendar** — twelve months on one page: who is playing when (a coloured
-   dot per child), where the training blocks sit, and the Singapore school
-   holidays behind it all.
+3. **Training** — build training blocks by dropping session types onto morning
+   and afternoon slots. The page tallies daily and weekly hours and flags a plan
+   that is too heavy, too relentless, or too solitary for a young player.
 
 The design and the source research behind it are in `task_plan.md` and
 `findings.md`.
