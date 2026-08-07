@@ -20,9 +20,7 @@
   --court-deep:#153650;
   --court-line:#EAF0F4;
   --ball:#D6E64B;
-  --clay:#B85C3C;
   --ink:#0E2334;
-  --paper:#F4F6F3;
   --mute:#7E93A3;
   --hair:rgba(255,255,255,.16);
   --ok:#4FA97C;
@@ -347,7 +345,6 @@ input[type=number]#days{width:74px}
 .chk:hover{background:rgba(255,255,255,.12)}
 .chk input{accent-color:var(--ball);margin:0;cursor:pointer}
 .chk.on{border-color:var(--ball)}
-.chk .n{font-family:'Barlow Condensed',sans-serif;font-size:14px;color:var(--mute)}
 #impnote.busy{color:var(--ball)}
 #impnote.bad{color:var(--bad)}
 #impnote.good{color:var(--ok)}
@@ -462,7 +459,6 @@ input[type=number]#days{width:74px}
   background:var(--c);box-shadow:0 0 0 1px rgba(21,54,80,.9);
 }
 .cell .dots i.none{background:rgba(255,255,255,.45)}
-.cell .dots i.skip{background:transparent;box-shadow:inset 0 0 0 1px rgba(255,255,255,.4)}
 .cell.today{outline:2px solid #fff;outline-offset:-1px;font-weight:700}
 .cell[title]{cursor:help}
 .legend{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
@@ -470,8 +466,6 @@ input[type=number]#days{width:74px}
 .lg i{width:12px;height:12px;border-radius:2px;display:block}
 .lg i.vac{background:rgba(79,169,124,.5)}
 .lg i.hol{background:rgba(232,163,61,.5)}
-.lg i.ev,.lg i.ent{width:7px;height:7px;border-radius:50%;background:#8FC0E6}
-.lg i.ent{background:var(--ball)}
 .lg i.blk{background:transparent;box-shadow:inset 3px 0 0 var(--ball);border:1px solid var(--hair)}
 /* ".kd", not ".kid" — ".kid" is the chip in the Kids box, and reusing it here
    made every ".kid" query match legend swatches too. Second time this bit:
