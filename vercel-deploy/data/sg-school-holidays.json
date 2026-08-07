@@ -1,0 +1,50 @@
+{
+  "_comment": "Singapore MOE school calendar. Hand-entered from the MOE press releases below and verified against them; data.gov.sg has no school-holiday dataset and sends no CORS headers, so this cannot be fetched live from the browser. Add a new year here when MOE publishes it.",
+  "verifiedOn": "2026-08-06",
+  "sources": [
+    "https://www.moe.gov.sg/news/press-releases/20250730-school-terms-and-holidays-for-2026",
+    "https://www.moe.gov.sg/news/press-releases/20260714-school-terms-and-holidays-for-2027"
+  ],
+  "years": [2026, 2027],
+  "periods": [
+    { "name": "March break", "type": "vacation", "start": "2026-03-14", "end": "2026-03-22" },
+    { "name": "Mid-year break", "type": "vacation", "start": "2026-05-30", "end": "2026-06-28" },
+    { "name": "September break", "type": "vacation", "start": "2026-09-05", "end": "2026-09-13" },
+    { "name": "Year-end break", "type": "vacation", "start": "2026-11-21", "end": "2026-12-31" },
+
+    { "name": "New Year's Day", "type": "holiday", "start": "2026-01-01", "end": "2026-01-01" },
+    { "name": "Chinese New Year", "type": "holiday", "start": "2026-02-17", "end": "2026-02-18" },
+    { "name": "Hari Raya Puasa", "type": "holiday", "start": "2026-03-21", "end": "2026-03-21" },
+    { "name": "Hari Raya Puasa (off in lieu)", "type": "holiday", "start": "2026-03-23", "end": "2026-03-23" },
+    { "name": "Good Friday", "type": "holiday", "start": "2026-04-03", "end": "2026-04-03" },
+    { "name": "Labour Day", "type": "holiday", "start": "2026-05-01", "end": "2026-05-01" },
+    { "name": "Hari Raya Haji", "type": "holiday", "start": "2026-05-27", "end": "2026-05-27" },
+    { "name": "Vesak Day (observed)", "type": "holiday", "start": "2026-06-01", "end": "2026-06-01" },
+    { "name": "Youth Day (observed)", "type": "school", "start": "2026-07-06", "end": "2026-07-06" },
+    { "name": "National Day (observed)", "type": "holiday", "start": "2026-08-10", "end": "2026-08-10" },
+    { "name": "Teachers' Day", "type": "school", "start": "2026-09-04", "end": "2026-09-04" },
+    { "name": "Children's Day (primary)", "type": "school", "start": "2026-10-02", "end": "2026-10-02" },
+    { "name": "Deepavali (observed)", "type": "holiday", "start": "2026-11-09", "end": "2026-11-09" },
+    { "name": "Christmas Day", "type": "holiday", "start": "2026-12-25", "end": "2026-12-25" },
+
+    { "name": "March break", "type": "vacation", "start": "2027-03-13", "end": "2027-03-21" },
+    { "name": "Mid-year break", "type": "vacation", "start": "2027-05-29", "end": "2027-06-27" },
+    { "name": "September break", "type": "vacation", "start": "2027-09-04", "end": "2027-09-12" },
+    { "name": "Year-end break", "type": "vacation", "start": "2027-11-20", "end": "2027-12-31" },
+
+    { "name": "New Year's Day", "type": "holiday", "start": "2027-01-01", "end": "2027-01-01" },
+    { "name": "Chinese New Year", "type": "holiday", "start": "2027-02-06", "end": "2027-02-07" },
+    { "name": "Hari Raya Puasa", "type": "holiday", "start": "2027-03-10", "end": "2027-03-10" },
+    { "name": "Good Friday", "type": "holiday", "start": "2027-03-26", "end": "2027-03-26" },
+    { "name": "Labour Day", "type": "holiday", "start": "2027-05-01", "end": "2027-05-01" },
+    { "name": "Hari Raya Haji", "type": "holiday", "start": "2027-05-17", "end": "2027-05-17" },
+    { "name": "Vesak Day", "type": "holiday", "start": "2027-05-20", "end": "2027-05-20" },
+    { "name": "Youth Day", "type": "school", "start": "2027-07-05", "end": "2027-07-05" },
+    { "name": "National Day", "type": "holiday", "start": "2027-08-09", "end": "2027-08-09" },
+    { "name": "Day after National Day", "type": "school", "start": "2027-08-10", "end": "2027-08-10" },
+    { "name": "Teachers' Day", "type": "school", "start": "2027-09-03", "end": "2027-09-03" },
+    { "name": "Children's Day (primary)", "type": "school", "start": "2027-10-08", "end": "2027-10-08" },
+    { "name": "Deepavali", "type": "holiday", "start": "2027-10-28", "end": "2027-10-28" },
+    { "name": "Christmas Day", "type": "holiday", "start": "2027-12-25", "end": "2027-12-25" }
+  ]
+}

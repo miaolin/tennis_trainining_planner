@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Two-week tennis camp planner</title>
-<meta name="description" content="Plan a two-week junior tennis camp: drag sessions onto morning and afternoon slots and get live load checks on daily and weekly hours.">
+<title>Tennis training planner</title>
+<meta name="description" content="Plan junior tennis training blocks: drag sessions onto morning and afternoon slots and get live load checks on daily and weekly hours.">
 <meta name="theme-color" content="#20486B">
 <meta name="color-scheme" content="dark">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23D6E64B'/%3E%3Cpath d='M4 8a16 16 0 0 1 0 16M28 8a16 16 0 0 0 0 16' fill='none' stroke='%2320486B' stroke-width='2'/%3E%3C/svg%3E">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Two-week tennis camp planner">
-<meta property="og:description" content="Drag sessions onto morning and afternoon slots and get live load checks on daily and weekly hours.">
+<meta property="og:title" content="Tennis training planner">
+<meta property="og:description" content="Plan junior tennis training blocks with live load checks on daily and weekly hours.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
@@ -20,9 +20,7 @@
   --court-deep:#153650;
   --court-line:#EAF0F4;
   --ball:#D6E64B;
-  --clay:#B85C3C;
   --ink:#0E2334;
-  --paper:#F4F6F3;
   --mute:#7E93A3;
   --hair:rgba(255,255,255,.16);
   --ok:#4FA97C;
@@ -45,8 +43,8 @@ body{
 /* ---------- header ---------- */
 header{
   border-bottom:2px solid var(--court-line);
-  padding:26px 0 18px;
-  margin-bottom:22px;
+  padding:18px 0 18px;
+  margin-bottom:20px;
 }
 .head-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:24px;justify-content:space-between}
 h1{
@@ -59,7 +57,7 @@ h1{
   text-transform:uppercase;
 }
 h1 em{font-style:normal;color:var(--ball)}
-.sub{color:var(--mute);font-size:14px;margin:8px 0 0;max-width:46ch}
+.sub{color:var(--mute);font-size:14px;margin:8px 0 0;max-width:52ch}
 .readout{display:flex;gap:26px}
 .stat{text-align:right}
 .stat .n{
@@ -72,23 +70,54 @@ h1 em{font-style:normal;color:var(--ball)}
   color:var(--mute);display:block;margin-top:5px;
 }
 
+/* ---------- block tabs ---------- */
+.blockbar{
+  display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+  margin-bottom:14px;
+}
+.btab{
+  font-family:'Karla',sans-serif;font-size:13px;
+  background:transparent;color:var(--mute);
+  border:1px solid var(--hair);border-radius:3px;
+  padding:7px 13px;cursor:pointer;
+  display:flex;align-items:center;gap:8px;
+  transition:background .15s,border-color .15s,color .15s;
+}
+.btab:hover{background:rgba(255,255,255,.08);color:var(--court-line)}
+.btab.on{
+  background:rgba(214,230,75,.14);
+  border-color:var(--ball);
+  color:var(--court-line);
+}
+.btab .bd{
+  font-family:'Barlow Condensed',sans-serif;font-size:13px;
+  color:var(--mute);letter-spacing:.04em;
+}
+.btab.on .bd{color:var(--ball)}
+.btab-add{border-style:dashed}
+
 /* ---------- controls ---------- */
 .bar{
   display:flex;flex-wrap:wrap;gap:12px;align-items:center;
   margin-bottom:20px;
 }
-button, input[type=date]{
+button, input[type=date], input[type=text], input[type=number]{
   font-family:'Karla',sans-serif;font-size:13px;
   background:transparent;color:var(--court-line);
   border:1px solid var(--hair);border-radius:3px;
-  padding:8px 14px;cursor:pointer;
+  padding:8px 14px;
   transition:background .15s,border-color .15s;
 }
+button{cursor:pointer}
 button:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.4)}
-button:focus-visible,input:focus-visible,.chip:focus-visible,.slot:focus-visible{
+button.danger:hover{background:rgba(217,96,63,.2);border-color:var(--bad)}
+button:focus-visible,input:focus-visible,.chip:focus-visible,.slot:focus-visible,.btab:focus-visible{
   outline:2px solid var(--ball);outline-offset:2px;
 }
 input[type=date]{color-scheme:dark}
+input[type=text]#blockname{min-width:190px}
+input[type=number]#days{width:74px}
+.lab{font-size:13px;color:var(--mute)}
 .spacer{flex:1}
 
 /* ---------- palette ---------- */
@@ -97,7 +126,7 @@ input[type=date]{color-scheme:dark}
   border:1px solid var(--hair);
   border-radius:4px;
   padding:16px 18px;
-  margin-bottom:26px;
+  margin-bottom:22px;
 }
 .palette h2{
   font-family:'Barlow Condensed',sans-serif;font-weight:500;
@@ -123,6 +152,20 @@ input[type=date]{color-scheme:dark}
 }
 .hint{font-size:12.5px;color:var(--mute);margin:12px 0 0}
 
+/* ---------- week totals ---------- */
+.weekcaps{
+  display:flex;flex-wrap:wrap;gap:18px;align-items:baseline;
+  margin:0 0 10px;padding-bottom:8px;
+  border-bottom:1px solid var(--hair);
+}
+.wcap{font-family:'Barlow Condensed',sans-serif;font-size:16px;letter-spacing:.02em}
+.wcap b{font-weight:600}
+.wcap small{
+  font-size:11px;color:var(--mute);letter-spacing:.14em;
+  text-transform:uppercase;margin-right:6px;font-family:'Karla',sans-serif;
+}
+.wcap.over{color:var(--bad)}
+
 /* ---------- calendar ---------- */
 .dow-row{
   display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:8px;
@@ -144,7 +187,7 @@ input[type=date]{color-scheme:dark}
 }
 .day.blank{background:transparent;border:none;min-height:0}
 .day.rest{background:rgba(184,92,60,.16);border-color:rgba(184,92,60,.5)}
-.day.travel{background:rgba(255,255,255,.03)}
+.day.last{background:rgba(255,255,255,.03)}
 .day-head{
   display:flex;justify-content:space-between;align-items:baseline;
   border-bottom:1px solid var(--hair);padding-bottom:6px;margin-bottom:7px;
@@ -201,20 +244,6 @@ input[type=date]{color-scheme:dark}
 .load-bar i.over{background:var(--bad)}
 .day-hrs{font-family:'Barlow Condensed',sans-serif;font-size:14px;min-width:30px;text-align:right}
 
-/* ---------- week totals ---------- */
-.weekcap{
-  display:flex;justify-content:space-between;align-items:baseline;
-  margin:16px 0 8px;padding-bottom:5px;
-  border-bottom:1px solid var(--hair);
-}
-.weekcap h3{
-  font-family:'Barlow Condensed',sans-serif;font-weight:500;
-  font-size:13px;letter-spacing:.18em;text-transform:uppercase;
-  color:var(--mute);margin:0;
-}
-.weekcap .wt{font-family:'Barlow Condensed',sans-serif;font-size:17px}
-.weekcap .wt small{font-size:11px;color:var(--mute);letter-spacing:.1em;margin-left:4px}
-
 /* ---------- checks ---------- */
 .checks{margin-top:34px;border-top:2px solid var(--court-line);padding-top:20px}
 .checks h2{
@@ -239,8 +268,232 @@ input[type=date]{color-scheme:dark}
   padding:14px 16px;margin:20px 0;font-size:14px;
 }
 
+/* ---------- top-level views ---------- */
+/* Page-level nav, above the header — it switches the whole page, so it sits
+   above the title rather than under it. */
+.mainnav{
+  display:flex;gap:4px;margin:0;padding-top:16px;
+  border-bottom:2px solid var(--hair);
+}
+.navbtn{
+  font-family:'Barlow Condensed',sans-serif;font-weight:500;
+  font-size:22px;letter-spacing:.1em;text-transform:uppercase;
+  background:transparent;color:var(--mute);
+  border:none;border-bottom:3px solid transparent;border-radius:3px 3px 0 0;
+  padding:12px 28px;margin-bottom:-2px;cursor:pointer;
+  transition:color .15s,border-color .15s,background .15s;
+}
+.navbtn:hover{background:rgba(255,255,255,.06);color:var(--court-line)}
+.navbtn.on{
+  color:var(--ball);border-bottom-color:var(--ball);
+  background:rgba(214,230,75,.08);
+}
+.navbtn .ct{
+  font-family:'Karla',sans-serif;font-size:12px;font-weight:700;
+  color:var(--mute);margin-left:9px;letter-spacing:.04em;vertical-align:3px;
+}
+.navbtn.on .ct{color:var(--ball)}
+.view{display:none}
+.view.on{display:block}
+
+/* ---------- players ---------- */
+.kids{
+  background:var(--court-deep);border:1px solid var(--hair);border-radius:4px;
+  padding:16px 18px;margin-bottom:22px;
+}
+.kids h2, .addbox h2{
+  font-family:'Barlow Condensed',sans-serif;font-weight:500;
+  font-size:13px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--mute);margin:0 0 12px;
+}
+.kidrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.kid{
+  display:flex;align-items:center;gap:9px;
+  border:1px solid var(--hair);border-left:4px solid var(--c);
+  border-radius:3px;background:rgba(255,255,255,.05);
+  padding:8px 8px 8px 12px;
+}
+.kid .knm{font-weight:700;font-size:13px}
+.kid .kx{
+  border:none;background:transparent;color:var(--mute);
+  font-size:14px;line-height:1;padding:2px 5px;border-radius:3px;cursor:pointer;
+}
+.kid .kx:hover{background:rgba(255,255,255,.16);color:#fff}
+
+/* ---------- add form ---------- */
+.addbox{
+  background:var(--court-deep);border:1px solid var(--hair);border-radius:4px;
+  padding:16px 18px;margin-bottom:22px;
+}
+.formgrid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
+  gap:10px;align-items:end;
+}
+.fld{display:flex;flex-direction:column;gap:5px}
+.fld label{
+  font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--mute);
+}
+.fld input{width:100%}
+.agerow{display:flex;flex-wrap:wrap;gap:9px}
+.chk{
+  display:flex;align-items:center;gap:8px;
+  border:1px solid var(--hair);border-radius:3px;
+  background:rgba(255,255,255,.05);
+  padding:8px 13px;font-size:13px;cursor:pointer;user-select:none;
+  transition:background .15s,border-color .15s;
+}
+.chk:hover{background:rgba(255,255,255,.12)}
+.chk input{accent-color:var(--ball);margin:0;cursor:pointer}
+.chk.on{border-color:var(--ball)}
+#impnote.busy{color:var(--ball)}
+#impnote.bad{color:var(--bad)}
+#impnote.good{color:var(--ok)}
+.linkrow{display:flex;gap:10px;align-items:end;margin-bottom:6px}
+.linkrow button{white-space:nowrap}
+#lookupnote.busy{color:var(--ball)}
+#lookupnote.bad{color:var(--bad)}
+#lookupnote.good{color:var(--ok)}
+.tmeta a.tlink{color:#8FC0E6;text-decoration:none;border-bottom:1px dotted rgba(143,192,230,.5)}
+.tmeta a.tlink:hover{color:var(--court-line)}
+
+/* ---------- tournaments ---------- */
+.monthhead{
+  font-family:'Barlow Condensed',sans-serif;font-weight:500;
+  font-size:13px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--mute);margin:22px 0 9px;
+  padding-bottom:5px;border-bottom:1px solid var(--hair);
+}
+.tourn{
+  display:grid;
+  grid-template-columns:118px 1fr auto;
+  gap:14px;align-items:center;
+  background:var(--court-deep);border:1px solid var(--hair);
+  border-left:3px solid var(--court-deep);
+  border-radius:4px;padding:12px 14px;margin-bottom:8px;
+}
+.tourn.soon{border-left-color:var(--warn)}
+.tourn.past{opacity:.5}
+.tourn .tdate{
+  font-family:'Barlow Condensed',sans-serif;font-size:17px;line-height:1.15;
+}
+.tourn .tdate small{
+  display:block;font-family:'Karla',sans-serif;font-size:10.5px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-top:3px;
+}
+.tourn .tnm{font-weight:700;font-size:14px}
+.tourn .tmeta{font-size:12px;color:var(--mute);margin-top:3px}
+.tourn .tmeta a{color:var(--mute)}
+.src{
+  display:inline-block;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+  border:1px solid var(--hair);border-radius:2px;padding:1px 5px;margin-right:7px;
+  color:var(--mute);vertical-align:1px;
+}
+.src.sta{border-color:#5B9BD5;color:#8FC0E6}
+.src.jttl{border-color:#9B87D4;color:#BCACE8}
+.src.prov{border-color:var(--warn);color:var(--warn)}
+.joins{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center}
+.join{
+  display:flex;align-items:center;gap:6px;
+  border:1px solid var(--hair);border-radius:3px;
+  background:transparent;color:var(--mute);
+  font-size:12px;padding:5px 9px;cursor:pointer;
+  transition:background .15s,border-color .15s,color .15s;
+}
+.join .pip{width:7px;height:7px;border-radius:50%;background:var(--c);flex:none;opacity:.35}
+.join.s-planned{border-color:rgba(255,255,255,.4);color:var(--court-line)}
+.join.s-planned .pip{opacity:1}
+.join.s-entered{border-color:var(--ball);color:var(--ball)}
+.join.s-entered .pip{opacity:1;background:var(--ball)}
+.join.s-confirmed{border-color:var(--ok);background:rgba(79,169,124,.18);color:#9BD7B7}
+.join.s-confirmed .pip{opacity:1;background:var(--ok)}
+.join.s-skipped{opacity:.45;text-decoration:line-through}
+.tdel{
+  border:none;background:transparent;color:var(--mute);
+  font-size:15px;padding:3px 7px;border-radius:3px;cursor:pointer;
+}
+.tdel:hover{background:rgba(217,96,63,.25);color:#fff}
+/* ---------- year calendar ---------- */
+.months{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
+  gap:16px;
+}
+.mon{
+  background:var(--court-deep);border:1px solid var(--hair);
+  border-radius:4px;padding:12px 13px 14px;
+}
+.mon h3{
+  font-family:'Barlow Condensed',sans-serif;font-weight:600;
+  font-size:15px;letter-spacing:.14em;text-transform:uppercase;
+  margin:0 0 9px;color:var(--court-line);
+}
+.mon .dows,.mon .days{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.mon .dows span{
+  font-size:9px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--mute);text-align:center;padding-bottom:4px;
+}
+.cell{
+  position:relative;aspect-ratio:1;border-radius:2px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:rgba(255,255,255,.72);
+  background:transparent;
+}
+.cell.pad{visibility:hidden}
+.cell.vac{background:rgba(79,169,124,.24);color:#CFEEDF}
+.cell.hol{background:rgba(232,163,61,.26);color:#F6DCB2}
+/* Left edge, so it cannot collide with the per-kid dots along the bottom. */
+.cell.blk{box-shadow:inset 3px 0 0 var(--ball)}
+/* NB: not ".tourn" — that class is the tournament rows in part 2, and reusing
+   it here made every ".tourn" query match calendar day cells too.
+   A tournament is a row of per-kid dots, not a fill: league events run for
+   weeks (Inter-Club 3 Sep–18 Oct, JTTL 19 Sep–15 Nov) and a fill would paint
+   over the school holidays, which are the point of the view. Dots also say
+   *which* kid is playing, which a single fill cannot. */
+.cell.ev{color:#fff;font-weight:700;padding-bottom:6px}
+.cell.ev:not(.vac):not(.hol){background:rgba(91,155,213,.18)}
+.cell .dots{
+  position:absolute;bottom:2px;left:0;right:0;
+  display:flex;justify-content:center;gap:2px;pointer-events:none;
+}
+.cell .dots i{
+  width:4px;height:4px;border-radius:50%;display:block;
+  background:var(--c);box-shadow:0 0 0 1px rgba(21,54,80,.9);
+}
+.cell .dots i.none{background:rgba(255,255,255,.45)}
+.cell.today{outline:2px solid #fff;outline-offset:-1px;font-weight:700}
+.cell[title]{cursor:help}
+.legend{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.lg{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--mute)}
+.lg i{width:12px;height:12px;border-radius:2px;display:block}
+.lg i.vac{background:rgba(79,169,124,.5)}
+.lg i.hol{background:rgba(232,163,61,.5)}
+.lg i.blk{background:transparent;box-shadow:inset 3px 0 0 var(--ball);border:1px solid var(--hair)}
+/* ".kd", not ".kid" — ".kid" is the chip in the Kids box, and reusing it here
+   made every ".kid" query match legend swatches too. Second time this bit:
+   see the ".tourn" note above. */
+.lg i.kd{width:7px;height:7px;border-radius:50%;background:var(--c)}
+.lg i.kd.none{background:rgba(255,255,255,.45)}
+.holrow{
+  display:flex;gap:12px;align-items:baseline;
+  padding:7px 0;border-bottom:1px solid var(--hair);font-size:13.5px;
+}
+.holrow:last-child{border-bottom:none}
+.holrow .hd{
+  font-family:'Barlow Condensed',sans-serif;font-size:15px;min-width:118px;
+}
+.holrow .hn{color:var(--court-line)}
+.holrow .hlen{color:var(--mute);font-size:12px;margin-left:auto}
+.holrow.vacation .hn{color:#9BD7B7}
+
+.empty{
+  border:1px dashed var(--hair);border-radius:4px;
+  padding:26px 18px;text-align:center;color:var(--mute);font-size:14px;
+}
+
 @media (max-width:820px){
   h1{font-size:28px}
+  .tourn{grid-template-columns:1fr;gap:9px}
+  .joins{justify-content:flex-start}
+  .navbtn{padding:10px 14px;font-size:17px;letter-spacing:.06em}
   .stat .n{font-size:26px}
   .dow-row{display:none}
   .grid{grid-template-columns:1fr;gap:7px}
@@ -251,7 +504,7 @@ input[type=date]{color-scheme:dark}
 }
 @media print{
   body{background:#fff;color:#000}
-  .palette,.bar,.hint{display:none}
+  .palette,.bar,.blockbar,.hint,.mainnav{display:none}
   .day{background:#f4f4f4;border:1px solid #999}
 }
 </style>
@@ -259,16 +512,22 @@ input[type=date]{color-scheme:dark}
 <body>
 <div class="wrap">
 
+<nav class="mainnav">
+  <button class="navbtn on" id="nav-calendar" data-view="calendar">Calendar</button>
+  <button class="navbtn" id="nav-matches" data-view="matches">Tournaments<span class="ct" id="nav-ct"></span></button>
+  <button class="navbtn" id="nav-training" data-view="training">Training</button>
+</nav>
+
 <header>
   <div class="head-row">
     <div>
-      <h1>Camp plan <em>/</em> <span id="range">&nbsp;</span></h1>
-      <p class="sub">Drag a session onto a morning or afternoon slot. On a phone, tap a session then tap the slot.</p>
+      <h1><span id="title">Training block</span> <em>/</em> <span id="range">&nbsp;</span></h1>
+      <p class="sub" id="sub">Drag a session onto a morning or afternoon slot. On a phone, tap a session then tap the slot.</p>
     </div>
     <div class="readout">
-      <div class="stat"><span class="n" id="w1">0</span><span class="l">Week 1 hrs</span></div>
-      <div class="stat"><span class="n" id="w2">0</span><span class="l">Week 2 hrs</span></div>
-      <div class="stat"><span class="n" id="wtot">0</span><span class="l">Total hrs</span></div>
+      <div class="stat"><span class="n" id="tot">0</span><span class="l" id="lab1">Total hrs</span></div>
+      <div class="stat"><span class="n" id="ondays">0</span><span class="l" id="lab2">On-court days</span></div>
+      <div class="stat"><span class="n" id="restdays">0</span><span class="l" id="lab3">Rest days</span></div>
     </div>
   </div>
 </header>
@@ -277,21 +536,32 @@ input[type=date]{color-scheme:dark}
   <div class="noscript">This planner needs JavaScript enabled to run.</div>
 </noscript>
 
+<section class="view on" id="view-training">
+
+<div class="blockbar" id="blockbar"></div>
+
 <div class="bar">
-  <label for="start" style="font-size:13px;color:var(--mute)">Arrival date</label>
-  <input type="date" id="start" value="2026-11-21">
+  <label class="lab" for="blockname">Block</label>
+  <input type="text" id="blockname" maxlength="40">
+  <label class="lab" for="start">Starts</label>
+  <input type="date" id="start">
+  <label class="lab" for="days">Days</label>
+  <input type="number" id="days" min="1" max="60" step="1">
   <div class="spacer"></div>
   <button id="btn-reset">Load suggested plan</button>
   <button id="btn-clear">Clear all</button>
   <button id="btn-copy">Copy as text</button>
   <button id="btn-print">Print</button>
+  <button id="btn-delete" class="danger">Delete block</button>
 </div>
 
 <div class="palette">
   <h2>Sessions</h2>
   <div class="chips" id="chips"></div>
-  <p class="hint">Drag a placed session to another slot to move it. Click the &times; to remove it. Rest clears the whole day. Your plan is saved in this browser.</p>
+  <p class="hint">Drag a placed session to another slot to move it. Click the &times; to remove it. Rest clears the whole day. Every block is saved in this browser.</p>
 </div>
+
+<div class="weekcaps" id="weekcaps"></div>
 
 <div class="dow-row">
   <div class="dow">Sun</div><div class="dow">Mon</div><div class="dow">Tue</div>
@@ -304,6 +574,82 @@ input[type=date]{color-scheme:dark}
   <div id="notes"></div>
 </div>
 
+</section>
+
+<section class="view" id="view-matches">
+
+  <div class="kids">
+    <h2>Kids</h2>
+    <div class="kidrow" id="kidrow"></div>
+    <div class="kidrow" style="margin-top:11px">
+      <input type="text" id="kid-name" maxlength="24" placeholder="Name">
+      <button id="kid-add">Add kid</button>
+    </div>
+    <p class="hint">Each tournament below has a button per child. Click it to cycle
+      planned &rarr; entered &rarr; confirmed &rarr; skipped &rarr; not going.</p>
+  </div>
+
+  <div class="addbox">
+    <h2>Import from STA</h2>
+    <div class="agerow" id="agerow"></div>
+    <div class="linkrow" style="margin-top:12px">
+      <label class="chk"><input type="checkbox" id="imp-upcoming" checked> Upcoming only</label>
+      <button id="imp-run">Import from STA</button>
+    </div>
+    <p class="hint" id="impnote">Pulls the whole STA tournament list and keeps the age groups you tick.</p>
+  </div>
+
+  <div class="addbox">
+    <h2>Add a tournament</h2>
+    <div class="linkrow">
+      <div class="fld" style="flex:1">
+        <label for="t-url">Tournament link</label>
+        <input type="url" id="t-url" placeholder="https://www-new.singtennis.org.sg/tournaments/…">
+      </div>
+      <button id="t-lookup">Look up</button>
+    </div>
+    <p class="hint" id="lookupnote">Paste an STA tournament link and the details fill themselves in.</p>
+    <div class="formgrid">
+      <div class="fld"><label for="t-name">Name</label><input type="text" id="t-name" maxlength="80" placeholder="STA Junior Championships"></div>
+      <div class="fld"><label for="t-start">Starts</label><input type="date" id="t-start"></div>
+      <div class="fld"><label for="t-end">Ends</label><input type="date" id="t-end"></div>
+      <div class="fld"><label for="t-venue">Venue</label><input type="text" id="t-venue" maxlength="60" placeholder="Kallang"></div>
+      <div class="fld"><label for="t-cat">Categories</label><input type="text" id="t-cat" maxlength="60" placeholder="12U Girls"></div>
+      <div class="fld"><label for="t-deadline">Entry deadline</label><input type="date" id="t-deadline"></div>
+      <div class="fld"><label for="t-add">&nbsp;</label><button id="t-add">Add tournament</button></div>
+    </div>
+    <p class="hint" id="feednote"></p>
+  </div>
+
+  <div id="tournlist"></div>
+
+  <div class="checks">
+    <h2>Season check</h2>
+    <div id="mnotes"></div>
+  </div>
+
+</section>
+
+<section class="view" id="view-calendar">
+
+  <div class="bar">
+    <button id="cal-prev">&larr;</button>
+    <span class="lab" id="cal-year" style="font-family:'Barlow Condensed',sans-serif;font-size:22px;color:var(--court-line);min-width:70px;text-align:center">&nbsp;</span>
+    <button id="cal-next">&rarr;</button>
+    <div class="spacer"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="months" id="months"></div>
+
+  <div class="checks">
+    <h2>Holidays this year</h2>
+    <div id="holidaylist"></div>
+    <p class="hint" id="holnote"></p>
+  </div>
+
+</section>
+
 </div>
 
 <script>
@@ -315,100 +661,190 @@ const TYPES = {
   rest: {nm:'Rest',     dur:"—",    hrs:0,   c:'#B85C3C', tennis:false}
 };
 
-const NDAYS = 14;          // two full weeks from the arrival date
-const DAY_CAP = 3.5;       // sensible ceiling for a 9-year-old
-const WEEK_CAP = 13;
-const STORE_KEY = 'tennis-camp-plan-v1';
+const DAY_CAP  = 3.5;      // sensible daily ceiling for a 9-year-old
+const WEEK_CAP = 13;       // per rolling 7-day week of a block
+const DEFAULT_DAYS = 14;
+const MAX_DAYS = 60;
+
+const STORE_KEY  = 'tennis-season-v2';
+const LEGACY_KEY = 'tennis-camp-plan-v1';   // v1.0.0 — read once, never written
 const DEFAULT_START = '2026-11-21';
 
+// Offsets into a block, not calendar dates — a suggested shape, not a schedule.
 const SUGGESTED = {
-  0:{am:'p1'},                 // Sat  — assessment hit
-  1:{pm:'g2'},                 // Sun  — group
-  2:{am:'p1', pm:'phys'},      // Mon
-  3:{am:'p1', pm:'p1'},        // Tue
-  4:{am:'p1', pm:'phys'},      // Wed
-  5:{am:'rest'},               // Thu  — full rest
-  6:{am:'p1'},                 // Fri
-  7:{am:'rest'},               // Sat  — taper before group
-  8:{pm:'g2'},                 // Sun  — group
-  9:{am:'p1', pm:'phys'},      // Mon
-  10:{am:'p1', pm:'p1'},       // Tue
-  11:{am:'rest'},              // Wed  — full rest
-  12:{am:'p1', pm:'p1'},       // Thu
-  13:{am:'p1'}                 // Fri  — wrap-up, then fly
+  0:{am:'p1'},  1:{pm:'g2'},  2:{am:'p1', pm:'phys'},
+  3:{am:'p1', pm:'p1'},  4:{am:'p1', pm:'phys'},  5:{am:'rest'},
+  6:{am:'p1'},  7:{am:'rest'},  8:{pm:'g2'},
+  9:{am:'p1', pm:'phys'},  10:{am:'p1', pm:'p1'},  11:{am:'rest'},
+  12:{am:'p1', pm:'p1'},  13:{am:'p1'}
 };
 
-let plan = {};
+/* ---------------------------------------------------------------- state --- */
+// The v2 shape. matches/entries/trips/players are reserved for the season view
+// and stay empty here, but they are written so a later version does not have to
+// migrate again.
+let state = null;
 let armed = null;
 
-function blank(){ const o={}; for(let i=0;i<NDAYS;i++) o[i]={am:null,pm:null}; return o; }
-function loadSuggested(){
-  plan = blank();
-  for(const k in SUGGESTED){
-    plan[k].am = SUGGESTED[k].am || null;
-    plan[k].pm = SUGGESTED[k].pm || null;
-  }
+function uid(){ return 'b' + Math.floor(performance.now() * 1000).toString(36) + Math.floor(Math.random()*1e6).toString(36); }
+
+function emptyState(){
+  return {version:2, blocks:[], activeBlockId:null,
+          players:[], entries:[], trips:[], manualMatches:[]};
+}
+function newBlock(name, start, days){
+  return {id:uid(), name:name || 'Training block', start:start || DEFAULT_START,
+          days:days || DEFAULT_DAYS, anchorMatchId:null, plan:{}};
+}
+function active(){
+  if(!state.blocks.length) return null;
+  return state.blocks.find(b => b.id === state.activeBlockId) || state.blocks[0];
+}
+function planAt(b, i){
+  const d = b.plan[i];
+  return d ? d : {am:null, pm:null};
 }
 
-/* ---- persistence ---- */
+/* --------------------------------------------------------- persistence --- */
 function store(){
   try{ return window.localStorage; }catch(e){ return null; }   // blocked in some privacy modes
 }
 function save(){
   const s = store();
   if(!s) return;
-  try{
-    s.setItem(STORE_KEY, JSON.stringify({
-      start: document.getElementById('start').value,
-      plan: plan
-    }));
-  }catch(e){}
-}
-// Accept only slot values we still know about, so an old save can never
-// wedge the grid with a type that no longer exists.
-function sanitise(raw){
-  const out = blank();
-  if(!raw || typeof raw !== 'object') return null;
-  let any = false;
-  for(let i=0;i<NDAYS;i++){
-    const d = raw[i];
-    if(!d || typeof d !== 'object') continue;
-    ['am','pm'].forEach(s=>{
-      if(d[s] && TYPES[d[s]]){ out[i][s] = d[s]; any = true; }
-    });
-  }
-  return any ? out : null;
-}
-function restore(){
-  const s = store();
-  if(!s) return false;
-  try{
-    const raw = s.getItem(STORE_KEY);
-    if(!raw) return false;
-    const saved = JSON.parse(raw);
-    const p = sanitise(saved && saved.plan);
-    if(!p) return false;
-    plan = p;
-    if(saved.start) document.getElementById('start').value = saved.start;
-    return true;
-  }catch(e){ return false; }
+  try{ s.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
 }
 
-/* ---- dates ---- */
-function startDate(){
-  const s = document.getElementById('start').value || DEFAULT_START;
-  const d = new Date(s + 'T00:00:00');
+// Accept only what we still understand. A block that survives sanitising keeps
+// its sessions; anything unrecognised is dropped rather than allowed to wedge
+// the grid.
+function sanitiseBlock(raw){
+  if(!raw || typeof raw !== 'object') return null;
+  const days = Math.min(MAX_DAYS, Math.max(1, parseInt(raw.days, 10) || DEFAULT_DAYS));
+  const start = /^\d{4}-\d{2}-\d{2}$/.test(raw.start) ? raw.start : DEFAULT_START;
+  const b = newBlock(typeof raw.name === 'string' ? raw.name : 'Training block', start, days);
+  if(typeof raw.id === 'string' && raw.id) b.id = raw.id;
+  if(typeof raw.anchorMatchId === 'string') b.anchorMatchId = raw.anchorMatchId;
+  const p = raw.plan;
+  if(p && typeof p === 'object'){
+    for(const k in p){
+      const i = parseInt(k, 10);
+      if(!(i >= 0) || i >= MAX_DAYS) continue;
+      const d = p[k];
+      if(!d || typeof d !== 'object') continue;
+      const am = TYPES[d.am] ? d.am : null;
+      const pm = TYPES[d.pm] ? d.pm : null;
+      if(am || pm) b.plan[i] = {am, pm};
+    }
+  }
+  return b;
+}
+function sanitiseState(raw){
+  if(!raw || typeof raw !== 'object' || !Array.isArray(raw.blocks)) return null;
+  const st = emptyState();
+  st.blocks = raw.blocks.map(sanitiseBlock).filter(Boolean);
+  if(!st.blocks.length) return null;
+  const wanted = st.blocks.find(b => b.id === raw.activeBlockId);
+  st.activeBlockId = wanted ? wanted.id : st.blocks[0].id;
+
+  if(Array.isArray(raw.players)) st.players = raw.players
+    .filter(p => p && typeof p.id === 'string' && typeof p.name === 'string' && p.name)
+    .map((p,i) => ({id:p.id, name:p.name.slice(0,24),
+                    colour: /^#[0-9a-f]{6}$/i.test(p.colour) ? p.colour : KID_COLOURS[i % KID_COLOURS.length]}));
+
+  // Locally held matches keep whichever source they came from — an imported STA
+  // tournament must not lose its badge just because we store it alongside the
+  // hand-typed ones.
+  if(Array.isArray(raw.manualMatches)) st.manualMatches = raw.manualMatches
+    .filter(validMatch).map(normaliseMatch)
+    .map(m => ({...m, source: ['manual','sta','jttl'].includes(m.source) ? m.source : 'manual'}));
+
+  // Drop entries whose player is gone. Entries are kept even when their match
+  // is not currently known — the feed may simply be missing on this load, and
+  // discarding them would silently lose the user's entry status.
+  if(Array.isArray(raw.entries)){
+    const kids = new Set(st.players.map(p=>p.id));
+    st.entries = raw.entries.filter(e =>
+      e && typeof e.matchId === 'string' && typeof e.playerId === 'string' &&
+      STATUSES.includes(e.status) && kids.has(e.playerId));
+  }
+
+  if(Array.isArray(raw.trips)) st.trips = raw.trips;
+  return st;
+}
+
+// v1.0.0 stored a single {start, plan} under its own key. Fold it into one
+// block. The old key is deliberately left in place so rolling back to the
+// v1.0.0 deploy still finds its data.
+function migrateLegacy(){
+  const s = store();
+  if(!s) return null;
+  let raw;
+  try{ raw = s.getItem(LEGACY_KEY); }catch(e){ return null; }
+  if(!raw) return null;
+  let old;
+  try{ old = JSON.parse(raw); }catch(e){ return null; }
+  if(!old || typeof old !== 'object' || !old.plan) return null;
+  const b = sanitiseBlock({name:'Camp plan', start:old.start, days:DEFAULT_DAYS, plan:old.plan});
+  if(!b || !Object.keys(b.plan).length) return null;
+  const st = emptyState();
+  st.blocks = [b];
+  st.activeBlockId = b.id;
+  return st;
+}
+
+function load(){
+  const s = store();
+  if(s){
+    let raw;
+    try{ raw = s.getItem(STORE_KEY); }catch(e){ raw = null; }
+    if(raw){
+      try{
+        const st = sanitiseState(JSON.parse(raw));
+        if(st){ state = st; return; }
+      }catch(e){}
+    }
+    const migrated = migrateLegacy();
+    if(migrated){ state = migrated; save(); return; }
+  }
+  state = emptyState();
+  const b = newBlock('Camp plan', DEFAULT_START, DEFAULT_DAYS);
+  applySuggested(b);
+  state.blocks = [b];
+  state.activeBlockId = b.id;
+}
+
+function applySuggested(b){
+  b.plan = {};
+  for(const k in SUGGESTED){
+    const i = parseInt(k, 10);
+    if(i >= b.days) continue;          // a shorter block only takes what fits
+    const src = SUGGESTED[k];
+    b.plan[i] = {am:src.am || null, pm:src.pm || null};
+  }
+}
+
+/* -------------------------------------------------------------- dates --- */
+function startDate(b){
+  const d = new Date((b ? b.start : DEFAULT_START) + 'T00:00:00');
   return isNaN(d) ? new Date(DEFAULT_START + 'T00:00:00') : d;
 }
-function dateFor(i){
-  const d = startDate();
+function dateFor(b, i){
+  const d = startDate(b);
   d.setDate(d.getDate() + i);
   return d;
 }
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function fmt(d){ return `${d.getDate()} ${MON[d.getMonth()]}`; }
+// Local Y-M-D. toISOString() would shift the date backwards anywhere east of
+// UTC, because these Dates are local midnight.
+function iso(d){
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+}
 
-/* ---- palette ---- */
+/* ------------------------------------------------------------ palette --- */
 function buildChips(){
   const box = document.getElementById('chips');
   box.innerHTML = '';
@@ -435,41 +871,130 @@ function arm(key){
   document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('armed', c.dataset.type===armed));
 }
 
-/* ---- placing ---- */
+/* ------------------------------------------------------------- edits --- */
 function place(day, slot, type, from){
-  if(!TYPES[type]) return;
-  if(type === 'rest'){ plan[day] = {am:'rest', pm:null}; }
-  else{
-    if(plan[day].am === 'rest') plan[day].am = null;
-    if(from) plan[from.day][from.slot] = null;
-    plan[day][slot] = type;
+  const b = active();
+  if(!b || !TYPES[type]) return;
+  if(type === 'rest'){
+    b.plan[day] = {am:'rest', pm:null};
+  } else {
+    const cur = planAt(b, day);
+    if(cur.am === 'rest') cur.am = null;
+    if(from){
+      const src = planAt(b, from.day);
+      src[from.slot] = null;
+      b.plan[from.day] = src;
+    }
+    const now = planAt(b, day);
+    now[slot] = type;
+    b.plan[day] = now;
   }
   render(); save();
 }
-function clearSlot(day, slot){ plan[day][slot] = null; render(); save(); }
+function clearSlot(day, slot){
+  const b = active();
+  if(!b) return;
+  const d = planAt(b, day);
+  d[slot] = null;
+  b.plan[day] = d;
+  render(); save();
+}
 
-/* ---- render ---- */
-function render(){
+/* -------------------------------------------------------------- maths --- */
+function dayHours(b, i){
+  const d = planAt(b, i);
+  let h = 0;
+  if(d.am && TYPES[d.am]) h += TYPES[d.am].hrs;
+  if(d.pm && TYPES[d.pm]) h += TYPES[d.pm].hrs;
+  return h;
+}
+function totalHours(b){
+  let h = 0;
+  for(let i=0;i<b.days;i++) h += dayHours(b, i);
+  return h;
+}
+// Weeks are 7-day chunks from the block start, so a block of any length
+// reports sensible weekly loads instead of assuming exactly two weeks.
+function weekChunks(b){
+  const out = [];
+  for(let s=0; s<b.days; s+=7){
+    const e = Math.min(s+7, b.days);
+    let h = 0;
+    for(let i=s;i<e;i++) h += dayHours(b, i);
+    out.push({from:s, to:e-1, hrs:h, days:e-s});
+  }
+  return out;
+}
+function isRestDay(b, i){ return dayHours(b, i) === 0; }
+
+/* ------------------------------------------------------------- render --- */
+function renderBlockBar(){
+  const bar = document.getElementById('blockbar');
+  bar.innerHTML = '';
+  const cur = active();
+  state.blocks.forEach(b=>{
+    const el = document.createElement('button');
+    el.className = 'btab' + (cur && b.id === cur.id ? ' on' : '');
+    el.dataset.id = b.id;
+    const d0 = dateFor(b, 0), d1 = dateFor(b, b.days-1);
+    el.innerHTML = `<span>${escapeHtml(b.name)}</span><span class="bd">${fmt(d0)} – ${fmt(d1)}</span>`;
+    el.addEventListener('click', ()=>{ state.activeBlockId = b.id; render(); save(); });
+    bar.appendChild(el);
+  });
+  const add = document.createElement('button');
+  add.className = 'btab btab-add';
+  add.id = 'btn-add';
+  add.textContent = '+ New block';
+  add.addEventListener('click', addBlock);
+  bar.appendChild(add);
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderTraining(){
+  const b = active();
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
 
-  // The camp can start on any weekday, so the leading gap is the arrival
-  // day's column and the trailing gap pads out to a whole week.
-  const lead = startDate().getDay();
-  for(let i=0;i<lead;i++){ const b=document.createElement('div'); b.className='day blank'; grid.appendChild(b); }
+  renderBlockBar();
 
-  document.getElementById('range').textContent = `${fmt(dateFor(0))} – ${fmt(dateFor(NDAYS-1))}`;
+  if(!b){
+    document.getElementById('title').textContent = 'No blocks';
+    document.getElementById('range').textContent = '';
+    ['tot','ondays','restdays'].forEach(id=>document.getElementById(id).textContent = '0');
+    document.getElementById('weekcaps').innerHTML = '';
+    document.getElementById('notes').innerHTML =
+      '<div class="note warn"><span class="dot"></span><div><b>No training blocks.</b> ' +
+      '<span>Add one to start planning.</span></div></div>';
+    return;
+  }
 
-  for(let i=0;i<NDAYS;i++){
+  document.getElementById('title').textContent = b.name;
+  document.getElementById('range').textContent = `${fmt(dateFor(b,0))} – ${fmt(dateFor(b,b.days-1))}`;
+  const nameEl = document.getElementById('blockname');
+  const startEl = document.getElementById('start');
+  const daysEl = document.getElementById('days');
+  if(document.activeElement !== nameEl) nameEl.value = b.name;
+  if(document.activeElement !== startEl) startEl.value = b.start;
+  if(document.activeElement !== daysEl) daysEl.value = b.days;
+
+  // A block can start on any weekday, so the leading gap is the start day's
+  // column and the trailing gap pads out to a whole week.
+  const lead = startDate(b).getDay();
+  for(let i=0;i<lead;i++){ const x=document.createElement('div'); x.className='day blank'; grid.appendChild(x); }
+
+  for(let i=0;i<b.days;i++){
     const d = document.createElement('div');
     d.className = 'day';
-    const isRest = plan[i].am === 'rest';
+    const cell = planAt(b, i);
+    const isRest = cell.am === 'rest';
     if(isRest) d.classList.add('rest');
-    if(i===NDAYS-1) d.classList.add('travel');
+    if(i === b.days-1) d.classList.add('last');
 
-    const label = fmt(dateFor(i));
-    const tag = i===NDAYS-1 ? 'Depart' : `Day ${i+1}`;
-    d.innerHTML = `<div class="day-head"><span class="day-num">${label}</span><span class="day-tag">${tag}</span></div>`;
+    const tag = i === b.days-1 ? 'Last day' : `Day ${i+1}`;
+    d.innerHTML = `<div class="day-head"><span class="day-num">${fmt(dateFor(b,i))}</span><span class="day-tag">${tag}</span></div>`;
 
     const slots = document.createElement('div');
     slots.className = 'slots';
@@ -479,7 +1004,7 @@ function render(){
       r.className = 'rest-fill';
       r.textContent = 'Rest';
       r.title = 'Click to clear';
-      r.addEventListener('click', ()=>{ plan[i]={am:null,pm:null}; render(); save(); });
+      r.addEventListener('click', ()=>{ b.plan[i] = {am:null, pm:null}; render(); save(); });
       wireDrop(r, i, 'am');
       slots.appendChild(r);
     } else {
@@ -487,7 +1012,7 @@ function render(){
         const el = document.createElement('div');
         el.className = 'slot';
         el.tabIndex = 0;
-        const val = plan[i][s];
+        const val = cell[s];
         if(val){
           const t = TYPES[val];
           el.classList.add('filled');
@@ -514,7 +1039,7 @@ function render(){
     }
     d.appendChild(slots);
 
-    const hrs = dayHours(i);
+    const hrs = dayHours(b, i);
     const pct = Math.min(100, hrs/DAY_CAP*100);
     const cls = hrs > DAY_CAP ? 'over' : (hrs >= 3 ? 'hot' : '');
     const foot = document.createElement('div');
@@ -524,15 +1049,22 @@ function render(){
     d.appendChild(foot);
     grid.appendChild(d);
   }
-  const filled = lead + NDAYS;
-  const total = Math.ceil(filled/7)*7;
-  for(let i=filled; i<total; i++){ const b=document.createElement('div'); b.className='day blank'; grid.appendChild(b); }
+  const filled = lead + b.days;
+  const cells = Math.ceil(filled/7)*7;
+  for(let i=filled;i<cells;i++){ const x=document.createElement('div'); x.className='day blank'; grid.appendChild(x); }
 
-  const a = weekHours(0), b = weekHours(1);
-  document.getElementById('w1').textContent = a.toFixed(1);
-  document.getElementById('w2').textContent = b.toFixed(1);
-  document.getElementById('wtot').textContent = (a+b).toFixed(1);
-  runChecks();
+  const weeks = weekChunks(b);
+  document.getElementById('weekcaps').innerHTML = weeks.map((w,i)=>
+    `<span class="wcap${w.hrs > WEEK_CAP ? ' over' : ''}"><small>Week ${i+1}</small><b>${w.hrs.toFixed(1)}</b>h</span>`
+  ).join('') + `<span class="wcap"><small>Block</small><b>${totalHours(b).toFixed(1)}</b>h</span>`;
+
+  let on = 0, rest = 0;
+  for(let i=0;i<b.days;i++){ if(dayHours(b,i) > 0) on++; else rest++; }
+  document.getElementById('tot').textContent = totalHours(b).toFixed(1);
+  document.getElementById('ondays').textContent = on;
+  document.getElementById('restdays').textContent = rest;
+
+  runChecks(b);
 }
 
 function wireDrop(el, day, slot){
@@ -547,103 +1079,804 @@ function wireDrop(el, day, slot){
   });
 }
 
-function dayHours(i){
-  const d = plan[i];
-  let h = 0;
-  if(d.am && TYPES[d.am]) h += TYPES[d.am].hrs;
-  if(d.pm && TYPES[d.pm]) h += TYPES[d.pm].hrs;
-  return h;
-}
-function weekHours(w){
-  let h = 0;
-  const from = w===0 ? 0 : 7, to = w===0 ? 6 : NDAYS-1;
-  for(let i=from;i<=to;i++) h += dayHours(i);
-  return h;
-}
-function isRestDay(i){ return dayHours(i) === 0; }
-
-/* ---- load checks ---- */
-function runChecks(){
+/* ------------------------------------------------------- load checks --- */
+function runChecks(b){
   const out = [];
-  const total = weekHours(0) + weekHours(1);
+  const total = totalHours(b);
 
-  // heavy days
   const heavy = [];
-  for(let i=0;i<NDAYS;i++) if(dayHours(i) > DAY_CAP) heavy.push(i+1);
+  for(let i=0;i<b.days;i++) if(dayHours(b,i) > DAY_CAP) heavy.push(i+1);
   if(heavy.length) out.push(['bad','Heavy days',
     `Day ${heavy.join(', ')} exceed ${DAY_CAP}h. That is past the useful ceiling for a 9-year-old — she will stop learning and start surviving the session.`]);
 
-  // consecutive without rest
   let run = 0, worst = 0;
-  for(let i=0;i<NDAYS;i++){ if(isRestDay(i)) run = 0; else { run++; worst = Math.max(worst, run); } }
+  for(let i=0;i<b.days;i++){ if(isRestDay(b,i)) run = 0; else { run++; worst = Math.max(worst, run); } }
   if(worst >= 6) out.push(['bad','No rest day',
     `${worst} days in a row on court. Put a full rest day in — off court means off court, not a light hit.`]);
   else if(worst === 5) out.push(['warn','Long run',
     `${worst} days in a row. Workable, but watch her energy on the last two.`]);
 
-  // group / peer time
   let groups = 0;
-  for(let i=0;i<NDAYS;i++){ if(plan[i].am==='g2') groups++; if(plan[i].pm==='g2') groups++; }
+  for(let i=0;i<b.days;i++){ const d = planAt(b,i); if(d.am==='g2') groups++; if(d.pm==='g2') groups++; }
   if(groups === 0) out.push(['bad','No peer time',
-    'No group sessions. Two weeks of drilling with no other children means technique that never gets tested and a child who gets bored.']);
+    'No group sessions. Weeks of drilling with no other children means technique that never gets tested and a child who gets bored.']);
   else if(groups <= 2) out.push(['warn','Thin peer time',
     `Only ${groups} group session${groups>1?'s':''}. Ask the club to pair her with another junior for some privates, and end every private with live points.`]);
 
-  // private-heavy days
   const twoPriv = [];
-  for(let i=0;i<NDAYS;i++){
-    const {am,pm} = plan[i];
-    if(am && pm && TYPES[am].tennis && TYPES[pm].tennis && !(am==='g2'||pm==='g2')) twoPriv.push(i+1);
+  for(let i=0;i<b.days;i++){
+    const {am,pm} = planAt(b,i);
+    if(am && pm && TYPES[am] && TYPES[pm] && TYPES[am].tennis && TYPES[pm].tennis && !(am==='g2'||pm==='g2')) twoPriv.push(i+1);
   }
   if(twoPriv.length) out.push(['warn','Two tennis blocks',
     `Day ${twoPriv.join(', ')} have two private sessions. Split them morning and late afternoon with a real break — never back to back.`]);
 
-  // physical balance
   let phys = 0;
-  for(let i=0;i<NDAYS;i++){ if(plan[i].am==='phys') phys++; if(plan[i].pm==='phys') phys++; }
+  for(let i=0;i<b.days;i++){ const d = planAt(b,i); if(d.am==='phys') phys++; if(d.pm==='phys') phys++; }
   if(phys > 5) out.push(['warn','Heavy on physical',
     `${phys} physical sessions. At 9, movement work belongs mostly in the warm-up — court time teaches more.`]);
 
-  // week totals
-  [0,1].forEach(w=>{
-    const h = weekHours(w);
-    if(h > WEEK_CAP) out.push(['bad',`Week ${w+1} too heavy`,
-      `${h.toFixed(1)}h. Trim a second session or two — private hours are far denser than group hours.`]);
+  weekChunks(b).forEach((w,i)=>{
+    // Only judge a full week — a 3-day tail is not "under target", it is short.
+    if(w.days === 7 && w.hrs > WEEK_CAP) out.push(['bad',`Week ${i+1} too heavy`,
+      `${w.hrs.toFixed(1)}h. Trim a second session or two — private hours are far denser than group hours.`]);
   });
 
-  if(total === 0) out.push(['warn','Empty plan',
+  if(total === 0) out.push(['warn','Empty block',
     'Nothing scheduled yet. Load the suggested plan, or start dragging sessions onto the days.']);
   else if(!out.length) out.push(['ok','Balanced',
-    `${total.toFixed(1)}h across the fortnight with rest built in. Serves in the morning slot only, 40–50 balls, never two days running.`]);
+    `${total.toFixed(1)}h across ${b.days} days with rest built in. Serves in the morning slot only, 40–50 balls, never two days running.`]);
 
-  document.getElementById('notes').innerHTML = out.map(([k,t,b])=>
-    `<div class="note ${k}"><span class="dot"></span><div><b>${t}.</b> <span>${b}</span></div></div>`
+  document.getElementById('notes').innerHTML = out.map(([k,t,body])=>
+    `<div class="note ${k}"><span class="dot"></span><div><b>${t}.</b> <span>${body}</span></div></div>`
   ).join('');
 }
 
-/* ---- export ---- */
+/* =================================================== part 2: tournaments ===
+   Matches come from two places: a generated data/matches.json written by the
+   scraper in tools/, and whatever the user adds by hand. They are merged for
+   display; only the manual ones are editable here.
+   ========================================================================= */
+const STATUSES = ['planned','entered','confirmed','skipped'];
+const STATUS_LABEL = {planned:'Planned', entered:'Entered', confirmed:'Confirmed', skipped:'Skipping'};
+const KID_COLOURS = ['#5B9BD5','#D6E64B','#9B87D4','#4FA97C','#E8A33D','#D9603F'];
+const DEADLINE_WARN_DAYS = 21;
+
+let feed = [];            // from data/matches.json, read-only
+let feedNote = '';
+
+function validMatch(m){
+  return m && typeof m === 'object' &&
+         typeof m.id === 'string' && m.id &&
+         typeof m.name === 'string' && m.name &&
+         /^\d{4}-\d{2}-\d{2}$/.test(m.start);
+}
+// Only http(s) is ever rendered as a link — a stored javascript: URL must not
+// become a clickable anchor.
+function safeUrl(u){
+  try{
+    const p = new URL(String(u).trim());
+    return /^https?:$/.test(p.protocol) ? p.href : '';
+  }catch(e){ return ''; }
+}
+function normaliseMatch(m){
+  return {
+    id: m.id,
+    source: typeof m.source === 'string' ? m.source : 'manual',
+    name: m.name,
+    start: m.start,
+    end: /^\d{4}-\d{2}-\d{2}$/.test(m.end) ? m.end : m.start,
+    venue: typeof m.venue === 'string' ? m.venue : '',
+    categories: Array.isArray(m.categories) ? m.categories.filter(c=>typeof c==='string') : [],
+    entryDeadline: /^\d{4}-\d{2}-\d{2}$/.test(m.entryDeadline) ? m.entryDeadline : null,
+    url: safeUrl(m.url),
+    provisional: m.provisional === true
+  };
+}
+function allMatches(){
+  const seen = new Set();
+  const out = [];
+  feed.concat(state.manualMatches || []).forEach(m=>{
+    if(!validMatch(m) || seen.has(m.id)) return;
+    seen.add(m.id);
+    out.push(normaliseMatch(m));
+  });
+  out.sort((a,b)=> a.start < b.start ? -1 : a.start > b.start ? 1 : 0);
+  return out;
+}
+
+// The site is static, so this is a same-origin read of a committed file. It
+// fails harmlessly on file:// and before the scraper has ever run.
+async function loadFeed(){
+  try{
+    const r = await fetch('data/matches.json', {cache:'no-store'});
+    if(!r.ok){ feedNote = ''; return; }
+    const j = await r.json();
+    if(j && Array.isArray(j.matches)){
+      feed = j.matches.filter(validMatch).map(normaliseMatch);
+      feedNote = feed.length
+        ? `${feed.length} tournament${feed.length===1?'':'s'} loaded from data/matches.json` +
+          (j.generatedAt ? ` (generated ${String(j.generatedAt).slice(0,10)})` : '')
+        : 'data/matches.json is empty — run the scraper in tools/ to fill it. ' +
+          'Tournaments added here are stored in this browser.';
+    }
+  }catch(e){
+    feedNote = '';   // no feed yet — manual entry only
+  }
+}
+
+/* ---- STA link lookup ------------------------------------------------------
+   api.singtennis.org.sg answers an unauthenticated POST and sends
+   Access-Control-Allow-Origin: *, so the page can read it directly — no
+   proxy, no scraper. One call returns every tournament; we match on the slug
+   in the pasted URL. Venue is not published anywhere in their API, so that
+   field stays manual.
+   ------------------------------------------------------------------------ */
+const STA_API = 'https://api.singtennis.org.sg/web-api/Tournament/GetTournamentList';
+let staCache = null;
+
+function slugFromUrl(raw){
+  let u;
+  try{ u = new URL(String(raw).trim()); }catch(e){ return null; }
+  if(!/^https?:$/.test(u.protocol)) return null;
+  if(!/(^|\.)singtennis\.org\.sg$/.test(u.hostname)) return null;
+  const parts = u.pathname.split('/').filter(Boolean);
+  const i = parts.indexOf('tournaments');
+  if(i < 0 || !parts[i+1]) return null;
+  return decodeURIComponent(parts[i+1]);
+}
+function dmyToIso(s){
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(s || '').trim());
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
+}
+async function fetchStaList(){
+  if(staCache) return staCache;
+  const r = await fetch(STA_API, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'
+  });
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+  const j = await r.json();
+  if(!j || j.status !== 'Success' || !Array.isArray(j.data)) throw new Error('unexpected response');
+  staCache = j.data.reduce((acc,g)=>
+    acc.concat(Array.isArray(g.tournamentResps) ? g.tournamentResps : []), []);
+  return staCache;
+}
+function setField(id, v){ if(v) document.getElementById(id).value = v; }
+function lookupNote(msg, cls){
+  const el = document.getElementById('lookupnote');
+  el.textContent = msg;
+  el.className = 'hint' + (cls ? ' ' + cls : '');
+}
+async function lookupLink(){
+  const raw = document.getElementById('t-url').value.trim();
+  if(!raw){ lookupNote('Paste a tournament link first.', 'bad'); return false; }
+  const slug = slugFromUrl(raw);
+  if(!slug){
+    lookupNote('That is not an STA tournament link. Only singtennis.org.sg links can be looked up — ' +
+               'JTTL fixtures come from the scraper in tools/.', 'bad');
+    return false;
+  }
+  lookupNote('Looking up…', 'busy');
+  try{
+    const rows = await fetchStaList();
+    const hit = rows.find(t => t && t.slug === slug);
+    if(!hit){
+      lookupNote(`No STA tournament matches “${slug}”. Check the link, or fill the fields in by hand.`, 'bad');
+      return false;
+    }
+    setField('t-name', hit.tournamentName);
+    setField('t-start', dmyToIso(hit.startDate));
+    setField('t-end', dmyToIso(hit.endDate));
+    setField('t-deadline', dmyToIso(hit.deadline));
+    setField('t-cat', [hit.tournamentTypeName, hit.tournamentLevelName].filter(Boolean).join(' · '));
+    lookupNote(`Found “${hit.tournamentName}”. STA does not publish a venue — add one by hand if you want it.`, 'good');
+    return true;
+  }catch(e){
+    lookupNote('Could not reach the STA API (' + e.message + '). Fill the fields in by hand.', 'bad');
+    return false;
+  }
+}
+
+/* ---- bulk import from STA ------------------------------------------------
+   STA has no age-group field. The level name carries U10, and the rest is in
+   the tournament title (14&U, 16&U). Anything junior with no age token lands
+   in "Junior — other", which is mostly the ITF/ATF events.
+   ------------------------------------------------------------------------ */
+const AGE_GROUPS = [
+  {key:'u10',    label:'U10'},
+  {key:'u14',    label:'14&U'},
+  {key:'u16',    label:'16&U'},
+  {key:'junior', label:'Junior — other'},
+  {key:'open',   label:'Adult / Open'}
+];
+const DEFAULT_AGES = ['u10','u14','u16','junior'];
+let agePick = DEFAULT_AGES.slice();
+
+function ageBucket(t){
+  const name = String(t.tournamentName || '').toUpperCase().replace(/\s+/g,'');
+  const level = String(t.tournamentLevelName || '');
+  if(level === 'Junior (U10)' || /U10/.test(name)) return 'u10';
+  if(/14&U/.test(name)) return 'u14';
+  if(/16&U/.test(name)) return 'u16';
+  if(level === 'Junior') return 'junior';
+  return 'open';
+}
+function staToMatch(t){
+  return {
+    id: 'sta-' + t.tournamentId,
+    source: 'sta',
+    name: t.tournamentName,
+    start: dmyToIso(t.startDate),
+    end: dmyToIso(t.endDate) || dmyToIso(t.startDate),
+    venue: '',                                    // STA does not publish it
+    categories: [t.tournamentTypeName, t.tournamentLevelName].filter(Boolean),
+    entryDeadline: dmyToIso(t.deadline) || null,
+    url: t.slug ? 'https://www-new.singtennis.org.sg/tournaments/' + t.slug : '',
+    provisional: false
+  };
+}
+function renderAgeRow(){
+  const row = document.getElementById('agerow');
+  row.innerHTML = AGE_GROUPS.map(g=>
+    `<label class="chk${agePick.includes(g.key) ? ' on' : ''}">` +
+    `<input type="checkbox" data-age="${g.key}"${agePick.includes(g.key) ? ' checked' : ''}> ${g.label}</label>`
+  ).join('');
+  row.querySelectorAll('input[data-age]').forEach(cb=>
+    cb.addEventListener('change', ()=>{
+      const k = cb.dataset.age;
+      agePick = cb.checked ? agePick.concat([k]).filter((v,i,a)=>a.indexOf(v)===i)
+                           : agePick.filter(x=>x!==k);
+      renderAgeRow();
+    }));
+}
+function impNote(msg, cls){
+  const el = document.getElementById('impnote');
+  el.textContent = msg;
+  el.className = 'hint' + (cls ? ' ' + cls : '');
+}
+async function importFromSta(){
+  if(!agePick.length){ impNote('Tick at least one age group first.', 'bad'); return false; }
+  impNote('Fetching the STA tournament list…', 'busy');
+  let rows;
+  try{
+    rows = await fetchStaList();
+  }catch(e){
+    impNote('Could not reach the STA API (' + e.message + '). Nothing imported.', 'bad');
+    return false;
+  }
+  const upcomingOnly = document.getElementById('imp-upcoming').checked;
+  const today = todayIso();
+  const have = new Set(allMatches().map(m=>m.id));
+
+  let matched = 0, added = 0, skippedOld = 0, dupes = 0;
+  rows.forEach(t=>{
+    if(!t || !dmyToIso(t.startDate)) return;
+    if(!agePick.includes(ageBucket(t))) return;
+    matched++;
+    const m = staToMatch(t);
+    if(upcomingOnly && m.end < today){ skippedOld++; return; }
+    if(have.has(m.id)){ dupes++; return; }
+    have.add(m.id);
+    state.manualMatches.push(m);
+    added++;
+  });
+
+  const bits = [`${added} added`];
+  if(dupes) bits.push(`${dupes} already there`);
+  if(skippedOld) bits.push(`${skippedOld} already finished`);
+  impNote(matched
+    ? `${bits.join(', ')}. Matched ${matched} of ${rows.length} STA tournaments on the ticked age groups.`
+    : `None of the ${rows.length} STA tournaments matched the ticked age groups.`,
+    added ? 'good' : 'bad');
+  render(); save();
+  return added > 0;
+}
+
+/* ---- players ---- */
+function addPlayer(name){
+  const n = (name || '').trim();
+  if(!n) return false;
+  state.players.push({id: uid(), name: n, colour: KID_COLOURS[state.players.length % KID_COLOURS.length]});
+  render(); save();
+  return true;
+}
+function removePlayer(id){
+  const p = state.players.find(x=>x.id===id);
+  if(p && !window.confirm(`Remove ${p.name}? Their tournament entries go too.`)) return;
+  state.players = state.players.filter(x=>x.id !== id);
+  state.entries = state.entries.filter(e=>e.playerId !== id);
+  render(); save();
+}
+
+/* ---- entries ---- */
+function statusOf(matchId, playerId){
+  const e = (state.entries || []).find(x=>x.matchId===matchId && x.playerId===playerId);
+  return e ? e.status : null;
+}
+function cycleEntry(matchId, playerId){
+  const i = state.entries.findIndex(x=>x.matchId===matchId && x.playerId===playerId);
+  if(i < 0){
+    state.entries.push({matchId, playerId, status:'planned'});
+  } else {
+    const next = STATUSES.indexOf(state.entries[i].status) + 1;
+    if(next >= STATUSES.length || next === 0) state.entries.splice(i, 1);
+    else state.entries[i].status = STATUSES[next];
+  }
+  render(); save();
+}
+
+/* ---- manual tournaments ---- */
+function addTournament(){
+  const g = id => document.getElementById(id).value.trim();
+  const name = g('t-name'), start = g('t-start');
+  if(!name || !/^\d{4}-\d{2}-\d{2}$/.test(start)){
+    document.getElementById('t-name').focus();
+    return false;
+  }
+  const end = /^\d{4}-\d{2}-\d{2}$/.test(g('t-end')) && g('t-end') >= start ? g('t-end') : start;
+  state.manualMatches.push({
+    id: 'm' + uid(), source:'manual', name, start, end,
+    venue: g('t-venue'),
+    categories: g('t-cat') ? g('t-cat').split(',').map(s=>s.trim()).filter(Boolean) : [],
+    entryDeadline: /^\d{4}-\d{2}-\d{2}$/.test(g('t-deadline')) ? g('t-deadline') : null,
+    url: safeUrl(g('t-url')), provisional:false
+  });
+  ['t-name','t-start','t-end','t-venue','t-cat','t-deadline','t-url'].forEach(id=>document.getElementById(id).value = '');
+  lookupNote('Paste an STA tournament link and the details fill themselves in.');
+  render(); save();
+  return true;
+}
+function removeTournament(id){
+  const m = (state.manualMatches || []).find(x=>x.id===id);
+  if(m && !window.confirm(`Delete “${m.name}”?`)) return;
+  state.manualMatches = state.manualMatches.filter(x=>x.id !== id);
+  state.entries = state.entries.filter(e=>e.matchId !== id);
+  render(); save();
+}
+
+/* ---- dates for part 2 ---- */
+function todayIso(){ return iso(new Date()); }
+function daysBetween(aIso, bIso){
+  const a = new Date(aIso + 'T00:00:00'), b = new Date(bIso + 'T00:00:00');
+  return Math.round((b - a) / 86400000);
+}
+function spanLabel(m){
+  const a = new Date(m.start + 'T00:00:00'), b = new Date(m.end + 'T00:00:00');
+  if(m.start === m.end) return `${a.getDate()} ${MON[a.getMonth()]}`;
+  if(a.getMonth() === b.getMonth()) return `${a.getDate()}–${b.getDate()} ${MON[a.getMonth()]}`;
+  return `${fmt(a)} – ${fmt(b)}`;
+}
+// A tournament sitting inside a training block is the useful case: that block
+// is its build-up.
+function blockCovering(m){
+  return state.blocks.find(b=>{
+    const s = b.start, e = iso(dateFor(b, b.days - 1));
+    return m.start <= e && m.end >= s;
+  }) || null;
+}
+
+/* ---- render part 2 ---- */
+function renderMatches(){
+  const kidrow = document.getElementById('kidrow');
+  kidrow.innerHTML = state.players.map(p=>
+    `<span class="kid" style="--c:${p.colour}"><span class="knm">${escapeHtml(p.name)}</span>` +
+    `<button class="kx" data-kid="${p.id}" aria-label="Remove ${escapeHtml(p.name)}">&times;</button></span>`
+  ).join('') || '<span class="hint" style="margin:0">No kids yet — add one to start tracking entries.</span>';
+  kidrow.querySelectorAll('.kx').forEach(btn=>
+    btn.addEventListener('click', ()=>removePlayer(btn.dataset.kid)));
+
+  document.getElementById('feednote').textContent = feedNote ||
+    'No data/matches.json yet — tournaments added here are stored in this browser.';
+
+  renderAgeRow();
+
+  const list = document.getElementById('tournlist');
+  const ms = allMatches();
+  // Anything we hold locally can be deleted, however it got here. Only the
+  // generated feed is read-only.
+  const editable = new Set((state.manualMatches || []).map(m=>m.id));
+  document.getElementById('nav-ct').textContent = ms.length ? ms.length : '';
+
+  if(!ms.length){
+    list.innerHTML = '<div class="empty">No tournaments yet. Add one above, or run the scraper in <code>tools/</code> to generate <code>data/matches.json</code>.</div>';
+    runSeasonChecks(ms);
+    return;
+  }
+
+  const today = todayIso();
+  let html = '', lastMonth = '';
+  ms.forEach(m=>{
+    const d = new Date(m.start + 'T00:00:00');
+    const monthKey = `${MON[d.getMonth()]} ${d.getFullYear()}`;
+    if(monthKey !== lastMonth){ html += `<div class="monthhead">${monthKey}</div>`; lastMonth = monthKey; }
+
+    const past = m.end < today;
+    const dl = m.entryDeadline ? daysBetween(today, m.entryDeadline) : null;
+    const soon = !past && dl !== null && dl >= 0 && dl <= DEADLINE_WARN_DAYS;
+
+    const bits = [];
+    if(m.source === 'sta') bits.push('<span class="src sta">STA</span>');
+    else if(m.source === 'jttl') bits.push('<span class="src jttl">JTTL</span>');
+    if(m.provisional) bits.push('<span class="src prov">Provisional</span>');
+    const meta = [];
+    if(m.venue) meta.push(escapeHtml(m.venue));
+    if(m.categories.length) meta.push(escapeHtml(m.categories.join(', ')));
+    if(m.entryDeadline) meta.push(`Entry by ${fmt(new Date(m.entryDeadline+'T00:00:00'))}${dl !== null && dl >= 0 && !past ? ` (${dl}d)` : ''}`);
+    const cover = blockCovering(m);
+    if(cover) meta.push(`During “${escapeHtml(cover.name)}”`);
+    if(m.url) meta.push(`<a class="tlink" href="${escapeHtml(m.url)}" target="_blank" rel="noopener noreferrer">Tournament page</a>`);
+
+    const joins = state.players.map(p=>{
+      const st = statusOf(m.id, p.id);
+      return `<button class="join${st ? ' s-'+st : ''}" data-m="${m.id}" data-p="${p.id}" style="--c:${p.colour}">` +
+             `<span class="pip"></span>${escapeHtml(p.name)}${st ? ' · ' + STATUS_LABEL[st] : ''}</button>`;
+    }).join('');
+
+    html += `<div class="tourn${soon?' soon':''}${past?' past':''}">
+      <div class="tdate">${spanLabel(m)}<small>${DOW[d.getDay()]}</small></div>
+      <div><div class="tnm">${bits.join('')}${escapeHtml(m.name)}</div>
+        ${meta.length ? `<div class="tmeta">${meta.join(' · ')}</div>` : ''}</div>
+      <div class="joins">${joins}${editable.has(m.id)
+        ? `<button class="tdel" data-del="${m.id}" aria-label="Delete">&times;</button>` : ''}</div>
+    </div>`;
+  });
+  list.innerHTML = html;
+
+  list.querySelectorAll('.join').forEach(btn=>
+    btn.addEventListener('click', ()=>cycleEntry(btn.dataset.m, btn.dataset.p)));
+  list.querySelectorAll('.tdel').forEach(btn=>
+    btn.addEventListener('click', ()=>removeTournament(btn.dataset.del)));
+
+  runSeasonChecks(ms);
+}
+
+function runSeasonChecks(ms){
+  const out = [];
+  const today = todayIso();
+  const upcoming = ms.filter(m => m.end >= today);
+
+  if(!state.players.length){
+    out.push(['warn','No kids yet','Add a child above and you can track who is entered for what.']);
+  }
+  if(!ms.length){
+    out.push(['warn','No tournaments','Nothing to plan around yet. Add the dates you know.']);
+  }
+
+  // deadlines closing on something nobody has committed to
+  const closing = upcoming.filter(m=>{
+    if(!m.entryDeadline) return false;
+    const d = daysBetween(today, m.entryDeadline);
+    if(d < 0 || d > DEADLINE_WARN_DAYS) return false;
+    return state.players.some(p=>{
+      const st = statusOf(m.id, p.id);
+      return st === 'planned' || st === null;
+    });
+  });
+  if(closing.length) out.push(['bad','Entry deadline closing',
+    closing.map(m=>`${m.name} (${daysBetween(today, m.entryDeadline)}d)`).join('; ') +
+    '. Enter or mark as skipping so it stops nagging.']);
+
+  // the same child in two overlapping tournaments
+  const clashes = [];
+  state.players.forEach(p=>{
+    const committed = upcoming.filter(m=>['planned','entered','confirmed'].includes(statusOf(m.id, p.id)));
+    for(let i=0;i<committed.length;i++)
+      for(let j=i+1;j<committed.length;j++)
+        if(committed[i].start <= committed[j].end && committed[j].start <= committed[i].end)
+          clashes.push(`${p.name}: ${committed[i].name} vs ${committed[j].name}`);
+  });
+  if(clashes.length) out.push(['bad','Overlapping tournaments', clashes.join('; ') + '.']);
+
+  if(ms.some(m=>m.provisional)) out.push(['warn','Provisional dates',
+    'Some dates are generated estimates, not a published draw. Confirm them before booking anything.']);
+
+  // the travel window
+  if(upcoming.length >= 2){
+    let best = 0, from = '', to = '';
+    for(let i=0;i<upcoming.length-1;i++){
+      const gap = daysBetween(upcoming[i].end, upcoming[i+1].start);
+      if(gap > best){ best = gap; from = upcoming[i].name; to = upcoming[i+1].name; }
+    }
+    if(best >= 10) out.push(['ok','Travel window',
+      `${best} clear days between “${from}” and “${to}”. That is the gap to book a trip into.`]);
+  }
+
+  if(!out.length && ms.length) out.push(['ok','Season looks clear',
+    `${upcoming.length} tournament${upcoming.length===1?'':'s'} ahead, no deadline or clash problems.`]);
+
+  document.getElementById('mnotes').innerHTML = out.map(([k,t,body])=>
+    `<div class="note ${k}"><span class="dot"></span><div><b>${t}.</b> <span>${body}</span></div></div>`
+  ).join('');
+}
+
+/* =================================================== part 3: year calendar ===
+   Singapore MOE school holidays ship as data. data.gov.sg has no school-holiday
+   dataset and sends no CORS header, and moe.gov.sg is not fetchable from the
+   browser either, so these are hand-entered from the MOE press releases and
+   carry their sources. Add a year to the JSON when MOE publishes one.
+   ========================================================================= */
+let holidays = [];
+let holidayNote = '';
+let calYear = new Date().getFullYear();
+
+function validPeriod(p){
+  return p && typeof p === 'object' && typeof p.name === 'string' &&
+         /^\d{4}-\d{2}-\d{2}$/.test(p.start) && /^\d{4}-\d{2}-\d{2}$/.test(p.end) &&
+         p.end >= p.start;
+}
+async function loadHolidays(){
+  try{
+    const r = await fetch('data/sg-school-holidays.json', {cache:'no-store'});
+    if(!r.ok) return;
+    const j = await r.json();
+    if(j && Array.isArray(j.periods)){
+      holidays = j.periods.filter(validPeriod).map(p=>({
+        name:p.name, start:p.start, end:p.end,
+        type: ['vacation','holiday','school'].includes(p.type) ? p.type : 'holiday'
+      }));
+      const yrs = holidays.length
+        ? [...new Set(holidays.map(p=>p.start.slice(0,4)))].sort().join(', ') : '';
+      holidayNote = `Singapore MOE school calendar for ${yrs}` +
+                    (j.verifiedOn ? `, checked ${j.verifiedOn}` : '') +
+                    '. Add a year to data/sg-school-holidays.json when MOE publishes it.';
+    }
+  }catch(e){ holidayNote = ''; }
+}
+
+function eachDay(startIso, endIso, fn){
+  const d = new Date(startIso + 'T00:00:00');
+  const end = new Date(endIso + 'T00:00:00');
+  let guard = 0;
+  while(d <= end && guard++ < 800){ fn(iso(d)); d.setDate(d.getDate() + 1); }
+}
+// One pass over every source, producing a day -> what-is-on map for the year.
+function calendarIndex(year){
+  const map = new Map();
+  const at = k => { let v = map.get(k); if(!v){ v = {vac:null, hol:null, blocks:[], matches:[]}; map.set(k, v); } return v; };
+  const inYear = k => k.slice(0,4) === String(year);
+
+  holidays.forEach(p=>eachDay(p.start, p.end, k=>{
+    if(!inYear(k)) return;
+    const c = at(k);
+    if(p.type === 'vacation'){ if(!c.vac) c.vac = p.name; }
+    else if(!c.hol) c.hol = p.name;
+  }));
+  state.blocks.forEach(b=>eachDay(b.start, iso(dateFor(b, b.days - 1)), k=>{
+    if(inYear(k)) at(k).blocks.push(b.name);
+  }));
+  allMatches().forEach(m=>eachDay(m.start, m.end, k=>{
+    if(inYear(k)) at(k).matches.push(m);
+  }));
+  return map;
+}
+function anyoneEntered(m){
+  return state.entries.some(e => e.matchId === m.id &&
+    (e.status === 'entered' || e.status === 'confirmed'));
+}
+// Who is actually playing on a given day, in kid order, plus whether any of
+// that day's tournaments has nobody assigned to it at all.
+function kidsOnDay(matches){
+  const going = [];
+  let unassigned = false;
+  state.players.forEach(p=>{
+    const best = matches
+      .map(m => statusOf(m.id, p.id))
+      .filter(s => s === 'planned' || s === 'entered' || s === 'confirmed');
+    if(best.length) going.push({player:p, status: best.includes('confirmed') ? 'confirmed'
+                                              : best.includes('entered') ? 'entered' : 'planned'});
+  });
+  matches.forEach(m=>{
+    const anyone = state.players.some(p=>{
+      const s = statusOf(m.id, p.id);
+      return s === 'planned' || s === 'entered' || s === 'confirmed';
+    });
+    if(!anyone) unassigned = true;
+  });
+  return {going, unassigned};
+}
+
+function renderCalendar(){
+  document.getElementById('cal-year').textContent = calYear;
+  document.getElementById('legend').innerHTML =
+    '<span class="lg"><i class="vac"></i>School holiday</span>' +
+    '<span class="lg"><i class="hol"></i>Public holiday</span>' +
+    '<span class="lg"><i class="blk"></i>Training block</span>' +
+    state.players.map(p=>
+      `<span class="lg"><i class="kd" style="--c:${p.colour}"></i>${escapeHtml(p.name)}</span>`).join('') +
+    '<span class="lg"><i class="kd none"></i>Nobody yet</span>';
+
+  const idx = calendarIndex(calYear);
+  const today = todayIso();
+  const box = document.getElementById('months');
+  let html = '';
+
+  for(let m = 0; m < 12; m++){
+    const first = new Date(calYear, m, 1);
+    const lead = first.getDay();
+    const len = new Date(calYear, m + 1, 0).getDate();
+    let cells = '';
+    for(let i = 0; i < lead; i++) cells += '<span class="cell pad"></span>';
+    for(let d = 1; d <= len; d++){
+      const k = iso(new Date(calYear, m, d));
+      const c = idx.get(k);
+      const cls = ['cell'];
+      const tip = [];
+      let dots = '';
+      if(c){
+        if(c.vac){ cls.push('vac'); tip.push(c.vac); }
+        else if(c.hol){ cls.push('hol'); tip.push(c.hol); }
+        if(c.blocks.length){ cls.push('blk'); tip.push('Training: ' + c.blocks.join(', ')); }
+        if(c.matches.length){
+          cls.push('ev');
+          if(c.matches.some(anyoneEntered)) cls.push('ent');
+          tip.push(c.matches.map(x=>x.name).join(' / '));
+          const {going, unassigned} = kidsOnDay(c.matches);
+          if(going.length) tip.push(going.map(g=>`${g.player.name}: ${STATUS_LABEL[g.status]}`).join(', '));
+          dots = '<span class="dots">' +
+            going.map(g=>`<i style="--c:${g.player.colour}"></i>`).join('') +
+            (unassigned ? '<i class="none"></i>' : '') +
+            '</span>';
+        }
+      }
+      if(k === today) cls.push('today');
+      cells += `<span class="${cls.join(' ')}"${tip.length ? ` title="${escapeHtml(tip.join(' · '))}"` : ''}>${dots}${d}</span>`;
+    }
+    html += `<div class="mon"><h3>${MON[m]}</h3>` +
+            `<div class="dows">${DOW.map(x=>`<span>${x[0]}</span>`).join('')}</div>` +
+            `<div class="days">${cells}</div></div>`;
+  }
+  box.innerHTML = html;
+
+  // the holiday list, longest first — that is the travel-planning order
+  const vacs = holidays
+    .filter(p => p.type === 'vacation' && p.start.slice(0,4) === String(calYear))
+    .map(p => ({...p, len: daysBetween(p.start, p.end) + 1}))
+    .sort((a,b) => b.len - a.len);
+  const list = document.getElementById('holidaylist');
+  list.innerHTML = vacs.length
+    ? vacs.map(p=>{
+        const clash = allMatches().filter(m => m.start <= p.end && m.end >= p.start);
+        return `<div class="holrow vacation"><span class="hd">` +
+          `${fmt(new Date(p.start+'T00:00:00'))} – ${fmt(new Date(p.end+'T00:00:00'))}</span>` +
+          `<span class="hn">${escapeHtml(p.name)}</span>` +
+          `<span class="hlen">${p.len} days${clash.length ? ` · ${clash.length} tournament${clash.length>1?'s':''} inside` : ' · clear'}</span></div>`;
+      }).join('')
+    : `<div class="empty">No school holidays on file for ${calYear}.</div>`;
+  document.getElementById('holnote').textContent = holidayNote ||
+    'data/sg-school-holidays.json could not be read.';
+}
+
+/* ------------------------------------------------------------ views --- */
+// Calendar is the landing view — the year is the question this app answers.
+let view = 'calendar';
+
+function setView(v){
+  view = ['matches','calendar'].includes(v) ? v : 'training';
+  render();
+}
+function renderHeader(){
+  const sub = document.getElementById('sub');
+  if(view === 'calendar'){
+    const inYear = allMatches().filter(m => m.start.slice(0,4) === String(calYear));
+    const vacDays = holidays
+      .filter(p => p.type === 'vacation' && p.start.slice(0,4) === String(calYear))
+      .reduce((n,p) => n + daysBetween(p.start, p.end) + 1, 0);
+    document.getElementById('title').textContent = 'Calendar';
+    document.getElementById('range').textContent = calYear;
+    sub.textContent = 'Tournaments, training blocks and Singapore school holidays on one year.';
+    document.getElementById('tot').textContent = inYear.length;
+    document.getElementById('ondays').textContent = vacDays;
+    document.getElementById('restdays').textContent = state.blocks
+      .filter(b => b.start.slice(0,4) === String(calYear)).length;
+    document.getElementById('lab1').textContent = 'Tournaments';
+    document.getElementById('lab2').textContent = 'Holiday days';
+    document.getElementById('lab3').textContent = 'Blocks';
+  } else if(view === 'matches'){
+    const ms = allMatches(), today = todayIso();
+    const upcoming = ms.filter(m => m.end >= today);
+    document.getElementById('title').textContent = 'Tournaments';
+    document.getElementById('range').textContent = upcoming.length
+      ? `next ${spanLabel(upcoming[0])}` : 'season';
+    sub.textContent = 'Every tournament and who is going. Click a child on a row to cycle their status.';
+    document.getElementById('tot').textContent = upcoming.length;
+    document.getElementById('ondays').textContent = state.players.length;
+    document.getElementById('restdays').textContent =
+      state.entries.filter(e=>e.status==='entered'||e.status==='confirmed').length;
+    document.getElementById('lab1').textContent = 'Upcoming';
+    document.getElementById('lab2').textContent = 'Kids';
+    document.getElementById('lab3').textContent = 'Entered';
+  } else {
+    sub.textContent = 'Drag a session onto a morning or afternoon slot. On a phone, tap a session then tap the slot.';
+    document.getElementById('lab1').textContent = 'Total hrs';
+    document.getElementById('lab2').textContent = 'On-court days';
+    document.getElementById('lab3').textContent = 'Rest days';
+  }
+  ['training','matches','calendar'].forEach(v=>{
+    document.getElementById('view-' + v).classList.toggle('on', view === v);
+    document.getElementById('nav-' + (v === 'training' ? 'training' : v === 'matches' ? 'matches' : 'calendar'))
+      .classList.toggle('on', view === v);
+  });
+}
+
+// Every view re-renders; the header decides which numbers are on show. That
+// keeps all the existing render() call sites correct.
+function render(){
+  renderTraining();
+  renderMatches();
+  renderCalendar();
+  renderHeader();
+}
+
+/* ------------------------------------------------------------ export --- */
 function asText(){
-  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  let s = 'TWO-WEEK TENNIS PLAN\n\n';
-  for(let i=0;i<NDAYS;i++){
-    const dt = dateFor(i);
+  const b = active();
+  if(!b) return 'No training blocks.\n';
+  let s = `${b.name.toUpperCase()}\n\n`;
+  for(let i=0;i<b.days;i++){
+    const dt = dateFor(b, i);
     const head = `${DOW[dt.getDay()]} ${fmt(dt)}`;
+    const cell = planAt(b, i);
     const bits = [];
     ['am','pm'].forEach(sl=>{
-      const v = plan[i][sl];
-      if(v) bits.push(`${sl.toUpperCase()} ${TYPES[v].nm}${TYPES[v].hrs?' '+TYPES[v].dur:''}`);
+      const v = cell[sl];
+      if(v && TYPES[v]) bits.push(`${sl.toUpperCase()} ${TYPES[v].nm}${TYPES[v].hrs?' '+TYPES[v].dur:''}`);
     });
-    s += `${head.padEnd(12)} ${bits.length ? bits.join('  |  ') : '—'}${dayHours(i)?'   ('+dayHours(i).toFixed(1)+'h)':''}\n`;
+    const h = dayHours(b, i);
+    s += `${head.padEnd(12)} ${bits.length ? bits.join('  |  ') : '—'}${h ? '   ('+h.toFixed(1)+'h)' : ''}\n`;
   }
-  s += `\nWeek 1: ${weekHours(0).toFixed(1)}h   Week 2: ${weekHours(1).toFixed(1)}h   Total: ${(weekHours(0)+weekHours(1)).toFixed(1)}h\n`;
+  s += '\n' + weekChunks(b).map((w,i)=>`Week ${i+1}: ${w.hrs.toFixed(1)}h`).join('   ');
+  s += `   Total: ${totalHours(b).toFixed(1)}h\n`;
   return s;
 }
 
-/* ---- wiring ---- */
-document.getElementById('btn-reset').addEventListener('click', ()=>{ loadSuggested(); render(); save(); });
-document.getElementById('btn-clear').addEventListener('click', ()=>{ plan = blank(); render(); save(); });
+/* ------------------------------------------------------- block admin --- */
+function addBlock(){
+  const prev = active();
+  let start = DEFAULT_START;
+  if(prev) start = iso(dateFor(prev, prev.days));   // start the next block after this one
+  const b = newBlock(`Block ${state.blocks.length + 1}`, start, DEFAULT_DAYS);
+  state.blocks.push(b);
+  state.activeBlockId = b.id;
+  render(); save();
+}
+function deleteBlock(){
+  const b = active();
+  if(!b) return;
+  if(!window.confirm(`Delete “${b.name}”? This cannot be undone.`)) return;
+  state.blocks = state.blocks.filter(x => x.id !== b.id);
+  state.activeBlockId = state.blocks.length ? state.blocks[0].id : null;
+  render(); save();
+}
+
+/* ------------------------------------------------------------ wiring --- */
+document.getElementById('btn-reset').addEventListener('click', ()=>{
+  const b = active(); if(!b) return;
+  applySuggested(b); render(); save();
+});
+document.getElementById('btn-clear').addEventListener('click', ()=>{
+  const b = active(); if(!b) return;
+  b.plan = {}; render(); save();
+});
+document.getElementById('btn-delete').addEventListener('click', deleteBlock);
 document.getElementById('btn-print').addEventListener('click', ()=>window.print());
-document.getElementById('start').addEventListener('change', ()=>{ render(); save(); });
+
+document.getElementById('blockname').addEventListener('input', e=>{
+  const b = active(); if(!b) return;
+  b.name = e.target.value || 'Training block';
+  document.getElementById('title').textContent = b.name;
+  renderBlockBar(); save();
+});
+document.getElementById('start').addEventListener('change', e=>{
+  const b = active(); if(!b) return;
+  if(/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) b.start = e.target.value;
+  render(); save();
+});
+document.getElementById('days').addEventListener('change', e=>{
+  const b = active(); if(!b) return;
+  const n = parseInt(e.target.value, 10);
+  b.days = Math.min(MAX_DAYS, Math.max(1, isNaN(n) ? DEFAULT_DAYS : n));
+  render(); save();
+});
 document.getElementById('btn-copy').addEventListener('click', async ()=>{
   const btn = document.getElementById('btn-copy');
   try{ await navigator.clipboard.writeText(asText()); btn.textContent = 'Copied'; }
@@ -651,9 +1884,35 @@ document.getElementById('btn-copy').addEventListener('click', async ()=>{
   setTimeout(()=>btn.textContent = 'Copy as text', 1400);
 });
 
+document.getElementById('nav-training').addEventListener('click', ()=>setView('training'));
+document.getElementById('nav-matches').addEventListener('click', ()=>setView('matches'));
+document.getElementById('nav-calendar').addEventListener('click', ()=>setView('calendar'));
+document.getElementById('cal-prev').addEventListener('click', ()=>{ calYear--; render(); });
+document.getElementById('cal-next').addEventListener('click', ()=>{ calYear++; render(); });
+
+document.getElementById('kid-add').addEventListener('click', ()=>{
+  const el = document.getElementById('kid-name');
+  if(addPlayer(el.value)) el.value = '';
+});
+document.getElementById('kid-name').addEventListener('keydown', e=>{
+  if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('kid-add').click(); }
+});
+document.getElementById('t-add').addEventListener('click', addTournament);
+document.getElementById('t-lookup').addEventListener('click', lookupLink);
+document.getElementById('imp-run').addEventListener('click', importFromSta);
+document.getElementById('t-url').addEventListener('keydown', e=>{
+  if(e.key === 'Enter'){ e.preventDefault(); lookupLink(); }
+});
+// Pasting a link is the whole point — do the lookup without a second click.
+document.getElementById('t-url').addEventListener('paste', ()=>setTimeout(lookupLink, 0));
+
 buildChips();
-if(!restore()) loadSuggested();
+load();
 render();
+save();   // persist the default/migrated block immediately, not on first edit
+
+// Both data files are optional and arrive late; re-render once they land.
+Promise.all([loadFeed(), loadHolidays()]).then(render);
 </script>
 </body>
 </html>
