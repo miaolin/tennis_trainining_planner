@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Download backup / Restore backup.** One JSON file carries everything —
+  training blocks, kids and birth years, tournaments and entry statuses. A data
+  bar under every view shows what is stored and states plainly that it lives in
+  this browser only.
+
+  This matters more than it sounds: `localStorage` is per-browser, so a phone
+  and a laptop share nothing, and **Safari clears script-writable storage after
+  roughly a week without a visit** — a plan left unopened can simply vanish. The
+  file is the durable copy, and the way to move a plan between devices.
+
+  Restore validates before replacing anything and asks for confirmation, naming
+  what it is about to restore. A file that is not valid JSON, not a planner
+  backup, or unreadable is refused with a reason and **nothing is changed**. A
+  bare state object restores as well as the wrapped export, and a backup of an
+  empty planner restores as empty rather than silently reloading the suggested
+  plan.
+
 ### Fixed
 
 - **Pasting a link to a tournament that is not yet in STA's tournament list now

@@ -263,6 +263,31 @@ input[type=number]#days{width:74px}
 .note b{font-weight:700}
 .note span{color:var(--mute)}
 
+/* ---------- backup bar ---------- */
+.databar{
+  display:flex;flex-wrap:wrap;gap:12px;align-items:center;
+  margin-top:34px;padding-top:18px;
+  border-top:2px solid var(--court-line);
+}
+.databar h2{
+  font-family:'Barlow Condensed',sans-serif;font-weight:500;
+  font-size:13px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--mute);margin:0 0 4px;
+}
+.dstat{font-size:13px;color:var(--court-line)}
+.filebtn{
+  font-family:'Karla',sans-serif;font-size:13px;
+  background:transparent;color:var(--court-line);
+  border:1px solid var(--hair);border-radius:3px;
+  padding:8px 14px;cursor:pointer;
+  transition:background .15s,border-color .15s;
+}
+.filebtn:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.4)}
+.filebtn:focus-visible{outline:2px solid var(--ball);outline-offset:2px}
+#file-import{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+#datanote.good{color:var(--ok)}
+#datanote.bad{color:var(--bad)}
+
 .noscript{
   border:1px solid var(--bad);border-radius:4px;
   padding:14px 16px;margin:20px 0;font-size:14px;
@@ -670,6 +695,20 @@ input[type=number]#days{width:74px}
 
 </section>
 
+<footer class="databar">
+  <div>
+    <h2>Your data</h2>
+    <span class="dstat" id="dstat"></span>
+  </div>
+  <div class="spacer"></div>
+  <button id="btn-export">Download backup</button>
+  <label class="filebtn" for="file-import" tabindex="0">Restore backup</label>
+  <input type="file" id="file-import" accept="application/json,.json">
+</footer>
+<p class="hint" id="datanote">Everything you enter is stored in this browser only, so it does
+  not follow you to another device — and Safari deletes it after about a week without a visit.
+  Download a backup to keep it safe or move it across.</p>
+
 </div>
 
 <script>
@@ -759,13 +798,16 @@ function sanitiseBlock(raw){
   }
   return b;
 }
-function sanitiseState(raw){
+// allowEmptyBlocks is for restoring a backup: on load, no blocks means the save
+// is unusable and we fall back to the default plan, but a backup of a genuinely
+// empty planner should restore as empty rather than be rejected.
+function sanitiseState(raw, allowEmptyBlocks){
   if(!raw || typeof raw !== 'object' || !Array.isArray(raw.blocks)) return null;
   const st = emptyState();
   st.blocks = raw.blocks.map(sanitiseBlock).filter(Boolean);
-  if(!st.blocks.length) return null;
+  if(!st.blocks.length && !allowEmptyBlocks) return null;
   const wanted = st.blocks.find(b => b.id === raw.activeBlockId);
-  st.activeBlockId = wanted ? wanted.id : st.blocks[0].id;
+  st.activeBlockId = wanted ? wanted.id : (st.blocks[0] ? st.blocks[0].id : null);
 
   if(Array.isArray(raw.players)) st.players = raw.players
     .filter(p => p && typeof p.id === 'string' && typeof p.name === 'string' && p.name)
@@ -1899,6 +1941,83 @@ function renderCalendar(){
     'data/sg-school-holidays.json could not be read.';
 }
 
+/* ================================================= backup: export / import ===
+   localStorage is per-browser and Safari clears script-writable storage after
+   roughly a week without a visit, so a file the user holds is the only durable
+   copy. One file carries everything: blocks, kids, entries, tournaments.
+   ========================================================================= */
+const BACKUP_APP = 'tennis-season-planner';
+
+function dataNote(msg, cls){
+  const el = document.getElementById('datanote');
+  el.textContent = msg;
+  el.className = 'hint' + (cls ? ' ' + cls : '');
+}
+function backupPayload(){
+  return {
+    app: BACKUP_APP,
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    state: state
+  };
+}
+function exportBackup(){
+  const json = JSON.stringify(backupPayload(), null, 2);
+  const name = `tennis-season-${iso(new Date())}.json`;
+  try{
+    const blob = new Blob([json], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 0);
+    dataNote(`Saved ${name}. Keep it somewhere that syncs — that file is your only copy.`, 'good');
+    return true;
+  }catch(e){
+    dataNote('Could not start the download (' + e.message + ').', 'bad');
+    return false;
+  }
+}
+
+// Accepts the file we write, or a bare state object, so a hand-edited or
+// older export still restores.
+function readBackup(text){
+  let raw;
+  try{ raw = JSON.parse(text); }catch(e){ return {error:'That file is not valid JSON.'}; }
+  if(!raw || typeof raw !== 'object') return {error:'That file does not contain a plan.'};
+  const body = (raw.state && typeof raw.state === 'object') ? raw.state : raw;
+  if(!Array.isArray(body.blocks)) return {error:'That file does not look like a planner backup.'};
+  const st = sanitiseState(body, true);
+  if(!st) return {error:'That backup could not be read.'};
+  return {state: st, exportedAt: typeof raw.exportedAt === 'string' ? raw.exportedAt : null};
+}
+function applyBackup(text){
+  const res = readBackup(text);
+  if(res.error){ dataNote(res.error, 'bad'); return false; }
+  const counts = `${res.state.blocks.length} block${res.state.blocks.length===1?'':'s'}, ` +
+                 `${res.state.players.length} kid${res.state.players.length===1?'':'s'}, ` +
+                 `${res.state.manualMatches.length} tournament${res.state.manualMatches.length===1?'':'s'}`;
+  if(!window.confirm(`Restore ${counts}? This replaces everything currently in this browser.`)){
+    dataNote('Restore cancelled — nothing changed.');
+    return false;
+  }
+  state = res.state;
+  whoFilter = null;
+  impKidPick = null;
+  render(); save();
+  dataNote(`Restored ${counts}` + (res.exportedAt ? `, backed up ${res.exportedAt.slice(0,10)}` : '') + '.', 'good');
+  return true;
+}
+function renderDataBar(){
+  const b = state.blocks.length, k = state.players.length;
+  const t = allMatches().length, e = state.entries.length;
+  document.getElementById('dstat').textContent =
+    `${b} training block${b===1?'':'s'} · ${k} kid${k===1?'':'s'} · ` +
+    `${t} tournament${t===1?'':'s'} · ${e} entr${e===1?'y':'ies'}`;
+}
+
 /* ------------------------------------------------------------ views --- */
 // Calendar is the landing view — the year is the question this app answers.
 let view = 'calendar';
@@ -1958,6 +2077,7 @@ function render(){
   renderMatches();
   renderCalendar();
   renderHeader();
+  renderDataBar();
 }
 
 /* ------------------------------------------------------------ export --- */
@@ -2054,6 +2174,19 @@ document.getElementById('kid-name').addEventListener('keydown', e=>{
 document.getElementById('t-add').addEventListener('click', addTournament);
 document.getElementById('t-lookup').addEventListener('click', lookupLink);
 document.getElementById('imp-run').addEventListener('click', importFromSta);
+
+document.getElementById('btn-export').addEventListener('click', exportBackup);
+document.getElementById('file-import').addEventListener('change', async e=>{
+  const f = e.target.files && e.target.files[0];
+  if(!f) return;
+  try{ applyBackup(await f.text()); }
+  catch(err){ dataNote('Could not read that file (' + err.message + ').', 'bad'); }
+  e.target.value = '';           // so picking the same file again re-fires
+});
+// The label is the visible control, so it needs its own key handling.
+document.querySelector('label[for="file-import"]').addEventListener('keydown', e=>{
+  if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); document.getElementById('file-import').click(); }
+});
 document.getElementById('t-url').addEventListener('keydown', e=>{
   if(e.key === 'Enter'){ e.preventDefault(); lookupLink(); }
 });

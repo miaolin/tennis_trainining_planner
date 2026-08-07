@@ -331,8 +331,13 @@ group('timezone safety');
 group('deploy hygiene');
 {
   ok('no window.storage dependency', !SRC.includes('window.storage'));
-  ok('no toISOString() call (it shifts dates east of UTC)', !/\.toISOString\s*\(/.test(SRC));
+  // A full UTC timestamp from toISOString() is fine (backup `exportedAt`).
+  // Slicing a calendar date out of it is the bug — that shifts a day earlier
+  // east of UTC, which is why iso() exists.
+  ok('no calendar date sliced out of toISOString()',
+     !/\.toISOString\s*\(\s*\)\s*\.slice/.test(SRC));
   ok('local iso() helper present', /function iso\(/.test(SRC));
+  ok('backup filename uses the local date helper', /iso\(new Date\(\)\)/.test(SRC));
   ok('has favicon', SRC.includes('rel="icon"'));
   ok('has meta description', SRC.includes('name="description"'));
   ok('legacy key is read but never written',
@@ -1007,6 +1012,132 @@ group('generated matches.json feed');
   while ($(d, '#cal-year').textContent !== '2026') click(dom, $(d, '#cal-prev'));
   ok('feed tournaments reach the calendar', $$(d, '.cell.ev').length === 3,
      $$(d, '.cell.ev').length);
+}
+
+group('backup export / import');
+{
+  const Y = new Date().getFullYear();
+  // Drive the real file input by giving it a file-like with .text().
+  const restore = (dom, d, text, confirmIt = true) => {
+    dom.window.confirm = () => confirmIt;
+    const inp = $(d, '#file-import');
+    Object.defineProperty(inp, 'files', {
+      configurable: true,
+      value: [{ name: 'backup.json', text: () => Promise.resolve(text) }],
+    });
+    inp.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    return new Promise(r => setTimeout(r, 30));
+  };
+
+  {
+    const dom = boot();
+    const d = dom.window.document;
+    ok('data bar counts what is stored', /1 training block · 0 kids/.test($(d, '#dstat').textContent),
+       $(d, '#dstat').textContent);
+    ok('the note warns that storage is per-browser',
+       $(d, '#datanote').textContent.includes('this browser only'));
+    ok('and warns about Safari eviction', $(d, '#datanote').textContent.includes('Safari'));
+
+    // build something worth backing up
+    click(dom, $(d, '#nav-matches'));
+    addKid(dom, d, 'Olivia', Y - 9);
+    addTourn(dom, d, { name: 'Champs', start: `${Y}-11-02` });
+    click(dom, $(d, '.join'));
+    ok('data bar updates', /1 kid · 1 tournament · 1 entry/.test($(d, '#dstat').textContent),
+       $(d, '#dstat').textContent);
+
+    // export: capture the payload without a real download. The anchor click is
+    // stubbed too — jsdom tries to navigate to the blob: URL otherwise.
+    let captured = null, filename = null;
+    dom.window.URL.createObjectURL = blob => { captured = blob; return 'blob:x'; };
+    dom.window.URL.revokeObjectURL = () => {};
+    dom.window.HTMLAnchorElement.prototype.click = function () { filename = this.download; };
+    click(dom, $(d, '#btn-export'));
+    ok('export reports success', $(d, '#datanote').textContent.includes('Saved'),
+       $(d, '#datanote').textContent);
+    ok('a blob was produced', captured !== null);
+    ok('filename is dated', /^tennis-season-\d{4}-\d{2}-\d{2}\.json$/.test(filename || ''), filename);
+    ok('blob is json', captured && captured.type === 'application/json', captured && captured.type);
+
+    const text = JSON.stringify(backupOf(dom));
+    function backupOf(dm) {
+      return { app: 'tennis-season-planner', version: 2, exportedAt: '2026-08-07T00:00:00.000Z',
+               state: JSON.parse(dm.window.localStorage.getItem(KEY)) };
+    }
+
+    // restore into a fresh browser
+    const dom2 = boot();
+    const d2 = dom2.window.document;
+    await restore(dom2, d2, text);
+    click(dom2, $(d2, '#nav-matches'));
+    ok('restore brings the kid back', $$(d2, '.kid').length === 1, $$(d2, '.kid').length);
+    ok('restore brings the tournament back', $$(d2, '.tourn').length === 1, $$(d2, '.tourn').length);
+    ok('restore brings the entry status back', $(d2, '.join').className.includes('s-planned'),
+       $(d2, '.join').className);
+    ok('restore reports what it did', $(d2, '#datanote').textContent.includes('Restored'),
+       $(d2, '#datanote').textContent);
+    ok('restore names the backup date', $(d2, '#datanote').textContent.includes('2026-08-07'),
+       $(d2, '#datanote').textContent);
+    ok('restored state is persisted', JSON.parse(dom2.window.localStorage.getItem(KEY)).players.length === 1);
+  }
+
+  {
+    // declining the confirm must change nothing
+    const dom = boot();
+    const d = dom.window.document;
+    const before = dom.window.localStorage.getItem(KEY);
+    await restore(dom, d, JSON.stringify({ app: 'tennis-season-planner', state: {
+      version: 2, blocks: [], players: [{ id: 'p', name: 'Ghost' }], entries: [], manualMatches: [], trips: [] } }), false);
+    ok('cancelling the restore leaves data untouched',
+       dom.window.localStorage.getItem(KEY) === before);
+    ok('and says so', $(d, '#datanote').textContent.includes('cancelled'), $(d, '#datanote').textContent);
+  }
+
+  {
+    // an empty planner round-trips rather than being rejected
+    const dom = boot();
+    const d = dom.window.document;
+    await restore(dom, d, JSON.stringify({ app: 'tennis-season-planner', state: {
+      version: 2, blocks: [], players: [], entries: [], manualMatches: [], trips: [] } }));
+    ok('a backup with no blocks restores as empty', $$(d, '.btab:not(.btab-add)').length === 0,
+       $$(d, '.btab:not(.btab-add)').length);
+    ok('and does not fall back to the suggested plan', $(d, '#tot').textContent === '0',
+       $(d, '#tot').textContent);
+  }
+
+  {
+    // bad files are refused with a reason, and change nothing
+    const cases = [
+      ['not json', 'this is not json', 'not valid JSON'],
+      ['json but not ours', JSON.stringify({ hello: 'world' }), 'does not look like'],
+      ['null', JSON.stringify(null), 'does not contain a plan'],
+      ['blocks not an array', JSON.stringify({ state: { blocks: 'nope' } }), 'does not look like'],
+    ];
+    for (const [label, text, expect] of cases) {
+      const dom = boot();
+      const d = dom.window.document;
+      const before = dom.window.localStorage.getItem(KEY);
+      await restore(dom, d, text);
+      ok(`${label} -> refused with a reason`, $(d, '#datanote').textContent.includes(expect),
+         $(d, '#datanote').textContent);
+      ok(`${label} -> data untouched`, dom.window.localStorage.getItem(KEY) === before);
+    }
+  }
+
+  {
+    // a bare state object (no envelope) still restores
+    const dom = boot();
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    addKid(dom, d, 'Ian', Y - 13);
+    const bare = dom.window.localStorage.getItem(KEY);
+
+    const dom2 = boot();
+    const d2 = dom2.window.document;
+    await restore(dom2, d2, bare);
+    click(dom2, $(d2, '#nav-matches'));
+    ok('a bare state object restores too', $$(d2, '.kid').length === 1, $$(d2, '.kid').length);
+  }
 }
 
 group('year calendar');

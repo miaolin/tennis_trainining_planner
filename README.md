@@ -219,6 +219,19 @@ Changing the shape of saved state? Bump `STORE_KEY` so existing saves are
 ignored rather than half-read, and leave the old key in place so a rollback to
 the previous deploy still finds its data.
 
+## Backing up your data
+
+Everything you enter lives in that browser's `localStorage` — it does not follow
+you to another device, and **Safari deletes script-writable storage after about
+a week without a visit**, so a plan left unopened can disappear.
+
+Use **Download backup** at the foot of the page. It writes one dated JSON file
+with every training block, child, tournament and entry status. **Restore backup**
+reads it back, after confirming, and refuses anything that is not a valid backup
+without touching what you already have.
+
+That file is also how you move a plan from laptop to phone.
+
 ## Tests
 
 ```sh
