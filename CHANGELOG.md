@@ -5,22 +5,85 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.1.0] — 2026-08-07
+
+Two kids, properly. Tournaments now know which child can enter them, and there
+is finally a way to get your data off one browser.
+
+No migration: existing plans load unchanged, and a child without a birth year
+keeps behaving exactly as before.
+
+### Added
+
+**Per-child age groups**
+
+- Each child has a **birth year**, which sets their age group (U10, 14&U, 16&U,
+  Junior). Ages follow the Singapore convention — the age reached during the
+  season year, so 10&U in 2026 means born 2016 or later.
+- **A tournament only offers the children who can enter it.** A U10 event shows
+  the nine-year-old alone; a 16&U event shows the thirteen-year-old alone; an
+  event with no age group in its title shows everyone. A child is offered their
+  own group and one above it, since juniors play up a group but do not enter
+  every event they are technically old enough for.
+- **A "Show" filter** — Everyone, or one child — above the tournament list, once
+  there is more than one child.
+- **The STA import is scoped by child** rather than by raw age group: tick the
+  children, and eligibility is judged per tournament against the year it runs
+  in, so a child ageing out between seasons is handled correctly.
+
+Two rules stop this hiding anything that matters. A child who already has a
+status on a tournament is **always** shown, whatever the age rules say — a
+recorded decision must never become unreachable. And a child with no birth year
+is shown everywhere, so nothing disappears until you say how old they are.
+
+**Backup**
+
+- **Download backup / Restore backup.** One dated JSON file carries everything:
+  training blocks, kids and birth years, tournaments and entry statuses. A data
+  bar under every view shows what is stored.
+- Restore validates before replacing anything and confirms, naming what it is
+  about to restore. A file that is not valid JSON, not a planner backup, or
+  unreadable is refused with a reason and **nothing is changed**. A bare state
+  object restores as well as the wrapped export, and a backup of an empty
+  planner restores as empty rather than silently reloading the suggested plan.
+
+Worth knowing why this exists: `localStorage` is per-browser, so a phone and a
+laptop share nothing, and **Safari clears script-writable storage after roughly
+a week without a visit** — a plan left unopened can simply vanish. The file is
+the durable copy, and the way to move a plan between devices. The page now says
+so instead of leaving you to find out.
+
+### Fixed
+
+- **Pasting a link to a tournament that is not yet in STA's tournament list now
+  works.** The lookup searched `GetTournamentList`, which omits competitions
+  that are published but not open for entry — the Red/Orange/Green events linked
+  from `/red-orange-green` are a standing example, and
+  `sta-spex-u10-red-competition-viii-2026` returned "No STA tournament matches".
+  It now resolves the slug directly via `Tournament/GetTournamentInfoBySlug`,
+  which is unauthenticated and CORS-open like the list endpoint, and needs one
+  request instead of fetching all 122 rows.
+- **Venue is filled in.** An earlier note claimed STA did not publish it
+  anywhere; that was wrong — the list endpoint omits it, but the by-slug
+  endpoint carries it. The lookup no longer tells you to add it by hand.
 
 ### Removed
 
 - **The JTTL scraper and the whole `tools/` folder** — `scrape-jttl.mjs`, its
-  parsers, snapshots, tests and `build-matches.mjs`. Not wanted.
+  parsers, snapshots, tests and `build-matches.mjs`.
 - The 6 provisional JTTL Season Two weekends it had generated.
   `data/matches.json` ships empty again.
 
-Tournaments now come from the STA import, a pasted STA link, or hand entry —
-all in the browser. The `matches.json` feed still works and is still read at
-load; it is simply hand-edited now rather than generated, and the README
-documents its shape.
+Tournaments now come from the STA import, a pasted STA link, or hand entry — all
+in the browser. The `matches.json` feed still works and is still read at load; it
+is simply hand-edited now rather than generated, and the README documents its
+shape. The 2.0.0 entry below is left as it was: `tools/` genuinely shipped then.
 
-The 2.0.0 entry below is left as it was: `tools/` genuinely shipped in that
-release.
+### Tests
+
+291 assertions, up from 223 at 2.0.0 — covering the eligibility rules, the who
+filter, the by-slug lookup including a tournament missing from the list, and the
+backup round trip with four rejection cases.
 
 ## [2.0.0] — 2026-08-07
 
@@ -182,5 +245,6 @@ site that works on any host.
 - `place()` now ignores unknown session types rather than writing them into the
   plan.
 
+[2.1.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.1.0
 [2.0.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.0.0
 [1.0.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v1.0.0

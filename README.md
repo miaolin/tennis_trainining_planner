@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.0.0** · [Changelog](CHANGELOG.md)
+**Version 2.1.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in three parts:
 
@@ -49,7 +49,16 @@ tests/                          jsdom harness — dev only, never deployed
 
 ## What it does — Tournaments
 
-- **Kids** — add each child; they get their own colour.
+- **Kids** — add each child with a birth year; they get their own colour and an
+  age group (U10, 14&U, 16&U, Junior). Ages follow the Singapore convention: the
+  age reached during the season year, so 10&U in 2026 means born 2016 or later.
+- **Only the children who can enter a tournament are offered on it.** A U10
+  event shows the nine-year-old alone, a 16&U event the thirteen-year-old. Each
+  child is offered their own group and one above it — juniors play up a group,
+  but not into every event they are technically old enough for. A child with a
+  status recorded is always shown regardless, and a child with no birth year is
+  shown everywhere.
+- **Show filter** — Everyone, or one child — appears once you have two kids.
 - **Tournaments** — name, dates, venue, categories and entry deadline, grouped
   by month. Past ones dim.
 - **Who's going** — one button per child per tournament, cycling
@@ -62,15 +71,18 @@ tests/                          jsdom harness — dev only, never deployed
 
 ### Importing the STA calendar
 
-**Import from STA** pulls the whole tournament list in one call and keeps the
-age groups you tick — U10, 14&U, 16&U, Junior — other, Adult / Open. The four
-junior groups are on by default, as is **Upcoming only**. Re-importing never
-duplicates: tournaments are matched by their STA id, and the note tells you how
-many were added, already there, or already finished.
+**Import from STA** pulls the whole tournament list in one call and keeps what
+the ticked children can enter. Eligibility is judged per tournament against the
+year it runs in, so a child ageing out between seasons is handled correctly.
+**Upcoming only** is on by default. Re-importing never duplicates: tournaments
+are matched by their STA id, and the note tells you how many were added, already
+there, or already finished.
 
-STA publishes no age-group field, so the bucket is derived: the `Junior (U10)`
-level or a `U10` token in the title, then `14&U` / `16&U` tokens, then anything
-else marked Junior, with the rest as Adult / Open.
+With no children added yet, the import falls back to every junior age group.
+
+STA publishes no age-group field, so the group is derived from the title: the
+`Junior (U10)` level or a `U10` token, then `14&U` / `16&U` / `18&U` tokens,
+then anything else marked Junior, with the rest treated as adult.
 
 ### Adding a tournament from its link
 
@@ -79,10 +91,15 @@ into the add form. The name, start, end, entry deadline and categories fill
 themselves in; the link is kept on the row. Lookup fires on paste, on Enter, or
 from the **Look up** button.
 
-This works because `api.singtennis.org.sg` answers an unauthenticated
-`POST {}` with every tournament and sends `Access-Control-Allow-Origin: *`, so
-the page reads it directly — no proxy, no scraper. **Venue is not filled**: STA
-does not publish it anywhere, so add it by hand if you want it.
+The lookup resolves the slug in the URL through
+`api.singtennis.org.sg/web-api/Tournament/GetTournamentInfoBySlug`, which is
+unauthenticated and sends `Access-Control-Allow-Origin: *`, so the page reads it
+directly — no proxy, no scraper. It fills the **venue** too.
+
+Resolving the slug rather than searching the tournament list matters: the list
+omits competitions that are published but not yet open for entry, such as the
+Red/Orange/Green events linked from `/red-orange-green`. Those resolve fine by
+slug.
 
 Only STA links work. Other sites — jttsingapore.com among them — send no CORS
 headers, so the browser cannot read them; add those tournaments by hand.
@@ -201,6 +218,19 @@ block starts on.
 Changing the shape of saved state? Bump `STORE_KEY` so existing saves are
 ignored rather than half-read, and leave the old key in place so a rollback to
 the previous deploy still finds its data.
+
+## Backing up your data
+
+Everything you enter lives in that browser's `localStorage` — it does not follow
+you to another device, and **Safari deletes script-writable storage after about
+a week without a visit**, so a plan left unopened can disappear.
+
+Use **Download backup** at the foot of the page. It writes one dated JSON file
+with every training block, child, tournament and entry status. **Restore backup**
+reads it back, after confirming, and refuses anything that is not a valid backup
+without touching what you already have.
+
+That file is also how you move a plan from laptop to phone.
 
 ## Tests
 

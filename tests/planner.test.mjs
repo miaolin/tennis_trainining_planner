@@ -331,8 +331,13 @@ group('timezone safety');
 group('deploy hygiene');
 {
   ok('no window.storage dependency', !SRC.includes('window.storage'));
-  ok('no toISOString() call (it shifts dates east of UTC)', !/\.toISOString\s*\(/.test(SRC));
+  // A full UTC timestamp from toISOString() is fine (backup `exportedAt`).
+  // Slicing a calendar date out of it is the bug — that shifts a day earlier
+  // east of UTC, which is why iso() exists.
+  ok('no calendar date sliced out of toISOString()',
+     !/\.toISOString\s*\(\s*\)\s*\.slice/.test(SRC));
   ok('local iso() helper present', /function iso\(/.test(SRC));
+  ok('backup filename uses the local date helper', /iso\(new Date\(\)\)/.test(SRC));
   ok('has favicon', SRC.includes('rel="icon"'));
   ok('has meta description', SRC.includes('name="description"'));
   ok('legacy key is read but never written',
@@ -348,7 +353,11 @@ const offset = n => {
   const p = x => String(x).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
-const addKid = (dom, d, name) => { input(dom, $(d, '#kid-name'), name); click(dom, $(d, '#kid-add')); };
+const addKid = (dom, d, name, birthYear) => {
+  input(dom, $(d, '#kid-name'), name);
+  if (birthYear !== undefined) input(dom, $(d, '#kid-year'), String(birthYear));
+  click(dom, $(d, '#kid-add'));
+};
 const addTourn = (dom, d, { name, start, end, venue, cat, deadline }) => {
   input(dom, $(d, '#t-name'), name);
   input(dom, $(d, '#t-start'), start);
@@ -555,16 +564,20 @@ group('corrupt part-2 state');
 
 group('STA link lookup');
 {
-  // Shape copied from the live api.singtennis.org.sg response.
-  const STA_PAYLOAD = {
-    status: 'Success', message: '', data: [
-      { date: 'Aug 2026', tournamentResps: [
-        { tournamentId: 351, slug: 'j60-singapore-itf-junior-championships-vi-2026',
-          tournamentName: 'J60 Singapore ITF Junior Championships (VI) 2026',
-          entryOpen: false, tournamentLevelName: 'Junior', tournamentTypeName: 'ITF',
-          startDate: '23/08/2026', endDate: '29/08/2026', deadline: '04/08/2026' }] },
-    ],
+  // Shape copied from the live GetTournamentInfoBySlug response. Note this is
+  // a tournament ABSENT from GetTournamentList — the case that used to fail.
+  const BY_SLUG = {
+    status: 'Success', message: '', data: {
+      tournamentId: 297,
+      slug: 'sta-spex-u10-red-competition-viii-2026',
+      tournamentName: 'STA SPEX U10 Red Competition VIII 2026',
+      tournamentLevelName: 'Junior (U10)', tournamentTypeName: 'STA', isU10: true,
+      venue: 'Yio Chu Kang Tennis Centre',
+      tournamentStartDate: '26/09/2026', tournamentEndDate: '04/10/2026',
+      closingDeadline: '11/09/2026',
+    },
   };
+  const NOT_FOUND = { status: 'Failed', message: 'Unable to find this tournament.', data: null };
   // Boot with fetch stubbed. data/matches.json must still resolve as a 404.
   const bootWithApi = (impl) => new JSDOM(SRC, {
     runScripts: 'dangerously', url: 'https://example.test/', pretendToBeVisual: true,
@@ -575,24 +588,38 @@ group('STA link lookup');
       };
     },
   });
-  const okApi = () => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(STA_PAYLOAD) });
+  const seen = { url: null, body: null };
+  const okApi = (url, opts) => {
+    seen.url = String(url);
+    seen.body = opts && opts.body ? JSON.parse(opts.body) : null;
+    const found = seen.body && seen.body.slug === BY_SLUG.data.slug;
+    return Promise.resolve({ ok: true, status: 200,
+      json: () => Promise.resolve(found ? BY_SLUG : NOT_FOUND) });
+  };
   const settle = () => new Promise(r => setTimeout(r, 30));
 
   {
     const dom = bootWithApi(okApi);
     const d = dom.window.document;
     click(dom, $(d, '#nav-matches'));
-    input(dom, $(d, '#t-url'), 'https://www-new.singtennis.org.sg/tournaments/j60-singapore-itf-junior-championships-vi-2026?type=information');
+    input(dom, $(d, '#t-url'), 'https://www-new.singtennis.org.sg/tournaments/sta-spex-u10-red-competition-viii-2026?type=information');
     click(dom, $(d, '#t-lookup'));
     await settle();
-    ok('name filled from the link', $(d, '#t-name').value === 'J60 Singapore ITF Junior Championships (VI) 2026',
-       $(d, '#t-name').value);
-    ok('start date converted dd/mm/yyyy -> iso', $(d, '#t-start').value === '2026-08-23', $(d, '#t-start').value);
-    ok('end date converted', $(d, '#t-end').value === '2026-08-29', $(d, '#t-end').value);
-    ok('entry deadline converted', $(d, '#t-deadline').value === '2026-08-04', $(d, '#t-deadline').value);
-    ok('categories from type + level', $(d, '#t-cat').value === 'ITF · Junior', $(d, '#t-cat').value);
-    ok('note says what it found', $(d, '#lookupnote').textContent.includes('Found'), $(d, '#lookupnote').textContent);
-    ok('note admits venue is unavailable', $(d, '#lookupnote').textContent.includes('venue'));
+    // This tournament is NOT in GetTournamentList; resolving it by slug is the
+    // whole point of the change.
+    ok('a tournament missing from the list still resolves',
+       $(d, '#t-name').value === 'STA SPEX U10 Red Competition VIII 2026', $(d, '#t-name').value);
+    ok('start date converted dd/mm/yyyy -> iso', $(d, '#t-start').value === '2026-09-26', $(d, '#t-start').value);
+    ok('end date converted', $(d, '#t-end').value === '2026-10-04', $(d, '#t-end').value);
+    ok('entry deadline converted', $(d, '#t-deadline').value === '2026-09-11', $(d, '#t-deadline').value);
+    ok('venue filled in', $(d, '#t-venue').value === 'Yio Chu Kang Tennis Centre', $(d, '#t-venue').value);
+    ok('categories from type + level', $(d, '#t-cat').value === 'STA · Junior (U10)', $(d, '#t-cat').value);
+    ok('note names the venue', $(d, '#lookupnote').textContent.includes('Yio Chu Kang'),
+       $(d, '#lookupnote').textContent);
+    ok('it calls GetTournamentInfoBySlug, not the whole list',
+       seen.url.includes('GetTournamentInfoBySlug'), seen.url);
+    ok('and posts the slug parsed out of the URL',
+       seen.body.slug === 'sta-spex-u10-red-competition-viii-2026', JSON.stringify(seen.body));
 
     click(dom, $(d, '#t-add'));
     ok('the looked-up tournament is added', $$(d, '.tourn').length === 1, $$(d, '.tourn').length);
@@ -706,16 +733,16 @@ group('bulk import from STA');
     },
   });
   const settle = () => new Promise(r => setTimeout(r, 40));
-  const ages = d => $$(d, '#agerow input[data-age]');
+  const impKids = d => $$(d, '#agerow input[data-impkid]');
+  const YEAR = new Date().getFullYear();
 
   {
+    // no kids yet: the import falls back to every junior age group
     const dom = bootImp();
     const d = dom.window.document;
     click(dom, $(d, '#nav-matches'));
-    ok('five age groups offered', ages(d).length === 5, ages(d).length);
-    ok('junior groups ticked by default, adult not',
-       ages(d).filter(c => c.checked).map(c => c.dataset.age).join(',') === 'u10,u14,u16,junior',
-       ages(d).filter(c => c.checked).map(c => c.dataset.age).join(','));
+    ok('no kids -> no kid checkboxes, just an explanation', impKids(d).length === 0 &&
+       $(d, '#agerow').textContent.includes('every junior age group'), $(d, '#agerow').textContent);
 
     click(dom, $(d, '#imp-run'));
     await settle();
@@ -746,20 +773,51 @@ group('bulk import from STA');
   }
 
   {
-    // untick everything but U10
+    // a 9-year-old: U10 is her group, 14&U is one up, 16&U and ITF are not
     const dom = bootImp();
     const d = dom.window.document;
     click(dom, $(d, '#nav-matches'));
-    for (const key of ['u14', 'u16', 'junior']) {
-      const cb = ages(d).find(c => c.dataset.age === key);
-      cb.checked = false;
-      cb.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
-    }
+    addKid(dom, d, 'Olivia', YEAR - 9);
+    ok('kid checkbox replaces the age groups', impKids(d).length === 1);
+    ok('the chip shows her age group', $(d, '#agerow').textContent.includes('U10'),
+       $(d, '#agerow').textContent);
+
     click(dom, $(d, '#imp-run'));
     await settle();
-    ok('U10 only imports one', $$(d, '.tourn').length === 1, $$(d, '.tourn').length);
-    ok('and it is the U10 one', $(d, '.tourn .tnm').textContent.includes('U10 Red'),
-       $(d, '.tourn .tnm').textContent);
+    const names = $$(d, '.tourn .tnm').map(e => e.textContent);
+    ok('U10 event imported for a 9-year-old', names.some(n => n.includes('U10 Red')), names);
+    ok('14&U imported (one group up)', names.some(n => n.includes('14&U')), names);
+    ok('16&U not imported', !names.some(n => n.includes('16&U')), names);
+    ok('adult event not imported', !names.some(n => n.includes('Advanced')), names);
+    ok('note names the child', $(d, '#impnote').textContent.includes('Olivia'),
+       $(d, '#impnote').textContent);
+  }
+
+  {
+    // two kids of different ages widen the import between them
+    const dom = bootImp();
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    addKid(dom, d, 'Olivia', YEAR - 9);
+    addKid(dom, d, 'Ian', YEAR - 13);
+    ok('two kid checkboxes', impKids(d).length === 2);
+    click(dom, $(d, '#imp-run'));
+    await settle();
+    const names = $$(d, '.tourn .tnm').map(e => e.textContent);
+    ok('U10 imported for the younger', names.some(n => n.includes('U10 Red')), names);
+    ok('16&U imported for the older', names.some(n => n.includes('16&U')), names);
+    ok('note names both children', /Olivia and Ian/.test($(d, '#impnote').textContent),
+       $(d, '#impnote').textContent);
+
+    // untick the younger and the U10 event stops matching
+    const olivia = impKids(d)[0];
+    olivia.checked = false;
+    olivia.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    click(dom, $(d, '#imp-run'));
+    await settle();
+    ok('unticking a child narrows the note to the other',
+       $(d, '#impnote').textContent.includes('Ian') && !$(d, '#impnote').textContent.includes('Olivia and'),
+       $(d, '#impnote').textContent);
   }
 
   {
@@ -778,14 +836,15 @@ group('bulk import from STA');
   }
 
   {
-    // no age groups ticked
+    // every child unticked
     const dom = bootImp();
     const d = dom.window.document;
     click(dom, $(d, '#nav-matches'));
-    for (const cb of ages(d)) { cb.checked = false; cb.dispatchEvent(new dom.window.Event('change', { bubbles: true })); }
+    addKid(dom, d, 'Olivia', YEAR - 9);
+    for (const cb of impKids(d)) { cb.checked = false; cb.dispatchEvent(new dom.window.Event('change', { bubbles: true })); }
     click(dom, $(d, '#imp-run'));
     await settle();
-    ok('no age groups ticked asks for one', $(d, '#impnote').textContent.includes('Tick at least one'),
+    ok('no child ticked asks for one', $(d, '#impnote').textContent.includes('Tick at least one child'),
        $(d, '#impnote').textContent);
     ok('and imports nothing', $$(d, '.tourn').length === 0);
   }
@@ -804,6 +863,105 @@ group('bulk import from STA');
        $(d, '#impnote').textContent);
     ok('nothing imported on failure', $$(d, '.tourn').length === 0);
   }
+}
+
+group('per-kid eligibility');
+{
+  const Y = new Date().getFullYear();
+  const setup = () => {
+    const dom = boot();
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    addKid(dom, d, 'Olivia', Y - 9);    // U10
+    addKid(dom, d, 'Ian', Y - 13);      // 14&U
+    return { dom, d };
+  };
+  const rowNamed = (d, text) => $$(d, '.tourn').find(r => r.textContent.includes(text));
+  const kidsOn = row => [...row.querySelectorAll('.join')].map(b => b.textContent.replace(/·.*/, '').trim());
+
+  const { dom, d } = setup();
+  ok('chips show each age group', $(d, '#kidrow').textContent.includes('U10') &&
+     $(d, '#kidrow').textContent.includes('14&U'), $(d, '#kidrow').textContent);
+  ok('birth years persist', saved(dom).players.map(p => p.birthYear).join(',') === `${Y - 9},${Y - 13}`,
+     saved(dom).players.map(p => p.birthYear).join(','));
+
+  addTourn(dom, d, { name: 'STA SPEX U10 Red Competition', start: `${Y}-11-02`, cat: 'STA, Junior (U10)' });
+  addTourn(dom, d, { name: 'ATF 14&U ActiveSG Cup', start: `${Y}-11-10`, cat: 'ATF, Junior' });
+  addTourn(dom, d, { name: 'ATF 16&U ActiveSG Cup', start: `${Y}-11-18`, cat: 'ATF, Junior' });
+  addTourn(dom, d, { name: 'Club Open Day', start: `${Y}-11-24` });
+
+  ok('U10 event offers only the 9-year-old',
+     kidsOn(rowNamed(d, 'U10 Red')).join(',') === 'Olivia', kidsOn(rowNamed(d, 'U10 Red')));
+  ok('14&U offers both — her group up, his own',
+     kidsOn(rowNamed(d, '14&U')).join(',') === 'Olivia,Ian', kidsOn(rowNamed(d, '14&U')));
+  ok('16&U offers only the 13-year-old',
+     kidsOn(rowNamed(d, '16&U')).join(',') === 'Ian', kidsOn(rowNamed(d, '16&U')));
+  ok('an event with no age group offers everyone',
+     kidsOn(rowNamed(d, 'Club Open Day')).join(',') === 'Olivia,Ian', kidsOn(rowNamed(d, 'Club Open Day')));
+
+  // a recorded status must survive even when the rules would hide the kid
+  const seed = JSON.parse(dom.window.localStorage.getItem(KEY));
+  const u10 = seed.manualMatches.find(m => m.name.includes('U10'));
+  const ian = seed.players.find(p => p.name === 'Ian');
+  seed.entries.push({ matchId: u10.id, playerId: ian.id, status: 'entered' });
+  const dom2 = boot({ [KEY]: JSON.stringify(seed) });
+  const d2 = dom2.window.document;
+  click(dom2, $(d2, '#nav-matches'));
+  ok('a kid with a recorded status is never hidden',
+     kidsOn(rowNamed(d2, 'U10 Red')).includes('Ian'), kidsOn(rowNamed(d2, 'U10 Red')));
+
+  // kids without a birth year are shown everywhere
+  const dom3 = boot();
+  const d3 = dom3.window.document;
+  click(dom3, $(d3, '#nav-matches'));
+  addKid(dom3, d3, 'Unknown');
+  addTourn(dom3, d3, { name: 'STA SPEX U10 Red', start: `${Y}-11-02`, cat: 'STA, Junior (U10)' });
+  ok('a kid with no birth year still appears', $$(d3, '.tourn .join').length === 1,
+     $$(d3, '.tourn .join').length);
+  ok('chip says the age group is unset', $(d3, '#kidrow').textContent.includes('no age group'),
+     $(d3, '#kidrow').textContent);
+
+  // setting the year afterwards takes effect
+  const yr = $(d3, '.kid .kyr');
+  yr.value = String(Y - 13);
+  yr.dispatchEvent(new dom3.window.Event('change', { bubbles: true }));
+  ok('filling the year in later applies the rules', $$(d3, '.tourn .join').length === 0,
+     $$(d3, '.tourn .join').length);
+  ok('and the row says why', $(d3, '.tourn .nokid') !== null);
+}
+
+group('who filter');
+{
+  const Y = new Date().getFullYear();
+  const dom = boot();
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-matches'));
+  ok('no filter shown with one kid or none', $(d, '#whofilter').textContent === '');
+
+  addKid(dom, d, 'Olivia', Y - 9);
+  ok('still no filter with a single kid', $(d, '#whofilter').textContent === '');
+
+  addKid(dom, d, 'Ian', Y - 13);
+  ok('filter appears with two kids', $$(d, '#whofilter label[data-who]').length === 3,
+     $$(d, '#whofilter label[data-who]').length);
+
+  addTourn(dom, d, { name: 'STA SPEX U10 Red', start: `${Y}-11-02`, cat: 'STA, Junior (U10)' });
+  addTourn(dom, d, { name: 'ATF 16&U Cup', start: `${Y}-11-18`, cat: 'ATF, Junior' });
+  ok('everyone sees both', $$(d, '.tourn').length === 2, $$(d, '.tourn').length);
+
+  const chips = $$(d, '#whofilter label[data-who]');
+  click(dom, chips[1]);   // Olivia
+  ok('filtering to the 9-year-old hides the 16&U event', $$(d, '.tourn').length === 1,
+     $$(d, '.tourn').length);
+  ok('and keeps her U10 event', $(d, '.tourn').textContent.includes('U10 Red'));
+
+  click(dom, $$(d, '#whofilter label[data-who]')[2]);   // Ian
+  ok('filtering to the 13-year-old hides the U10 event', $$(d, '.tourn').length === 1,
+     $$(d, '.tourn').length);
+  ok('and keeps his 16&U event', $(d, '.tourn').textContent.includes('16&U'));
+
+  click(dom, $$(d, '#whofilter label[data-who]')[0]);   // Everyone
+  ok('back to everyone shows both again', $$(d, '.tourn').length === 2, $$(d, '.tourn').length);
 }
 
 group('generated matches.json feed');
@@ -854,6 +1012,132 @@ group('generated matches.json feed');
   while ($(d, '#cal-year').textContent !== '2026') click(dom, $(d, '#cal-prev'));
   ok('feed tournaments reach the calendar', $$(d, '.cell.ev').length === 3,
      $$(d, '.cell.ev').length);
+}
+
+group('backup export / import');
+{
+  const Y = new Date().getFullYear();
+  // Drive the real file input by giving it a file-like with .text().
+  const restore = (dom, d, text, confirmIt = true) => {
+    dom.window.confirm = () => confirmIt;
+    const inp = $(d, '#file-import');
+    Object.defineProperty(inp, 'files', {
+      configurable: true,
+      value: [{ name: 'backup.json', text: () => Promise.resolve(text) }],
+    });
+    inp.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    return new Promise(r => setTimeout(r, 30));
+  };
+
+  {
+    const dom = boot();
+    const d = dom.window.document;
+    ok('data bar counts what is stored', /1 training block · 0 kids/.test($(d, '#dstat').textContent),
+       $(d, '#dstat').textContent);
+    ok('the note warns that storage is per-browser',
+       $(d, '#datanote').textContent.includes('this browser only'));
+    ok('and warns about Safari eviction', $(d, '#datanote').textContent.includes('Safari'));
+
+    // build something worth backing up
+    click(dom, $(d, '#nav-matches'));
+    addKid(dom, d, 'Olivia', Y - 9);
+    addTourn(dom, d, { name: 'Champs', start: `${Y}-11-02` });
+    click(dom, $(d, '.join'));
+    ok('data bar updates', /1 kid · 1 tournament · 1 entry/.test($(d, '#dstat').textContent),
+       $(d, '#dstat').textContent);
+
+    // export: capture the payload without a real download. The anchor click is
+    // stubbed too — jsdom tries to navigate to the blob: URL otherwise.
+    let captured = null, filename = null;
+    dom.window.URL.createObjectURL = blob => { captured = blob; return 'blob:x'; };
+    dom.window.URL.revokeObjectURL = () => {};
+    dom.window.HTMLAnchorElement.prototype.click = function () { filename = this.download; };
+    click(dom, $(d, '#btn-export'));
+    ok('export reports success', $(d, '#datanote').textContent.includes('Saved'),
+       $(d, '#datanote').textContent);
+    ok('a blob was produced', captured !== null);
+    ok('filename is dated', /^tennis-season-\d{4}-\d{2}-\d{2}\.json$/.test(filename || ''), filename);
+    ok('blob is json', captured && captured.type === 'application/json', captured && captured.type);
+
+    const text = JSON.stringify(backupOf(dom));
+    function backupOf(dm) {
+      return { app: 'tennis-season-planner', version: 2, exportedAt: '2026-08-07T00:00:00.000Z',
+               state: JSON.parse(dm.window.localStorage.getItem(KEY)) };
+    }
+
+    // restore into a fresh browser
+    const dom2 = boot();
+    const d2 = dom2.window.document;
+    await restore(dom2, d2, text);
+    click(dom2, $(d2, '#nav-matches'));
+    ok('restore brings the kid back', $$(d2, '.kid').length === 1, $$(d2, '.kid').length);
+    ok('restore brings the tournament back', $$(d2, '.tourn').length === 1, $$(d2, '.tourn').length);
+    ok('restore brings the entry status back', $(d2, '.join').className.includes('s-planned'),
+       $(d2, '.join').className);
+    ok('restore reports what it did', $(d2, '#datanote').textContent.includes('Restored'),
+       $(d2, '#datanote').textContent);
+    ok('restore names the backup date', $(d2, '#datanote').textContent.includes('2026-08-07'),
+       $(d2, '#datanote').textContent);
+    ok('restored state is persisted', JSON.parse(dom2.window.localStorage.getItem(KEY)).players.length === 1);
+  }
+
+  {
+    // declining the confirm must change nothing
+    const dom = boot();
+    const d = dom.window.document;
+    const before = dom.window.localStorage.getItem(KEY);
+    await restore(dom, d, JSON.stringify({ app: 'tennis-season-planner', state: {
+      version: 2, blocks: [], players: [{ id: 'p', name: 'Ghost' }], entries: [], manualMatches: [], trips: [] } }), false);
+    ok('cancelling the restore leaves data untouched',
+       dom.window.localStorage.getItem(KEY) === before);
+    ok('and says so', $(d, '#datanote').textContent.includes('cancelled'), $(d, '#datanote').textContent);
+  }
+
+  {
+    // an empty planner round-trips rather than being rejected
+    const dom = boot();
+    const d = dom.window.document;
+    await restore(dom, d, JSON.stringify({ app: 'tennis-season-planner', state: {
+      version: 2, blocks: [], players: [], entries: [], manualMatches: [], trips: [] } }));
+    ok('a backup with no blocks restores as empty', $$(d, '.btab:not(.btab-add)').length === 0,
+       $$(d, '.btab:not(.btab-add)').length);
+    ok('and does not fall back to the suggested plan', $(d, '#tot').textContent === '0',
+       $(d, '#tot').textContent);
+  }
+
+  {
+    // bad files are refused with a reason, and change nothing
+    const cases = [
+      ['not json', 'this is not json', 'not valid JSON'],
+      ['json but not ours', JSON.stringify({ hello: 'world' }), 'does not look like'],
+      ['null', JSON.stringify(null), 'does not contain a plan'],
+      ['blocks not an array', JSON.stringify({ state: { blocks: 'nope' } }), 'does not look like'],
+    ];
+    for (const [label, text, expect] of cases) {
+      const dom = boot();
+      const d = dom.window.document;
+      const before = dom.window.localStorage.getItem(KEY);
+      await restore(dom, d, text);
+      ok(`${label} -> refused with a reason`, $(d, '#datanote').textContent.includes(expect),
+         $(d, '#datanote').textContent);
+      ok(`${label} -> data untouched`, dom.window.localStorage.getItem(KEY) === before);
+    }
+  }
+
+  {
+    // a bare state object (no envelope) still restores
+    const dom = boot();
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    addKid(dom, d, 'Ian', Y - 13);
+    const bare = dom.window.localStorage.getItem(KEY);
+
+    const dom2 = boot();
+    const d2 = dom2.window.document;
+    await restore(dom2, d2, bare);
+    click(dom2, $(d2, '#nav-matches'));
+    ok('a bare state object restores too', $$(d2, '.kid').length === 1, $$(d2, '.kid').length);
+  }
 }
 
 group('year calendar');

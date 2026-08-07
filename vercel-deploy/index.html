@@ -263,6 +263,31 @@ input[type=number]#days{width:74px}
 .note b{font-weight:700}
 .note span{color:var(--mute)}
 
+/* ---------- backup bar ---------- */
+.databar{
+  display:flex;flex-wrap:wrap;gap:12px;align-items:center;
+  margin-top:34px;padding-top:18px;
+  border-top:2px solid var(--court-line);
+}
+.databar h2{
+  font-family:'Barlow Condensed',sans-serif;font-weight:500;
+  font-size:13px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--mute);margin:0 0 4px;
+}
+.dstat{font-size:13px;color:var(--court-line)}
+.filebtn{
+  font-family:'Karla',sans-serif;font-size:13px;
+  background:transparent;color:var(--court-line);
+  border:1px solid var(--hair);border-radius:3px;
+  padding:8px 14px;cursor:pointer;
+  transition:background .15s,border-color .15s;
+}
+.filebtn:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.4)}
+.filebtn:focus-visible{outline:2px solid var(--ball);outline-offset:2px}
+#file-import{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+#datanote.good{color:var(--ok)}
+#datanote.bad{color:var(--bad)}
+
 .noscript{
   border:1px solid var(--bad);border-radius:4px;
   padding:14px 16px;margin:20px 0;font-size:14px;
@@ -314,6 +339,21 @@ input[type=number]#days{width:74px}
   padding:8px 8px 8px 12px;
 }
 .kid .knm{font-weight:700;font-size:13px}
+.kid .kyr{
+  width:62px;padding:3px 6px;font-size:12px;
+  background:rgba(0,0,0,.18);border-color:var(--hair);color:var(--court-line);
+}
+.kid .kgrp,.chk .kgrp{
+  font-family:'Barlow Condensed',sans-serif;font-size:13px;
+  letter-spacing:.06em;color:var(--mute);margin-left:7px;
+}
+.chk.on .kgrp{color:var(--ball)}
+.wholab{
+  font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--mute);align-self:center;margin-right:3px;
+}
+.whodot{width:8px;height:8px;border-radius:50%;background:var(--c);display:block}
+.nokid{font-size:11.5px;color:var(--mute);font-style:italic}
 .kid .kx{
   border:none;background:transparent;color:var(--mute);
   font-size:14px;line-height:1;padding:2px 5px;border-radius:3px;cursor:pointer;
@@ -584,9 +624,11 @@ input[type=number]#days{width:74px}
     <div class="kidrow" id="kidrow"></div>
     <div class="kidrow" style="margin-top:11px">
       <input type="text" id="kid-name" maxlength="24" placeholder="Name">
+      <input type="number" id="kid-year" min="1990" max="2030" step="1" placeholder="Birth year">
       <button id="kid-add">Add kid</button>
     </div>
-    <p class="hint">Each tournament below has a button per child. Click it to cycle
+    <p class="hint">A birth year sets each child's age group, so a tournament only
+      offers the children who can actually enter it. Click a child to cycle
       planned &rarr; entered &rarr; confirmed &rarr; skipped &rarr; not going.</p>
   </div>
 
@@ -597,7 +639,7 @@ input[type=number]#days{width:74px}
       <label class="chk"><input type="checkbox" id="imp-upcoming" checked> Upcoming only</label>
       <button id="imp-run">Import from STA</button>
     </div>
-    <p class="hint" id="impnote">Pulls the whole STA tournament list and keeps the age groups you tick.</p>
+    <p class="hint" id="impnote">Pulls the whole STA tournament list and keeps what the ticked children can enter.</p>
   </div>
 
   <div class="addbox">
@@ -609,7 +651,7 @@ input[type=number]#days{width:74px}
       </div>
       <button id="t-lookup">Look up</button>
     </div>
-    <p class="hint" id="lookupnote">Paste an STA tournament link and the details fill themselves in.</p>
+    <p class="hint" id="lookupnote">Paste an STA tournament link and the details — including the venue — fill themselves in.</p>
     <div class="formgrid">
       <div class="fld"><label for="t-name">Name</label><input type="text" id="t-name" maxlength="80" placeholder="STA Junior Championships"></div>
       <div class="fld"><label for="t-start">Starts</label><input type="date" id="t-start"></div>
@@ -621,6 +663,8 @@ input[type=number]#days{width:74px}
     </div>
     <p class="hint" id="feednote"></p>
   </div>
+
+  <div class="agerow" id="whofilter" style="margin-bottom:14px"></div>
 
   <div id="tournlist"></div>
 
@@ -650,6 +694,20 @@ input[type=number]#days{width:74px}
   </div>
 
 </section>
+
+<footer class="databar">
+  <div>
+    <h2>Your data</h2>
+    <span class="dstat" id="dstat"></span>
+  </div>
+  <div class="spacer"></div>
+  <button id="btn-export">Download backup</button>
+  <label class="filebtn" for="file-import" tabindex="0">Restore backup</label>
+  <input type="file" id="file-import" accept="application/json,.json">
+</footer>
+<p class="hint" id="datanote">Everything you enter is stored in this browser only, so it does
+  not follow you to another device — and Safari deletes it after about a week without a visit.
+  Download a backup to keep it safe or move it across.</p>
 
 </div>
 
@@ -740,17 +798,22 @@ function sanitiseBlock(raw){
   }
   return b;
 }
-function sanitiseState(raw){
+// allowEmptyBlocks is for restoring a backup: on load, no blocks means the save
+// is unusable and we fall back to the default plan, but a backup of a genuinely
+// empty planner should restore as empty rather than be rejected.
+function sanitiseState(raw, allowEmptyBlocks){
   if(!raw || typeof raw !== 'object' || !Array.isArray(raw.blocks)) return null;
   const st = emptyState();
   st.blocks = raw.blocks.map(sanitiseBlock).filter(Boolean);
-  if(!st.blocks.length) return null;
+  if(!st.blocks.length && !allowEmptyBlocks) return null;
   const wanted = st.blocks.find(b => b.id === raw.activeBlockId);
-  st.activeBlockId = wanted ? wanted.id : st.blocks[0].id;
+  st.activeBlockId = wanted ? wanted.id : (st.blocks[0] ? st.blocks[0].id : null);
 
   if(Array.isArray(raw.players)) st.players = raw.players
     .filter(p => p && typeof p.id === 'string' && typeof p.name === 'string' && p.name)
     .map((p,i) => ({id:p.id, name:p.name.slice(0,24),
+                    birthYear: (Number.isInteger(p.birthYear) && p.birthYear >= 1990 && p.birthYear <= 2030)
+                               ? p.birthYear : null,
                     colour: /^#[0-9a-f]{6}$/i.test(p.colour) ? p.colour : KID_COLOURS[i % KID_COLOURS.length]}));
 
   // Locally held matches keep whichever source they came from — an imported STA
@@ -1218,6 +1281,11 @@ async function loadFeed(){
    field stays manual.
    ------------------------------------------------------------------------ */
 const STA_API = 'https://api.singtennis.org.sg/web-api/Tournament/GetTournamentList';
+// Resolving one slug beats searching the list: the list omits tournaments that
+// are published but not yet open for entry — the Red/Orange/Green competitions
+// on /red-orange-green are a standing example — and this endpoint also returns
+// the venue, which the list does not carry.
+const STA_SLUG_API = 'https://api.singtennis.org.sg/web-api/Tournament/GetTournamentInfoBySlug';
 let staCache = null;
 
 function slugFromUrl(raw){
@@ -1263,18 +1331,23 @@ async function lookupLink(){
   }
   lookupNote('Looking up…', 'busy');
   try{
-    const rows = await fetchStaList();
-    const hit = rows.find(t => t && t.slug === slug);
-    if(!hit){
+    const r = await fetch(STA_SLUG_API, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({slug})
+    });
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    if(!j || j.status !== 'Success' || !j.data){
       lookupNote(`No STA tournament matches “${slug}”. Check the link, or fill the fields in by hand.`, 'bad');
       return false;
     }
-    setField('t-name', hit.tournamentName);
-    setField('t-start', dmyToIso(hit.startDate));
-    setField('t-end', dmyToIso(hit.endDate));
-    setField('t-deadline', dmyToIso(hit.deadline));
-    setField('t-cat', [hit.tournamentTypeName, hit.tournamentLevelName].filter(Boolean).join(' · '));
-    lookupNote(`Found “${hit.tournamentName}”. STA does not publish a venue — add one by hand if you want it.`, 'good');
+    const t = j.data;
+    setField('t-name', t.tournamentName);
+    setField('t-start', dmyToIso(t.tournamentStartDate));
+    setField('t-end', dmyToIso(t.tournamentEndDate));
+    setField('t-deadline', dmyToIso(t.closingDeadline));
+    setField('t-venue', t.venue);
+    setField('t-cat', [t.tournamentTypeName, t.tournamentLevelName].filter(Boolean).join(' · '));
+    lookupNote(`Found “${t.tournamentName}”${t.venue ? ' at ' + t.venue : ''}.`, 'good');
     return true;
   }catch(e){
     lookupNote('Could not reach the STA API (' + e.message + '). Fill the fields in by hand.', 'bad');
@@ -1287,24 +1360,69 @@ async function lookupLink(){
    the tournament title (14&U, 16&U). Anything junior with no age token lands
    in "Junior — other", which is mostly the ITF/ATF events.
    ------------------------------------------------------------------------ */
+// Ordered youngest first. `cap` is the oldest age the group admits, which is
+// what makes a kid's birth year and a tournament's title comparable.
 const AGE_GROUPS = [
-  {key:'u10',    label:'U10'},
-  {key:'u14',    label:'14&U'},
-  {key:'u16',    label:'16&U'},
-  {key:'junior', label:'Junior — other'},
-  {key:'open',   label:'Adult / Open'}
+  {key:'u10',    cap:10, label:'U10'},
+  {key:'u14',    cap:14, label:'14&U'},
+  {key:'u16',    cap:16, label:'16&U'},
+  {key:'junior', cap:18, label:'Junior — other'},
+  {key:'open',   cap:99, label:'Adult / Open'}
 ];
 const DEFAULT_AGES = ['u10','u14','u16','junior'];
-let agePick = DEFAULT_AGES.slice();
+const groupIdx = key => AGE_GROUPS.findIndex(g => g.key === key);
+const groupLabel = key => (AGE_GROUPS.find(g => g.key === key) || {}).label || '';
 
-function ageBucket(t){
-  const name = String(t.tournamentName || '').toUpperCase().replace(/\s+/g,'');
-  const level = String(t.tournamentLevelName || '');
-  if(level === 'Junior (U10)' || /U10/.test(name)) return 'u10';
+// Singapore junior events are named by age cap, not by a field: "Junior (U10)"
+// as a level, or a 14&U / 16&U token in the title.
+function bucketOfText(title, level){
+  const name = String(title || '').toUpperCase().replace(/\s+/g,'');
+  const lvl = String(level || '');
+  if(lvl === 'Junior (U10)' || /U10/.test(name) || /10&U/.test(name)) return 'u10';
+  if(/12&U/.test(name)) return 'u14';        // no 12&U bucket; 14&U is the nearest cap
   if(/14&U/.test(name)) return 'u14';
   if(/16&U/.test(name)) return 'u16';
-  if(level === 'Junior') return 'junior';
-  return 'open';
+  if(/18&U/.test(name) || lvl === 'Junior' || /JUNIOR/.test(name)) return 'junior';
+  return lvl ? 'open' : null;               // null = unknown, so show every kid
+}
+function ageBucket(t){
+  return bucketOfText(t.tournamentName, t.tournamentLevelName) || 'open';
+}
+// Stored matches keep their level in `categories` (["STA","Junior (U10)"]).
+function matchBucket(m){
+  return bucketOfText(m.name, (m.categories || []).join(' '));
+}
+
+/* ---- kid ages ---- */
+// Singapore counts the age reached during the season year: 10&U for 2026 means
+// born 2016 or later, i.e. turning 10 or younger that year.
+function ageInYear(p, year){
+  return (p && p.birthYear) ? year - p.birthYear : null;
+}
+function primaryGroup(p, year){
+  const age = ageInYear(p, year);
+  if(age === null) return null;
+  const g = AGE_GROUPS.find(x => age <= x.cap);
+  return g ? g.key : 'open';
+}
+// Shown on a tournament if the kid can enter it and it is close enough to their
+// own group to be realistic — their group or one up. Juniors do play up a
+// group; they do not enter every event they are technically old enough for.
+function kidFitsMatch(p, m, year){
+  const bucket = matchBucket(m);
+  if(!bucket) return true;                     // unknown age group — show everyone
+  const age = ageInYear(p, year);
+  if(age === null) return true;                // no birth year yet — show them
+  const idx = groupIdx(bucket);
+  const cap = AGE_GROUPS[idx].cap;
+  if(age > cap) return false;                  // too old to enter
+  const own = groupIdx(primaryGroup(p, year));
+  return idx <= own + 1;
+}
+// Never hide a kid who already has a status: whatever the rules say, a recorded
+// decision must stay reachable.
+function kidOnMatch(p, m, year){
+  return statusOf(m.id, p.id) !== null || kidFitsMatch(p, m, year);
 }
 function staToMatch(t){
   return {
@@ -1320,18 +1438,53 @@ function staToMatch(t){
     provisional: false
   };
 }
+// The import is scoped by child, not by raw age group: a birth year already
+// says which groups they can enter, and picking children is the question the
+// user is actually answering.
+let impKidPick = null;   // null = every kid; otherwise a list of ids
+function importKids(){
+  const ids = impKidPick;
+  return state.players.filter(p => ids === null || ids.includes(p.id));
+}
 function renderAgeRow(){
   const row = document.getElementById('agerow');
-  row.innerHTML = AGE_GROUPS.map(g=>
-    `<label class="chk${agePick.includes(g.key) ? ' on' : ''}">` +
-    `<input type="checkbox" data-age="${g.key}"${agePick.includes(g.key) ? ' checked' : ''}> ${g.label}</label>`
-  ).join('');
-  row.querySelectorAll('input[data-age]').forEach(cb=>
+  if(!state.players.length){
+    row.innerHTML = '<span class="hint" style="margin:0">No kids yet — importing every junior age group. ' +
+                    'Add a child with a birth year to narrow it.</span>';
+    return;
+  }
+  const picked = importKids().map(p=>p.id);
+  const thisYear = new Date().getFullYear();
+  row.innerHTML = state.players.map(p=>{
+    const on = picked.includes(p.id);
+    const grp = primaryGroup(p, thisYear);
+    return `<label class="chk${on ? ' on' : ''}">` +
+      `<input type="checkbox" data-impkid="${p.id}"${on ? ' checked' : ''}> ` +
+      `${escapeHtml(p.name)}<span class="kgrp">${grp ? escapeHtml(groupLabel(grp)) : 'all junior'}</span></label>`;
+  }).join('');
+  row.querySelectorAll('input[data-impkid]').forEach(cb=>
     cb.addEventListener('change', ()=>{
-      const k = cb.dataset.age;
-      agePick = cb.checked ? agePick.concat([k]).filter((v,i,a)=>a.indexOf(v)===i)
-                           : agePick.filter(x=>x!==k);
+      const cur = importKids().map(p=>p.id);
+      impKidPick = cb.checked ? [...new Set([...cur, cb.dataset.impkid])]
+                              : cur.filter(x => x !== cb.dataset.impkid);
       renderAgeRow();
+    }));
+}
+
+/* ---- who-to-show filter above the tournament list ---- */
+let whoFilter = null;   // null = everyone, otherwise a player id
+function renderWhoFilter(){
+  const row = document.getElementById('whofilter');
+  if(state.players.length < 2){ row.innerHTML = ''; return; }
+  const chip = (id, label, colour) =>
+    `<label class="chk${whoFilter === id ? ' on' : ''}" data-who="${id === null ? '' : id}">` +
+    (colour ? `<i class="whodot" style="--c:${colour}"></i>` : '') + escapeHtml(label) + '</label>';
+  row.innerHTML = '<span class="wholab">Show</span>' + chip(null, 'Everyone', null) +
+    state.players.map(p => chip(p.id, p.name, p.colour)).join('');
+  row.querySelectorAll('label[data-who]').forEach(el=>
+    el.addEventListener('click', ()=>{
+      whoFilter = el.dataset.who || null;
+      render();
     }));
 }
 function impNote(msg, cls){
@@ -1340,7 +1493,11 @@ function impNote(msg, cls){
   el.className = 'hint' + (cls ? ' ' + cls : '');
 }
 async function importFromSta(){
-  if(!agePick.length){ impNote('Tick at least one age group first.', 'bad'); return false; }
+  const kids = importKids();
+  if(state.players.length && !kids.length){
+    impNote('Tick at least one child first.', 'bad');
+    return false;
+  }
   impNote('Fetching the STA tournament list…', 'busy');
   let rows;
   try{
@@ -1356,9 +1513,15 @@ async function importFromSta(){
   let matched = 0, added = 0, skippedOld = 0, dupes = 0;
   rows.forEach(t=>{
     if(!t || !dmyToIso(t.startDate)) return;
-    if(!agePick.includes(ageBucket(t))) return;
-    matched++;
     const m = staToMatch(t);
+    // Eligibility is judged per tournament, against the year it runs in — a
+    // child ages out of a group between one season and the next.
+    const year = Number(m.start.slice(0,4));
+    const wanted = kids.length
+      ? kids.some(p => kidFitsMatch(p, m, year))
+      : DEFAULT_AGES.includes(ageBucket(t));
+    if(!wanted) return;
+    matched++;
     if(upcomingOnly && m.end < today){ skippedOld++; return; }
     if(have.has(m.id)){ dupes++; return; }
     have.add(m.id);
@@ -1370,20 +1533,34 @@ async function importFromSta(){
   if(dupes) bits.push(`${dupes} already there`);
   if(skippedOld) bits.push(`${skippedOld} already finished`);
   impNote(matched
-    ? `${bits.join(', ')}. Matched ${matched} of ${rows.length} STA tournaments on the ticked age groups.`
-    : `None of the ${rows.length} STA tournaments matched the ticked age groups.`,
+    ? `${bits.join(', ')}. Matched ${matched} of ${rows.length} STA tournaments for ` +
+      (kids.length ? kids.map(p=>p.name).join(' and ') : 'every junior age group') + '.'
+    : `None of the ${rows.length} STA tournaments matched ` +
+      (kids.length ? kids.map(p=>p.name).join(' and ') : 'the junior age groups') + '.',
     added ? 'good' : 'bad');
   render(); save();
   return added > 0;
 }
 
 /* ---- players ---- */
-function addPlayer(name){
+function addPlayer(name, birthYear){
   const n = (name || '').trim();
   if(!n) return false;
-  state.players.push({id: uid(), name: n, colour: KID_COLOURS[state.players.length % KID_COLOURS.length]});
+  const y = parseInt(birthYear, 10);
+  state.players.push({
+    id: uid(), name: n,
+    birthYear: (y >= 1990 && y <= 2030) ? y : null,
+    colour: KID_COLOURS[state.players.length % KID_COLOURS.length]
+  });
   render(); save();
   return true;
+}
+function setPlayerYear(id, value){
+  const p = state.players.find(x => x.id === id);
+  if(!p) return;
+  const y = parseInt(value, 10);
+  p.birthYear = (y >= 1990 && y <= 2030) ? y : null;
+  render(); save();
 }
 function removePlayer(id){
   const p = state.players.find(x=>x.id===id);
@@ -1462,21 +1639,32 @@ function blockCovering(m){
 
 /* ---- render part 2 ---- */
 function renderMatches(){
+  const thisYear = new Date().getFullYear();
   const kidrow = document.getElementById('kidrow');
-  kidrow.innerHTML = state.players.map(p=>
-    `<span class="kid" style="--c:${p.colour}"><span class="knm">${escapeHtml(p.name)}</span>` +
-    `<button class="kx" data-kid="${p.id}" aria-label="Remove ${escapeHtml(p.name)}">&times;</button></span>`
-  ).join('') || '<span class="hint" style="margin:0">No kids yet — add one to start tracking entries.</span>';
+  kidrow.innerHTML = state.players.map(p=>{
+    const grp = primaryGroup(p, thisYear);
+    return `<span class="kid" style="--c:${p.colour}"><span class="knm">${escapeHtml(p.name)}</span>` +
+      `<input class="kyr" type="number" min="1990" max="2030" step="1" data-kid="${p.id}"` +
+      ` value="${p.birthYear || ''}" placeholder="year" aria-label="${escapeHtml(p.name)} birth year">` +
+      `<span class="kgrp">${grp ? escapeHtml(groupLabel(grp)) : 'no age group'}</span>` +
+      `<button class="kx" data-kid="${p.id}" aria-label="Remove ${escapeHtml(p.name)}">&times;</button></span>`;
+  }).join('') || '<span class="hint" style="margin:0">No kids yet — add one to start tracking entries.</span>';
   kidrow.querySelectorAll('.kx').forEach(btn=>
     btn.addEventListener('click', ()=>removePlayer(btn.dataset.kid)));
+  kidrow.querySelectorAll('.kyr').forEach(inp=>
+    inp.addEventListener('change', ()=>setPlayerYear(inp.dataset.kid, inp.value)));
 
   document.getElementById('feednote').textContent = feedNote ||
     'No data/matches.json yet — tournaments added here are stored in this browser.';
 
   renderAgeRow();
 
+  renderWhoFilter();
+
   const list = document.getElementById('tournlist');
-  const ms = allMatches();
+  const who = state.players.find(p => p.id === whoFilter) || null;
+  const ms = allMatches().filter(m =>
+    !who || kidOnMatch(who, m, Number(m.start.slice(0,4))));
   // Anything we hold locally can be deleted, however it got here. Only the
   // generated feed is read-only.
   const editable = new Set((state.manualMatches || []).map(m=>m.id));
@@ -1512,11 +1700,12 @@ function renderMatches(){
     if(m.url) meta.push(`<a class="tlink" href="${escapeHtml(m.url)}" target="_blank" rel="noopener noreferrer">Tournament page</a>`);
     if(m.note) meta.push(`<span class="tnote">${escapeHtml(m.note)}</span>`);
 
-    const joins = state.players.map(p=>{
+    const mYear = Number(m.start.slice(0,4));
+    const joins = state.players.filter(p => kidOnMatch(p, m, mYear)).map(p=>{
       const st = statusOf(m.id, p.id);
       return `<button class="join${st ? ' s-'+st : ''}" data-m="${m.id}" data-p="${p.id}" style="--c:${p.colour}">` +
              `<span class="pip"></span>${escapeHtml(p.name)}${st ? ' · ' + STATUS_LABEL[st] : ''}</button>`;
-    }).join('');
+    }).join('') || '<span class="nokid">no age match</span>';
 
     html += `<div class="tourn${soon?' soon':''}${past?' past':''}">
       <div class="tdate">${spanLabel(m)}<small>${DOW[d.getDay()]}</small></div>
@@ -1752,6 +1941,83 @@ function renderCalendar(){
     'data/sg-school-holidays.json could not be read.';
 }
 
+/* ================================================= backup: export / import ===
+   localStorage is per-browser and Safari clears script-writable storage after
+   roughly a week without a visit, so a file the user holds is the only durable
+   copy. One file carries everything: blocks, kids, entries, tournaments.
+   ========================================================================= */
+const BACKUP_APP = 'tennis-season-planner';
+
+function dataNote(msg, cls){
+  const el = document.getElementById('datanote');
+  el.textContent = msg;
+  el.className = 'hint' + (cls ? ' ' + cls : '');
+}
+function backupPayload(){
+  return {
+    app: BACKUP_APP,
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    state: state
+  };
+}
+function exportBackup(){
+  const json = JSON.stringify(backupPayload(), null, 2);
+  const name = `tennis-season-${iso(new Date())}.json`;
+  try{
+    const blob = new Blob([json], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 0);
+    dataNote(`Saved ${name}. Keep it somewhere that syncs — that file is your only copy.`, 'good');
+    return true;
+  }catch(e){
+    dataNote('Could not start the download (' + e.message + ').', 'bad');
+    return false;
+  }
+}
+
+// Accepts the file we write, or a bare state object, so a hand-edited or
+// older export still restores.
+function readBackup(text){
+  let raw;
+  try{ raw = JSON.parse(text); }catch(e){ return {error:'That file is not valid JSON.'}; }
+  if(!raw || typeof raw !== 'object') return {error:'That file does not contain a plan.'};
+  const body = (raw.state && typeof raw.state === 'object') ? raw.state : raw;
+  if(!Array.isArray(body.blocks)) return {error:'That file does not look like a planner backup.'};
+  const st = sanitiseState(body, true);
+  if(!st) return {error:'That backup could not be read.'};
+  return {state: st, exportedAt: typeof raw.exportedAt === 'string' ? raw.exportedAt : null};
+}
+function applyBackup(text){
+  const res = readBackup(text);
+  if(res.error){ dataNote(res.error, 'bad'); return false; }
+  const counts = `${res.state.blocks.length} block${res.state.blocks.length===1?'':'s'}, ` +
+                 `${res.state.players.length} kid${res.state.players.length===1?'':'s'}, ` +
+                 `${res.state.manualMatches.length} tournament${res.state.manualMatches.length===1?'':'s'}`;
+  if(!window.confirm(`Restore ${counts}? This replaces everything currently in this browser.`)){
+    dataNote('Restore cancelled — nothing changed.');
+    return false;
+  }
+  state = res.state;
+  whoFilter = null;
+  impKidPick = null;
+  render(); save();
+  dataNote(`Restored ${counts}` + (res.exportedAt ? `, backed up ${res.exportedAt.slice(0,10)}` : '') + '.', 'good');
+  return true;
+}
+function renderDataBar(){
+  const b = state.blocks.length, k = state.players.length;
+  const t = allMatches().length, e = state.entries.length;
+  document.getElementById('dstat').textContent =
+    `${b} training block${b===1?'':'s'} · ${k} kid${k===1?'':'s'} · ` +
+    `${t} tournament${t===1?'':'s'} · ${e} entr${e===1?'y':'ies'}`;
+}
+
 /* ------------------------------------------------------------ views --- */
 // Calendar is the landing view — the year is the question this app answers.
 let view = 'calendar';
@@ -1811,6 +2077,7 @@ function render(){
   renderMatches();
   renderCalendar();
   renderHeader();
+  renderDataBar();
 }
 
 /* ------------------------------------------------------------ export --- */
@@ -1898,7 +2165,8 @@ document.getElementById('cal-next').addEventListener('click', ()=>{ calYear++; r
 
 document.getElementById('kid-add').addEventListener('click', ()=>{
   const el = document.getElementById('kid-name');
-  if(addPlayer(el.value)) el.value = '';
+  const yr = document.getElementById('kid-year');
+  if(addPlayer(el.value, yr.value)){ el.value = ''; yr.value = ''; }
 });
 document.getElementById('kid-name').addEventListener('keydown', e=>{
   if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('kid-add').click(); }
@@ -1906,6 +2174,19 @@ document.getElementById('kid-name').addEventListener('keydown', e=>{
 document.getElementById('t-add').addEventListener('click', addTournament);
 document.getElementById('t-lookup').addEventListener('click', lookupLink);
 document.getElementById('imp-run').addEventListener('click', importFromSta);
+
+document.getElementById('btn-export').addEventListener('click', exportBackup);
+document.getElementById('file-import').addEventListener('change', async e=>{
+  const f = e.target.files && e.target.files[0];
+  if(!f) return;
+  try{ applyBackup(await f.text()); }
+  catch(err){ dataNote('Could not read that file (' + err.message + ').', 'bad'); }
+  e.target.value = '';           // so picking the same file again re-fires
+});
+// The label is the visible control, so it needs its own key handling.
+document.querySelector('label[for="file-import"]').addEventListener('keydown', e=>{
+  if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); document.getElementById('file-import').click(); }
+});
 document.getElementById('t-url').addEventListener('keydown', e=>{
   if(e.key === 'Enter'){ e.preventDefault(); lookupLink(); }
 });
