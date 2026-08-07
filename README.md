@@ -23,10 +23,11 @@ per-device.
 
 ```
 vercel-deploy/
-  index.html          the entire site
-  data/matches.json   GENERATED tournament feed — ships empty
-  vercel.json         cache + security headers
-tests/                jsdom harness — dev only, never deployed
+  index.html                    the entire site
+  data/matches.json             optional tournament feed — ships empty
+  data/sg-school-holidays.json  Singapore MOE school calendar
+  vercel.json                   cache + security headers
+tests/                          jsdom harness — dev only, never deployed
 ```
 
 ## What it does — Training
@@ -83,37 +84,28 @@ This works because `api.singtennis.org.sg` answers an unauthenticated
 the page reads it directly — no proxy, no scraper. **Venue is not filled**: STA
 does not publish it anywhere, so add it by hand if you want it.
 
-JTTL links cannot be looked up — jttsingapore.com sends no CORS headers, so the
-browser cannot read it. Those fixtures come from the scraper in `tools/`.
+Only STA links work. Other sites — jttsingapore.com among them — send no CORS
+headers, so the browser cannot read them; add those tournaments by hand.
 
 ### Where tournament data comes from
 
 Two places, merged:
 
-- **`vercel-deploy/data/matches.json`** — generated, committed, read-only in the
-  browser. Entries carry an STA or JTTL badge, and `provisional: true` renders
-  as its own badge plus a note saying why the date is an estimate. Currently
-  holds the 6 provisional JTTL Season Two weekends.
+- **Anything you add in the browser** — imported from STA, filled in from a
+  link, or typed by hand. Stored in `localStorage` on that device, editable and
+  deletable. This is the normal path.
+- **`vercel-deploy/data/matches.json`** — an optional feed committed alongside
+  the site, read at page load and shown read-only. It ships empty. Edit it by
+  hand, or point a generator at it, if you want tournaments to travel with the
+  deploy rather than live in one browser.
 
-  Rebuild it after scraping:
+  Each entry needs at least `id`, `name` and an ISO `start`; `end`, `venue`,
+  `categories`, `entryDeadline`, `url`, `source` (`sta` / `jttl` / `manual`),
+  `provisional` and `note` are optional. A `provisional: true` entry is badged
+  as an estimate, and its `note` explains why.
 
-  ```sh
-  cd tools
-  npm run scrape:jttl   # hits the live site -> tools/data/jttl.json
-  npm run build         # merge -> ../vercel-deploy/data/matches.json
-  ```
-
-  `npm run build` drops fixtures that have already finished. JTTL publishes
-  every team fixture in every division — 222 for a single past season — which
-  buries the dates you can still plan around. Pass `--all` to keep the history,
-  or `--since YYYY-MM-DD` for a different cutoff. Provisional records are always
-  kept, and the build refuses to write an empty feed.
-- **Anything you add in the browser** — stored in `localStorage` on that device,
-  editable and deletable.
-
-STA can be read live from the page (see above). JTT cannot — it sends no CORS
-headers — which is why its scraper is a separate offline tool. See `findings.md`
-for the full trace of both.
+See `findings.md` for the full trace of what each source does and does not
+expose.
 
 ## What it does — Calendar
 

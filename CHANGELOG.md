@@ -5,6 +5,23 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Removed
+
+- **The JTTL scraper and the whole `tools/` folder** — `scrape-jttl.mjs`, its
+  parsers, snapshots, tests and `build-matches.mjs`. Not wanted.
+- The 6 provisional JTTL Season Two weekends it had generated.
+  `data/matches.json` ships empty again.
+
+Tournaments now come from the STA import, a pasted STA link, or hand entry —
+all in the browser. The `matches.json` feed still works and is still read at
+load; it is simply hand-edited now rather than generated, and the README
+documents its shape.
+
+The 2.0.0 entry below is left as it was: `tools/` genuinely shipped in that
+release.
+
 ## [2.0.0] — 2026-08-07
 
 The two-week camp planner becomes a **season planner**. Three views — Calendar,

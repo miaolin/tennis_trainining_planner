@@ -1134,9 +1134,9 @@ function runChecks(b){
 }
 
 /* =================================================== part 2: tournaments ===
-   Matches come from two places: a generated data/matches.json written by the
-   scraper in tools/, and whatever the user adds by hand. They are merged for
-   display; only the manual ones are editable here.
+   Matches come from two places: data/matches.json, an optional hand-edited
+   feed committed alongside the site, and whatever the user adds in the browser.
+   They are merged for display; only the locally held ones are editable here.
    ========================================================================= */
 const STATUSES = ['planned','entered','confirmed','skipped'];
 const STATUS_LABEL = {planned:'Planned', entered:'Entered', confirmed:'Confirmed', skipped:'Skipping'};
@@ -1191,7 +1191,7 @@ function allMatches(){
 }
 
 // The site is static, so this is a same-origin read of a committed file. It
-// fails harmlessly on file:// and before the scraper has ever run.
+// fails harmlessly on file:// and when the file is absent or empty.
 async function loadFeed(){
   try{
     const r = await fetch('data/matches.json', {cache:'no-store'});
@@ -1202,8 +1202,8 @@ async function loadFeed(){
       feedNote = feed.length
         ? `${feed.length} tournament${feed.length===1?'':'s'} loaded from data/matches.json` +
           (j.generatedAt ? ` (generated ${String(j.generatedAt).slice(0,10)})` : '')
-        : 'data/matches.json is empty — run the scraper in tools/ to fill it. ' +
-          'Tournaments added here are stored in this browser.';
+        : 'data/matches.json is empty. Import from STA above, or add tournaments ' +
+          'by hand — they are stored in this browser.';
     }
   }catch(e){
     feedNote = '';   // no feed yet — manual entry only
@@ -1257,8 +1257,8 @@ async function lookupLink(){
   if(!raw){ lookupNote('Paste a tournament link first.', 'bad'); return false; }
   const slug = slugFromUrl(raw);
   if(!slug){
-    lookupNote('That is not an STA tournament link. Only singtennis.org.sg links can be looked up — ' +
-               'JTTL fixtures come from the scraper in tools/.', 'bad');
+    lookupNote('That is not an STA tournament link. Only singtennis.org.sg links can be looked up; ' +
+               'other sites block cross-origin reads, so add those by hand.', 'bad');
     return false;
   }
   lookupNote('Looking up…', 'busy');
@@ -1483,7 +1483,7 @@ function renderMatches(){
   document.getElementById('nav-ct').textContent = ms.length ? ms.length : '';
 
   if(!ms.length){
-    list.innerHTML = '<div class="empty">No tournaments yet. Add one above, or run the scraper in <code>tools/</code> to generate <code>data/matches.json</code>.</div>';
+    list.innerHTML = '<div class="empty">No tournaments yet. Import from STA above, paste a tournament link, or add one by hand.</div>';
     runSeasonChecks(ms);
     return;
   }
