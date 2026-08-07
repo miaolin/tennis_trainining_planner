@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Released: 1.0.0** · unreleased v2 work in progress · [Changelog](CHANGELOG.md)
+**Version 2.0.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in three parts:
 
