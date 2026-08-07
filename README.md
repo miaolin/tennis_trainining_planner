@@ -49,7 +49,16 @@ tests/                          jsdom harness — dev only, never deployed
 
 ## What it does — Tournaments
 
-- **Kids** — add each child; they get their own colour.
+- **Kids** — add each child with a birth year; they get their own colour and an
+  age group (U10, 14&U, 16&U, Junior). Ages follow the Singapore convention: the
+  age reached during the season year, so 10&U in 2026 means born 2016 or later.
+- **Only the children who can enter a tournament are offered on it.** A U10
+  event shows the nine-year-old alone, a 16&U event the thirteen-year-old. Each
+  child is offered their own group and one above it — juniors play up a group,
+  but not into every event they are technically old enough for. A child with a
+  status recorded is always shown regardless, and a child with no birth year is
+  shown everywhere.
+- **Show filter** — Everyone, or one child — appears once you have two kids.
 - **Tournaments** — name, dates, venue, categories and entry deadline, grouped
   by month. Past ones dim.
 - **Who's going** — one button per child per tournament, cycling
@@ -62,15 +71,18 @@ tests/                          jsdom harness — dev only, never deployed
 
 ### Importing the STA calendar
 
-**Import from STA** pulls the whole tournament list in one call and keeps the
-age groups you tick — U10, 14&U, 16&U, Junior — other, Adult / Open. The four
-junior groups are on by default, as is **Upcoming only**. Re-importing never
-duplicates: tournaments are matched by their STA id, and the note tells you how
-many were added, already there, or already finished.
+**Import from STA** pulls the whole tournament list in one call and keeps what
+the ticked children can enter. Eligibility is judged per tournament against the
+year it runs in, so a child ageing out between seasons is handled correctly.
+**Upcoming only** is on by default. Re-importing never duplicates: tournaments
+are matched by their STA id, and the note tells you how many were added, already
+there, or already finished.
 
-STA publishes no age-group field, so the bucket is derived: the `Junior (U10)`
-level or a `U10` token in the title, then `14&U` / `16&U` tokens, then anything
-else marked Junior, with the rest as Adult / Open.
+With no children added yet, the import falls back to every junior age group.
+
+STA publishes no age-group field, so the group is derived from the title: the
+`Junior (U10)` level or a `U10` token, then `14&U` / `16&U` / `18&U` tokens,
+then anything else marked Junior, with the rest treated as adult.
 
 ### Adding a tournament from its link
 

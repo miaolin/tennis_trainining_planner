@@ -348,7 +348,11 @@ const offset = n => {
   const p = x => String(x).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
-const addKid = (dom, d, name) => { input(dom, $(d, '#kid-name'), name); click(dom, $(d, '#kid-add')); };
+const addKid = (dom, d, name, birthYear) => {
+  input(dom, $(d, '#kid-name'), name);
+  if (birthYear !== undefined) input(dom, $(d, '#kid-year'), String(birthYear));
+  click(dom, $(d, '#kid-add'));
+};
 const addTourn = (dom, d, { name, start, end, venue, cat, deadline }) => {
   input(dom, $(d, '#t-name'), name);
   input(dom, $(d, '#t-start'), start);
@@ -706,16 +710,16 @@ group('bulk import from STA');
     },
   });
   const settle = () => new Promise(r => setTimeout(r, 40));
-  const ages = d => $$(d, '#agerow input[data-age]');
+  const impKids = d => $$(d, '#agerow input[data-impkid]');
+  const YEAR = new Date().getFullYear();
 
   {
+    // no kids yet: the import falls back to every junior age group
     const dom = bootImp();
     const d = dom.window.document;
     click(dom, $(d, '#nav-matches'));
-    ok('five age groups offered', ages(d).length === 5, ages(d).length);
-    ok('junior groups ticked by default, adult not',
-       ages(d).filter(c => c.checked).map(c => c.dataset.age).join(',') === 'u10,u14,u16,junior',
-       ages(d).filter(c => c.checked).map(c => c.dataset.age).join(','));
+    ok('no kids -> no kid checkboxes, just an explanation', impKids(d).length === 0 &&
+       $(d, '#agerow').textContent.includes('every junior age group'), $(d, '#agerow').textContent);
 
     click(dom, $(d, '#imp-run'));
     await settle();
@@ -746,20 +750,51 @@ group('bulk import from STA');
   }
 
   {
-    // untick everything but U10
+    // a 9-year-old: U10 is her group, 14&U is one up, 16&U and ITF are not
     const dom = bootImp();
     const d = dom.window.document;
     click(dom, $(d, '#nav-matches'));
-    for (const key of ['u14', 'u16', 'junior']) {
-      const cb = ages(d).find(c => c.dataset.age === key);
-      cb.checked = false;
-      cb.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
-    }
+    addKid(dom, d, 'Olivia', YEAR - 9);
+    ok('kid checkbox replaces the age groups', impKids(d).length === 1);
+    ok('the chip shows her age group', $(d, '#agerow').textContent.includes('U10'),
+       $(d, '#agerow').textContent);
+
     click(dom, $(d, '#imp-run'));
     await settle();
-    ok('U10 only imports one', $$(d, '.tourn').length === 1, $$(d, '.tourn').length);
-    ok('and it is the U10 one', $(d, '.tourn .tnm').textContent.includes('U10 Red'),
-       $(d, '.tourn .tnm').textContent);
+    const names = $$(d, '.tourn .tnm').map(e => e.textContent);
+    ok('U10 event imported for a 9-year-old', names.some(n => n.includes('U10 Red')), names);
+    ok('14&U imported (one group up)', names.some(n => n.includes('14&U')), names);
+    ok('16&U not imported', !names.some(n => n.includes('16&U')), names);
+    ok('adult event not imported', !names.some(n => n.includes('Advanced')), names);
+    ok('note names the child', $(d, '#impnote').textContent.includes('Olivia'),
+       $(d, '#impnote').textContent);
+  }
+
+  {
+    // two kids of different ages widen the import between them
+    const dom = bootImp();
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    addKid(dom, d, 'Olivia', YEAR - 9);
+    addKid(dom, d, 'Ian', YEAR - 13);
+    ok('two kid checkboxes', impKids(d).length === 2);
+    click(dom, $(d, '#imp-run'));
+    await settle();
+    const names = $$(d, '.tourn .tnm').map(e => e.textContent);
+    ok('U10 imported for the younger', names.some(n => n.includes('U10 Red')), names);
+    ok('16&U imported for the older', names.some(n => n.includes('16&U')), names);
+    ok('note names both children', /Olivia and Ian/.test($(d, '#impnote').textContent),
+       $(d, '#impnote').textContent);
+
+    // untick the younger and the U10 event stops matching
+    const olivia = impKids(d)[0];
+    olivia.checked = false;
+    olivia.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    click(dom, $(d, '#imp-run'));
+    await settle();
+    ok('unticking a child narrows the note to the other',
+       $(d, '#impnote').textContent.includes('Ian') && !$(d, '#impnote').textContent.includes('Olivia and'),
+       $(d, '#impnote').textContent);
   }
 
   {
@@ -778,14 +813,15 @@ group('bulk import from STA');
   }
 
   {
-    // no age groups ticked
+    // every child unticked
     const dom = bootImp();
     const d = dom.window.document;
     click(dom, $(d, '#nav-matches'));
-    for (const cb of ages(d)) { cb.checked = false; cb.dispatchEvent(new dom.window.Event('change', { bubbles: true })); }
+    addKid(dom, d, 'Olivia', YEAR - 9);
+    for (const cb of impKids(d)) { cb.checked = false; cb.dispatchEvent(new dom.window.Event('change', { bubbles: true })); }
     click(dom, $(d, '#imp-run'));
     await settle();
-    ok('no age groups ticked asks for one', $(d, '#impnote').textContent.includes('Tick at least one'),
+    ok('no child ticked asks for one', $(d, '#impnote').textContent.includes('Tick at least one child'),
        $(d, '#impnote').textContent);
     ok('and imports nothing', $$(d, '.tourn').length === 0);
   }
@@ -804,6 +840,105 @@ group('bulk import from STA');
        $(d, '#impnote').textContent);
     ok('nothing imported on failure', $$(d, '.tourn').length === 0);
   }
+}
+
+group('per-kid eligibility');
+{
+  const Y = new Date().getFullYear();
+  const setup = () => {
+    const dom = boot();
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    addKid(dom, d, 'Olivia', Y - 9);    // U10
+    addKid(dom, d, 'Ian', Y - 13);      // 14&U
+    return { dom, d };
+  };
+  const rowNamed = (d, text) => $$(d, '.tourn').find(r => r.textContent.includes(text));
+  const kidsOn = row => [...row.querySelectorAll('.join')].map(b => b.textContent.replace(/·.*/, '').trim());
+
+  const { dom, d } = setup();
+  ok('chips show each age group', $(d, '#kidrow').textContent.includes('U10') &&
+     $(d, '#kidrow').textContent.includes('14&U'), $(d, '#kidrow').textContent);
+  ok('birth years persist', saved(dom).players.map(p => p.birthYear).join(',') === `${Y - 9},${Y - 13}`,
+     saved(dom).players.map(p => p.birthYear).join(','));
+
+  addTourn(dom, d, { name: 'STA SPEX U10 Red Competition', start: `${Y}-11-02`, cat: 'STA, Junior (U10)' });
+  addTourn(dom, d, { name: 'ATF 14&U ActiveSG Cup', start: `${Y}-11-10`, cat: 'ATF, Junior' });
+  addTourn(dom, d, { name: 'ATF 16&U ActiveSG Cup', start: `${Y}-11-18`, cat: 'ATF, Junior' });
+  addTourn(dom, d, { name: 'Club Open Day', start: `${Y}-11-24` });
+
+  ok('U10 event offers only the 9-year-old',
+     kidsOn(rowNamed(d, 'U10 Red')).join(',') === 'Olivia', kidsOn(rowNamed(d, 'U10 Red')));
+  ok('14&U offers both — her group up, his own',
+     kidsOn(rowNamed(d, '14&U')).join(',') === 'Olivia,Ian', kidsOn(rowNamed(d, '14&U')));
+  ok('16&U offers only the 13-year-old',
+     kidsOn(rowNamed(d, '16&U')).join(',') === 'Ian', kidsOn(rowNamed(d, '16&U')));
+  ok('an event with no age group offers everyone',
+     kidsOn(rowNamed(d, 'Club Open Day')).join(',') === 'Olivia,Ian', kidsOn(rowNamed(d, 'Club Open Day')));
+
+  // a recorded status must survive even when the rules would hide the kid
+  const seed = JSON.parse(dom.window.localStorage.getItem(KEY));
+  const u10 = seed.manualMatches.find(m => m.name.includes('U10'));
+  const ian = seed.players.find(p => p.name === 'Ian');
+  seed.entries.push({ matchId: u10.id, playerId: ian.id, status: 'entered' });
+  const dom2 = boot({ [KEY]: JSON.stringify(seed) });
+  const d2 = dom2.window.document;
+  click(dom2, $(d2, '#nav-matches'));
+  ok('a kid with a recorded status is never hidden',
+     kidsOn(rowNamed(d2, 'U10 Red')).includes('Ian'), kidsOn(rowNamed(d2, 'U10 Red')));
+
+  // kids without a birth year are shown everywhere
+  const dom3 = boot();
+  const d3 = dom3.window.document;
+  click(dom3, $(d3, '#nav-matches'));
+  addKid(dom3, d3, 'Unknown');
+  addTourn(dom3, d3, { name: 'STA SPEX U10 Red', start: `${Y}-11-02`, cat: 'STA, Junior (U10)' });
+  ok('a kid with no birth year still appears', $$(d3, '.tourn .join').length === 1,
+     $$(d3, '.tourn .join').length);
+  ok('chip says the age group is unset', $(d3, '#kidrow').textContent.includes('no age group'),
+     $(d3, '#kidrow').textContent);
+
+  // setting the year afterwards takes effect
+  const yr = $(d3, '.kid .kyr');
+  yr.value = String(Y - 13);
+  yr.dispatchEvent(new dom3.window.Event('change', { bubbles: true }));
+  ok('filling the year in later applies the rules', $$(d3, '.tourn .join').length === 0,
+     $$(d3, '.tourn .join').length);
+  ok('and the row says why', $(d3, '.tourn .nokid') !== null);
+}
+
+group('who filter');
+{
+  const Y = new Date().getFullYear();
+  const dom = boot();
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-matches'));
+  ok('no filter shown with one kid or none', $(d, '#whofilter').textContent === '');
+
+  addKid(dom, d, 'Olivia', Y - 9);
+  ok('still no filter with a single kid', $(d, '#whofilter').textContent === '');
+
+  addKid(dom, d, 'Ian', Y - 13);
+  ok('filter appears with two kids', $$(d, '#whofilter label[data-who]').length === 3,
+     $$(d, '#whofilter label[data-who]').length);
+
+  addTourn(dom, d, { name: 'STA SPEX U10 Red', start: `${Y}-11-02`, cat: 'STA, Junior (U10)' });
+  addTourn(dom, d, { name: 'ATF 16&U Cup', start: `${Y}-11-18`, cat: 'ATF, Junior' });
+  ok('everyone sees both', $$(d, '.tourn').length === 2, $$(d, '.tourn').length);
+
+  const chips = $$(d, '#whofilter label[data-who]');
+  click(dom, chips[1]);   // Olivia
+  ok('filtering to the 9-year-old hides the 16&U event', $$(d, '.tourn').length === 1,
+     $$(d, '.tourn').length);
+  ok('and keeps her U10 event', $(d, '.tourn').textContent.includes('U10 Red'));
+
+  click(dom, $$(d, '#whofilter label[data-who]')[2]);   // Ian
+  ok('filtering to the 13-year-old hides the U10 event', $$(d, '.tourn').length === 1,
+     $$(d, '.tourn').length);
+  ok('and keeps his 16&U event', $(d, '.tourn').textContent.includes('16&U'));
+
+  click(dom, $$(d, '#whofilter label[data-who]')[0]);   // Everyone
+  ok('back to everyone shows both again', $$(d, '.tourn').length === 2, $$(d, '.tourn').length);
 }
 
 group('generated matches.json feed');

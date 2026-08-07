@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Each child has a birth year**, which sets their age group (U10, 14&U, 16&U,
+  Junior). Ages follow the Singapore convention — the age reached during the
+  season year, so 10&U in 2026 means born 2016 or later.
+- **Tournaments only offer the children who can enter them.** A U10 event shows
+  the nine-year-old alone; a 16&U event shows the thirteen-year-old alone; an
+  event with no age group in its title shows everyone. A child is offered their
+  own group and one above it, since juniors play up a group but do not enter
+  every event they are technically old enough for.
+- **A "Show" filter** — Everyone, or one child — above the tournament list, once
+  there is more than one child.
+- **The STA import is scoped by child** rather than by raw age group: tick the
+  children, and eligibility is judged per tournament against the year it runs
+  in, so a child ageing out between seasons is handled correctly.
+
+A child who already has a status on a tournament is **always** shown, whatever
+the age rules say — a recorded decision must never become unreachable. Children
+with no birth year are shown everywhere, so nothing is hidden until you say how
+old they are.
+
 ### Removed
 
 - **The JTTL scraper and the whole `tools/` folder** — `scrape-jttl.mjs`, its
