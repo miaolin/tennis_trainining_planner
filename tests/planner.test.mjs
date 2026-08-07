@@ -794,5 +794,194 @@ group('bulk import from STA');
   }
 }
 
+group('year calendar');
+{
+  const HOLIDAYS = {
+    verifiedOn: '2026-08-06',
+    periods: [
+      { name: 'March break', type: 'vacation', start: '2026-03-14', end: '2026-03-22' },
+      { name: 'Year-end break', type: 'vacation', start: '2026-11-21', end: '2026-12-31' },
+      { name: 'National Day (observed)', type: 'holiday', start: '2026-08-10', end: '2026-08-10' },
+      { name: 'bad row', type: 'vacation', start: 'nope', end: '2026-01-01' },
+      { name: 'backwards', type: 'vacation', start: '2026-05-05', end: '2026-05-01' },
+    ],
+  };
+  const bootCal = (periods) => new JSDOM(SRC, {
+    runScripts: 'dangerously', url: 'https://example.test/', pretendToBeVisual: true,
+    beforeParse(window) {
+      window.fetch = (url) => String(url).includes('sg-school-holidays')
+        ? Promise.resolve({ ok: true, status: 200,
+            json: () => Promise.resolve(periods === undefined ? HOLIDAYS : periods) })
+        : Promise.resolve({ ok: false, status: 404 });
+    },
+  });
+  const settle = () => new Promise(r => setTimeout(r, 40));
+
+  {
+    const dom = bootCal();
+    const d = dom.window.document;
+    await settle();
+    click(dom, $(d, '#nav-calendar'));
+    ok('calendar view shows', $(d, '#view-calendar').classList.contains('on'));
+    ok('other views hidden', !$(d, '#view-training').classList.contains('on') &&
+                             !$(d, '#view-matches').classList.contains('on'));
+    ok('twelve months rendered', $$(d, '.mon').length === 12, $$(d, '.mon').length);
+    ok('header retitles', $(d, '#title').textContent === 'Calendar', $(d, '#title').textContent);
+    // 3 fixed entries + "Nobody yet"; kids add one each
+    ok('legend rendered', $$(d, '.legend .lg').length === 4, $$(d, '.legend .lg').length);
+
+    // 2026 is the default year here only if today is 2026; drive it explicitly
+    while ($(d, '#cal-year').textContent !== '2026') click(dom, $(d, '#cal-prev'));
+    ok('year navigation works', $(d, '#cal-year').textContent === '2026');
+
+    // March break 14-22 Mar = 9 days, year-end 21 Nov - 31 Dec = 41 days
+    ok('school holidays shaded', $$(d, '.cell.vac').length === 9 + 41,
+       $$(d, '.cell.vac').length);
+    ok('public holiday shaded separately', $$(d, '.cell.hol').length === 1,
+       $$(d, '.cell.hol').length);
+    ok('malformed holiday rows dropped', !$(d, '#holidaylist').textContent.includes('bad row'));
+    ok('backwards date range dropped', !$(d, '#holidaylist').textContent.includes('backwards'));
+
+    // default training block 21 Nov - 4 Dec = 14 days
+    ok('training block underlined on the calendar', $$(d, '.cell.blk').length === 14,
+       $$(d, '.cell.blk').length);
+
+    ok('holiday list sorted longest first',
+       $$(d, '.holrow')[0].textContent.includes('Year-end'), $$(d, '.holrow')[0].textContent);
+    ok('holiday length shown', $$(d, '.holrow')[0].textContent.includes('41 days'),
+       $$(d, '.holrow')[0].textContent);
+    ok('source note shown', $(d, '#holnote').textContent.includes('MOE'), $(d, '#holnote').textContent);
+    ok('header counts holiday days', $(d, '#ondays').textContent === '50', $(d, '#ondays').textContent);
+    ok('header counts blocks in year', $(d, '#restdays').textContent === '1', $(d, '#restdays').textContent);
+  }
+
+  {
+    // tournaments appear on the calendar, and light up once someone is entered
+    const dom = bootCal();
+    const d = dom.window.document;
+    await settle();
+    click(dom, $(d, '#nav-matches'));
+    addKid(dom, d, 'Mia');
+    addTourn(dom, d, { name: 'Champs', start: '2026-04-10', end: '2026-04-12' });
+    click(dom, $(d, '#nav-calendar'));
+    while ($(d, '#cal-year').textContent !== '2026') click(dom, $(d, '#cal-prev'));
+    ok('tournament days marked', $$(d, '.cell.ev').length === 3, $$(d, '.cell.ev').length);
+    ok('not marked as entered yet', $$(d, '.cell.ev.ent').length === 0);
+    ok('day carries a tooltip', $(d, '.cell.ev').getAttribute('title').includes('Champs'),
+       $(d, '.cell.ev').getAttribute('title'));
+
+    click(dom, $(d, '#nav-matches'));
+    click(dom, $(d, '.join'));   // planned
+    click(dom, $(d, '.join'));   // entered
+    click(dom, $(d, '#nav-calendar'));
+    while ($(d, '#cal-year').textContent !== '2026') click(dom, $(d, '#cal-prev'));
+    ok('entered tournaments highlighted', $$(d, '.cell.ev.ent').length === 3,
+       $$(d, '.cell.ev.ent').length);
+    ok('the kid now has a dot on those days',
+       $$(d, '.cell.ev .dots i:not(.none)').length === 3,
+       $$(d, '.cell.ev .dots i:not(.none)').length);
+    ok('tooltip names the kid and status',
+       $(d, '.cell.ev').getAttribute('title').includes('Mia: Entered'),
+       $(d, '.cell.ev').getAttribute('title'));
+
+    // a tournament inside a school holiday is flagged in the holiday list
+    click(dom, $(d, '#nav-matches'));
+    addTourn(dom, d, { name: 'In the break', start: '2026-03-16' });
+    click(dom, $(d, '#nav-calendar'));
+    while ($(d, '#cal-year').textContent !== '2026') click(dom, $(d, '#cal-prev'));
+    const march = $$(d, '.holrow').find(r => r.textContent.includes('March break'));
+    ok('holiday row reports tournaments inside it', march.textContent.includes('1 tournament inside'),
+       march.textContent);
+    const yearEnd = $$(d, '.holrow').find(r => r.textContent.includes('Year-end'));
+    ok('a clear holiday says so', yearEnd.textContent.includes('clear'), yearEnd.textContent);
+  }
+
+  {
+    // per-kid dots: two kids, different tournaments
+    const dom = bootCal();
+    const d = dom.window.document;
+    await settle();
+    click(dom, $(d, '#nav-matches'));
+    addKid(dom, d, 'Mia');
+    addKid(dom, d, 'Leo');
+    addTourn(dom, d, { name: 'Both go', start: '2026-04-10' });
+    addTourn(dom, d, { name: 'Only Mia', start: '2026-04-20' });
+    addTourn(dom, d, { name: 'Nobody', start: '2026-04-25' });
+
+    const rowJoins = n => $$(d, '.tourn')[n].querySelectorAll('.join');
+    click(dom, rowJoins(0)[0]);           // Mia planned on "Both go"
+    click(dom, rowJoins(0)[1]);           // Leo planned on "Both go"
+    click(dom, rowJoins(1)[0]);           // Mia planned on "Only Mia"
+    click(dom, rowJoins(2)[1]);           // Leo on "Nobody"...
+    click(dom, rowJoins(2)[1]);
+    click(dom, rowJoins(2)[1]);
+    click(dom, rowJoins(2)[1]);           // ...cycled to skipped
+
+    click(dom, $(d, '#nav-calendar'));
+    while ($(d, '#cal-year').textContent !== '2026') click(dom, $(d, '#cal-prev'));
+    const cells = $$(d, '.cell.ev');
+    ok('three tournament days', cells.length === 3, cells.length);
+    ok('the shared day shows two kid dots',
+       cells[0].querySelectorAll('.dots i:not(.none)').length === 2,
+       cells[0].querySelectorAll('.dots i').length);
+    ok('the solo day shows one kid dot',
+       cells[1].querySelectorAll('.dots i:not(.none)').length === 1,
+       cells[1].querySelectorAll('.dots i').length);
+    ok('a day nobody is going to shows the "nobody yet" dot',
+       cells[2].querySelectorAll('.dots i.none').length === 1,
+       cells[2].querySelectorAll('.dots i').length);
+    ok('a skipped kid gets no dot',
+       cells[2].querySelectorAll('.dots i:not(.none)').length === 0,
+       cells[2].querySelectorAll('.dots i:not(.none)').length);
+    ok('kid dots use each kid colour',
+       cells[0].querySelectorAll('.dots i')[0].getAttribute('style') !==
+       cells[0].querySelectorAll('.dots i')[1].getAttribute('style'));
+    ok('legend lists both kids plus the fixed entries',
+       $$(d, '.legend .lg').length === 6, $$(d, '.legend .lg').length);
+    ok('legend names the kids', $(d, '.legend').textContent.includes('Mia') &&
+       $(d, '.legend').textContent.includes('Leo'));
+
+    // training block still visible alongside
+    ok('training block days still marked', $$(d, '.cell.blk').length === 14,
+       $$(d, '.cell.blk').length);
+  }
+
+  {
+    // a year with no data must not break
+    const dom = bootCal();
+    const d = dom.window.document;
+    await settle();
+    click(dom, $(d, '#nav-calendar'));
+    for (let i = 0; i < 12; i++) click(dom, $(d, '#cal-next'));
+    ok('a far year still renders 12 months', $$(d, '.mon').length === 12);
+    ok('and says there are no holidays on file',
+       $(d, '#holidaylist').textContent.includes('No school holidays on file'),
+       $(d, '#holidaylist').textContent.slice(0, 60));
+  }
+
+  {
+    // holidays file missing entirely
+    const dom = new JSDOM(SRC, {
+      runScripts: 'dangerously', url: 'https://example.test/', pretendToBeVisual: true,
+      beforeParse(window) { window.fetch = () => Promise.resolve({ ok: false, status: 404 }); },
+    });
+    const d = dom.window.document;
+    await settle();
+    click(dom, $(d, '#nav-calendar'));
+    ok('calendar still renders with no holiday file', $$(d, '.mon').length === 12);
+    ok('and says the file could not be read',
+       $(d, '#holnote').textContent.includes('could not be read'), $(d, '#holnote').textContent);
+  }
+
+  {
+    // malformed holiday payload
+    const dom = bootCal({ periods: 'not an array' });
+    const d = dom.window.document;
+    await settle();
+    click(dom, $(d, '#nav-calendar'));
+    ok('a malformed holiday file does not break the calendar', $$(d, '.mon').length === 12);
+  }
+}
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('failed: ' + failures.join(' | ')); process.exit(1); }

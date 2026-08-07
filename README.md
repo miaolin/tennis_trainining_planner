@@ -2,7 +2,7 @@
 
 **Released: 1.0.0** · unreleased v2 work in progress · [Changelog](CHANGELOG.md)
 
-A single-page planner for a junior tennis season, in two parts:
+A single-page planner for a junior tennis season, in three parts:
 
 1. **Training** — build training blocks by dropping session types onto morning
    and afternoon slots. The page tallies daily and weekly hours and flags a plan
@@ -10,6 +10,9 @@ A single-page planner for a junior tennis season, in two parts:
 2. **Tournaments** — every tournament with its dates, venue, categories and
    entry deadline, plus which of your kids is going to each one. Surfaces
    closing deadlines, clashes, and the longest clear gap to book a trip into.
+3. **Calendar** — twelve months on one page: who is playing when (a coloured
+   dot per child), where the training blocks sit, and the Singapore school
+   holidays behind it all.
 
 The design and the source research behind it are in `task_plan.md` and
 `findings.md`.
@@ -97,6 +100,33 @@ Two places, merged:
 STA can be read live from the page (see above). JTT cannot — it sends no CORS
 headers — which is why its scraper is a separate offline tool. See `findings.md`
 for the full trace of both.
+
+## What it does — Calendar
+
+Twelve months for one year, with arrows to move between years.
+
+- **A dot per child** on every tournament day, in that child's colour, so you
+  can see who is competing when. Grey means a tournament nobody has committed
+  to yet; a child who is skipping shows nothing. Hover a day for the names,
+  statuses and holiday.
+- **Training blocks** as a yellow left edge.
+- **School holidays** as the day background — vacations green, public holidays
+  amber.
+- **Holidays this year**, longest first, each marked clear or with the number of
+  tournaments inside it.
+
+Tournaments are dots, not filled days, because league events run for weeks
+(Inter-Club 3 Sep–18 Oct, JTTL 19 Sep–15 Nov) and filling them hid the school
+holidays underneath.
+
+### Where the school holidays come from
+
+`vercel-deploy/data/sg-school-holidays.json`, hand-entered from the MOE press
+releases and carrying its source URLs and a `verifiedOn` date. Currently 2026
+and 2027 — **add a year to that file when MOE publishes one.**
+
+They cannot be fetched live: data.gov.sg has no school-holiday dataset and
+sends no CORS header, and moe.gov.sg is not readable from the browser either.
 
 ## Using it
 

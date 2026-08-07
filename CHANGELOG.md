@@ -10,6 +10,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Work toward v2: the two-week camp planner becomes a multi-block training
 planner, the first step of the season planner described in `task_plan.md`.
 
+### Added — part 3, year calendar
+
+A third view: twelve months on one page, with year navigation.
+
+- **Per-kid tournament dots.** Each day carries one dot per child who is
+  playing, in that child's colour, so you can see who competes when. A
+  tournament nobody is going to yet gets a grey "Nobody yet" dot; a child who
+  is skipping gets none. The tooltip names each child and their status.
+- **Training blocks** as a yellow left edge on each day.
+- **Singapore school holidays** as the day background — school vacations in
+  green, public holidays in amber.
+- **Holidays this year**, sorted longest first, each saying whether it is clear
+  or how many tournaments fall inside it. That is the travel-planning list.
+- The legend is built from your actual kids.
+
+Tournaments are dots rather than a fill because league events run for weeks —
+Inter-Club 3 Sep–18 Oct, JTTL 19 Sep–15 Nov — and filling those days painted
+over the school holidays, which are the point of the view.
+
+School holidays ship as `data/sg-school-holidays.json`, hand-entered from the
+MOE press releases for 2026 and 2027 and carrying their source URLs. They
+cannot be fetched live: data.gov.sg has no school-holiday dataset and sends no
+CORS header, and moe.gov.sg is not readable from the browser either. Add a year
+to that file when MOE publishes one.
+
 ### Added — import the whole STA calendar, filtered by age group
 
 - **Import from STA** pulls all 122 tournaments in one call and keeps the age

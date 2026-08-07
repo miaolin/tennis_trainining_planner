@@ -411,6 +411,81 @@ input[type=number]#days{width:74px}
   font-size:15px;padding:3px 7px;border-radius:3px;cursor:pointer;
 }
 .tdel:hover{background:rgba(217,96,63,.25);color:#fff}
+/* ---------- year calendar ---------- */
+.months{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
+  gap:16px;
+}
+.mon{
+  background:var(--court-deep);border:1px solid var(--hair);
+  border-radius:4px;padding:12px 13px 14px;
+}
+.mon h3{
+  font-family:'Barlow Condensed',sans-serif;font-weight:600;
+  font-size:15px;letter-spacing:.14em;text-transform:uppercase;
+  margin:0 0 9px;color:var(--court-line);
+}
+.mon .dows,.mon .days{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.mon .dows span{
+  font-size:9px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--mute);text-align:center;padding-bottom:4px;
+}
+.cell{
+  position:relative;aspect-ratio:1;border-radius:2px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:rgba(255,255,255,.72);
+  background:transparent;
+}
+.cell.pad{visibility:hidden}
+.cell.vac{background:rgba(79,169,124,.24);color:#CFEEDF}
+.cell.hol{background:rgba(232,163,61,.26);color:#F6DCB2}
+/* Left edge, so it cannot collide with the per-kid dots along the bottom. */
+.cell.blk{box-shadow:inset 3px 0 0 var(--ball)}
+/* NB: not ".tourn" — that class is the tournament rows in part 2, and reusing
+   it here made every ".tourn" query match calendar day cells too.
+   A tournament is a row of per-kid dots, not a fill: league events run for
+   weeks (Inter-Club 3 Sep–18 Oct, JTTL 19 Sep–15 Nov) and a fill would paint
+   over the school holidays, which are the point of the view. Dots also say
+   *which* kid is playing, which a single fill cannot. */
+.cell.ev{color:#fff;font-weight:700;padding-bottom:6px}
+.cell.ev:not(.vac):not(.hol){background:rgba(91,155,213,.18)}
+.cell .dots{
+  position:absolute;bottom:2px;left:0;right:0;
+  display:flex;justify-content:center;gap:2px;pointer-events:none;
+}
+.cell .dots i{
+  width:4px;height:4px;border-radius:50%;display:block;
+  background:var(--c);box-shadow:0 0 0 1px rgba(21,54,80,.9);
+}
+.cell .dots i.none{background:rgba(255,255,255,.45)}
+.cell .dots i.skip{background:transparent;box-shadow:inset 0 0 0 1px rgba(255,255,255,.4)}
+.cell.today{outline:2px solid #fff;outline-offset:-1px;font-weight:700}
+.cell[title]{cursor:help}
+.legend{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.lg{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--mute)}
+.lg i{width:12px;height:12px;border-radius:2px;display:block}
+.lg i.vac{background:rgba(79,169,124,.5)}
+.lg i.hol{background:rgba(232,163,61,.5)}
+.lg i.ev,.lg i.ent{width:7px;height:7px;border-radius:50%;background:#8FC0E6}
+.lg i.ent{background:var(--ball)}
+.lg i.blk{background:transparent;box-shadow:inset 3px 0 0 var(--ball);border:1px solid var(--hair)}
+/* ".kd", not ".kid" — ".kid" is the chip in the Kids box, and reusing it here
+   made every ".kid" query match legend swatches too. Second time this bit:
+   see the ".tourn" note above. */
+.lg i.kd{width:7px;height:7px;border-radius:50%;background:var(--c)}
+.lg i.kd.none{background:rgba(255,255,255,.45)}
+.holrow{
+  display:flex;gap:12px;align-items:baseline;
+  padding:7px 0;border-bottom:1px solid var(--hair);font-size:13.5px;
+}
+.holrow:last-child{border-bottom:none}
+.holrow .hd{
+  font-family:'Barlow Condensed',sans-serif;font-size:15px;min-width:118px;
+}
+.holrow .hn{color:var(--court-line)}
+.holrow .hlen{color:var(--mute);font-size:12px;margin-left:auto}
+.holrow.vacation .hn{color:#9BD7B7}
+
 .empty{
   border:1px dashed var(--hair);border-radius:4px;
   padding:26px 18px;text-align:center;color:var(--mute);font-size:14px;
@@ -442,6 +517,7 @@ input[type=number]#days{width:74px}
 <nav class="mainnav">
   <button class="navbtn on" id="nav-training" data-view="training">Training</button>
   <button class="navbtn" id="nav-matches" data-view="matches">Tournaments<span class="ct" id="nav-ct"></span></button>
+  <button class="navbtn" id="nav-calendar" data-view="calendar">Calendar</button>
 </nav>
 
 <header>
@@ -552,6 +628,26 @@ input[type=number]#days{width:74px}
   <div class="checks">
     <h2>Season check</h2>
     <div id="mnotes"></div>
+  </div>
+
+</section>
+
+<section class="view" id="view-calendar">
+
+  <div class="bar">
+    <button id="cal-prev">&larr;</button>
+    <span class="lab" id="cal-year" style="font-family:'Barlow Condensed',sans-serif;font-size:22px;color:var(--court-line);min-width:70px;text-align:center">&nbsp;</span>
+    <button id="cal-next">&rarr;</button>
+    <div class="spacer"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="months" id="months"></div>
+
+  <div class="checks">
+    <h2>Holidays this year</h2>
+    <div id="holidaylist"></div>
+    <p class="hint" id="holnote"></p>
   </div>
 
 </section>
@@ -1495,16 +1591,188 @@ function runSeasonChecks(ms){
   ).join('');
 }
 
+/* =================================================== part 3: year calendar ===
+   Singapore MOE school holidays ship as data. data.gov.sg has no school-holiday
+   dataset and sends no CORS header, and moe.gov.sg is not fetchable from the
+   browser either, so these are hand-entered from the MOE press releases and
+   carry their sources. Add a year to the JSON when MOE publishes one.
+   ========================================================================= */
+let holidays = [];
+let holidayNote = '';
+let calYear = new Date().getFullYear();
+
+function validPeriod(p){
+  return p && typeof p === 'object' && typeof p.name === 'string' &&
+         /^\d{4}-\d{2}-\d{2}$/.test(p.start) && /^\d{4}-\d{2}-\d{2}$/.test(p.end) &&
+         p.end >= p.start;
+}
+async function loadHolidays(){
+  try{
+    const r = await fetch('data/sg-school-holidays.json', {cache:'no-store'});
+    if(!r.ok) return;
+    const j = await r.json();
+    if(j && Array.isArray(j.periods)){
+      holidays = j.periods.filter(validPeriod).map(p=>({
+        name:p.name, start:p.start, end:p.end,
+        type: ['vacation','holiday','school'].includes(p.type) ? p.type : 'holiday'
+      }));
+      const yrs = holidays.length
+        ? [...new Set(holidays.map(p=>p.start.slice(0,4)))].sort().join(', ') : '';
+      holidayNote = `Singapore MOE school calendar for ${yrs}` +
+                    (j.verifiedOn ? `, checked ${j.verifiedOn}` : '') +
+                    '. Add a year to data/sg-school-holidays.json when MOE publishes it.';
+    }
+  }catch(e){ holidayNote = ''; }
+}
+
+function eachDay(startIso, endIso, fn){
+  const d = new Date(startIso + 'T00:00:00');
+  const end = new Date(endIso + 'T00:00:00');
+  let guard = 0;
+  while(d <= end && guard++ < 800){ fn(iso(d)); d.setDate(d.getDate() + 1); }
+}
+// One pass over every source, producing a day -> what-is-on map for the year.
+function calendarIndex(year){
+  const map = new Map();
+  const at = k => { let v = map.get(k); if(!v){ v = {vac:null, hol:null, blocks:[], matches:[]}; map.set(k, v); } return v; };
+  const inYear = k => k.slice(0,4) === String(year);
+
+  holidays.forEach(p=>eachDay(p.start, p.end, k=>{
+    if(!inYear(k)) return;
+    const c = at(k);
+    if(p.type === 'vacation'){ if(!c.vac) c.vac = p.name; }
+    else if(!c.hol) c.hol = p.name;
+  }));
+  state.blocks.forEach(b=>eachDay(b.start, iso(dateFor(b, b.days - 1)), k=>{
+    if(inYear(k)) at(k).blocks.push(b.name);
+  }));
+  allMatches().forEach(m=>eachDay(m.start, m.end, k=>{
+    if(inYear(k)) at(k).matches.push(m);
+  }));
+  return map;
+}
+function anyoneEntered(m){
+  return state.entries.some(e => e.matchId === m.id &&
+    (e.status === 'entered' || e.status === 'confirmed'));
+}
+// Who is actually playing on a given day, in kid order, plus whether any of
+// that day's tournaments has nobody assigned to it at all.
+function kidsOnDay(matches){
+  const going = [];
+  let unassigned = false;
+  state.players.forEach(p=>{
+    const best = matches
+      .map(m => statusOf(m.id, p.id))
+      .filter(s => s === 'planned' || s === 'entered' || s === 'confirmed');
+    if(best.length) going.push({player:p, status: best.includes('confirmed') ? 'confirmed'
+                                              : best.includes('entered') ? 'entered' : 'planned'});
+  });
+  matches.forEach(m=>{
+    const anyone = state.players.some(p=>{
+      const s = statusOf(m.id, p.id);
+      return s === 'planned' || s === 'entered' || s === 'confirmed';
+    });
+    if(!anyone) unassigned = true;
+  });
+  return {going, unassigned};
+}
+
+function renderCalendar(){
+  document.getElementById('cal-year').textContent = calYear;
+  document.getElementById('legend').innerHTML =
+    '<span class="lg"><i class="vac"></i>School holiday</span>' +
+    '<span class="lg"><i class="hol"></i>Public holiday</span>' +
+    '<span class="lg"><i class="blk"></i>Training block</span>' +
+    state.players.map(p=>
+      `<span class="lg"><i class="kd" style="--c:${p.colour}"></i>${escapeHtml(p.name)}</span>`).join('') +
+    '<span class="lg"><i class="kd none"></i>Nobody yet</span>';
+
+  const idx = calendarIndex(calYear);
+  const today = todayIso();
+  const box = document.getElementById('months');
+  let html = '';
+
+  for(let m = 0; m < 12; m++){
+    const first = new Date(calYear, m, 1);
+    const lead = first.getDay();
+    const len = new Date(calYear, m + 1, 0).getDate();
+    let cells = '';
+    for(let i = 0; i < lead; i++) cells += '<span class="cell pad"></span>';
+    for(let d = 1; d <= len; d++){
+      const k = iso(new Date(calYear, m, d));
+      const c = idx.get(k);
+      const cls = ['cell'];
+      const tip = [];
+      let dots = '';
+      if(c){
+        if(c.vac){ cls.push('vac'); tip.push(c.vac); }
+        else if(c.hol){ cls.push('hol'); tip.push(c.hol); }
+        if(c.blocks.length){ cls.push('blk'); tip.push('Training: ' + c.blocks.join(', ')); }
+        if(c.matches.length){
+          cls.push('ev');
+          if(c.matches.some(anyoneEntered)) cls.push('ent');
+          tip.push(c.matches.map(x=>x.name).join(' / '));
+          const {going, unassigned} = kidsOnDay(c.matches);
+          if(going.length) tip.push(going.map(g=>`${g.player.name}: ${STATUS_LABEL[g.status]}`).join(', '));
+          dots = '<span class="dots">' +
+            going.map(g=>`<i style="--c:${g.player.colour}"></i>`).join('') +
+            (unassigned ? '<i class="none"></i>' : '') +
+            '</span>';
+        }
+      }
+      if(k === today) cls.push('today');
+      cells += `<span class="${cls.join(' ')}"${tip.length ? ` title="${escapeHtml(tip.join(' · '))}"` : ''}>${dots}${d}</span>`;
+    }
+    html += `<div class="mon"><h3>${MON[m]}</h3>` +
+            `<div class="dows">${DOW.map(x=>`<span>${x[0]}</span>`).join('')}</div>` +
+            `<div class="days">${cells}</div></div>`;
+  }
+  box.innerHTML = html;
+
+  // the holiday list, longest first — that is the travel-planning order
+  const vacs = holidays
+    .filter(p => p.type === 'vacation' && p.start.slice(0,4) === String(calYear))
+    .map(p => ({...p, len: daysBetween(p.start, p.end) + 1}))
+    .sort((a,b) => b.len - a.len);
+  const list = document.getElementById('holidaylist');
+  list.innerHTML = vacs.length
+    ? vacs.map(p=>{
+        const clash = allMatches().filter(m => m.start <= p.end && m.end >= p.start);
+        return `<div class="holrow vacation"><span class="hd">` +
+          `${fmt(new Date(p.start+'T00:00:00'))} – ${fmt(new Date(p.end+'T00:00:00'))}</span>` +
+          `<span class="hn">${escapeHtml(p.name)}</span>` +
+          `<span class="hlen">${p.len} days${clash.length ? ` · ${clash.length} tournament${clash.length>1?'s':''} inside` : ' · clear'}</span></div>`;
+      }).join('')
+    : `<div class="empty">No school holidays on file for ${calYear}.</div>`;
+  document.getElementById('holnote').textContent = holidayNote ||
+    'data/sg-school-holidays.json could not be read.';
+}
+
 /* ------------------------------------------------------------ views --- */
 let view = 'training';
 
 function setView(v){
-  view = (v === 'matches') ? 'matches' : 'training';
+  view = ['matches','calendar'].includes(v) ? v : 'training';
   render();
 }
 function renderHeader(){
   const sub = document.getElementById('sub');
-  if(view === 'matches'){
+  if(view === 'calendar'){
+    const inYear = allMatches().filter(m => m.start.slice(0,4) === String(calYear));
+    const vacDays = holidays
+      .filter(p => p.type === 'vacation' && p.start.slice(0,4) === String(calYear))
+      .reduce((n,p) => n + daysBetween(p.start, p.end) + 1, 0);
+    document.getElementById('title').textContent = 'Calendar';
+    document.getElementById('range').textContent = calYear;
+    sub.textContent = 'Tournaments, training blocks and Singapore school holidays on one year.';
+    document.getElementById('tot').textContent = inYear.length;
+    document.getElementById('ondays').textContent = vacDays;
+    document.getElementById('restdays').textContent = state.blocks
+      .filter(b => b.start.slice(0,4) === String(calYear)).length;
+    document.getElementById('lab1').textContent = 'Tournaments';
+    document.getElementById('lab2').textContent = 'Holiday days';
+    document.getElementById('lab3').textContent = 'Blocks';
+  } else if(view === 'matches'){
     const ms = allMatches(), today = todayIso();
     const upcoming = ms.filter(m => m.end >= today);
     document.getElementById('title').textContent = 'Tournaments';
@@ -1524,17 +1792,19 @@ function renderHeader(){
     document.getElementById('lab2').textContent = 'On-court days';
     document.getElementById('lab3').textContent = 'Rest days';
   }
-  document.getElementById('view-training').classList.toggle('on', view === 'training');
-  document.getElementById('view-matches').classList.toggle('on', view === 'matches');
-  document.getElementById('nav-training').classList.toggle('on', view === 'training');
-  document.getElementById('nav-matches').classList.toggle('on', view === 'matches');
+  ['training','matches','calendar'].forEach(v=>{
+    document.getElementById('view-' + v).classList.toggle('on', view === v);
+    document.getElementById('nav-' + (v === 'training' ? 'training' : v === 'matches' ? 'matches' : 'calendar'))
+      .classList.toggle('on', view === v);
+  });
 }
 
-// Both views always re-render; the header decides which numbers are on show.
-// That keeps every existing render() call site correct.
+// Every view re-renders; the header decides which numbers are on show. That
+// keeps all the existing render() call sites correct.
 function render(){
   renderTraining();
   renderMatches();
+  renderCalendar();
   renderHeader();
 }
 
@@ -1617,6 +1887,9 @@ document.getElementById('btn-copy').addEventListener('click', async ()=>{
 
 document.getElementById('nav-training').addEventListener('click', ()=>setView('training'));
 document.getElementById('nav-matches').addEventListener('click', ()=>setView('matches'));
+document.getElementById('nav-calendar').addEventListener('click', ()=>setView('calendar'));
+document.getElementById('cal-prev').addEventListener('click', ()=>{ calYear--; render(); });
+document.getElementById('cal-next').addEventListener('click', ()=>{ calYear++; render(); });
 
 document.getElementById('kid-add').addEventListener('click', ()=>{
   const el = document.getElementById('kid-name');
@@ -1639,8 +1912,8 @@ load();
 render();
 save();   // persist the default/migrated block immediately, not on first edit
 
-// The feed is optional and arrives late; re-render once it lands.
-loadFeed().then(()=>{ if(feed.length || feedNote) render(); });
+// Both data files are optional and arrive late; re-render once they land.
+Promise.all([loadFeed(), loadHolidays()]).then(render);
 </script>
 </body>
 </html>

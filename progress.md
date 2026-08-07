@@ -183,6 +183,29 @@
   - vercel-deploy/index.html, tests/planner.test.mjs (+23 assertions)
   - README.md, CHANGELOG.md, task_plan.md, progress.md
 
+### Phase 6e: Year calendar + Singapore school holidays
+- **Status:** complete
+- Actions taken:
+  - Researched the holiday source: data.gov.sg's MOE dataset turned out to be
+    CCAs, not holidays, and data.gov.sg sends no CORS header anyway. So the
+    holidays ship as data, hand-entered from the MOE press releases for 2026
+    and 2027, with source URLs and a `verifiedOn` date in the file
+  - Built the third view: 12 months, year navigation, holiday backgrounds,
+    training-block edges, per-kid tournament dots, and a longest-first holiday
+    list flagging which breaks have tournaments in them
+  - **Two CSS class collisions, both caught by the tests:**
+    `.cell.tourn` collided with the `.tourn` tournament rows, and legend
+    `i.kid` collided with the `.kid` chips — every `$$('.tourn')` and
+    `$$('.kid')` query started matching calendar elements. Renamed to `.ev`
+    and `.kd`, with comments explaining why
+  - **Design fix found only by looking at the screenshot:** filling tournament
+    days painted solid blue over Sep–Nov, burying the school holidays, because
+    league events run for weeks. Changed to per-kid dots over a holiday
+    background, which also answers "which kid" — something a fill could not
+- Files created/modified:
+  - vercel-deploy/index.html, vercel-deploy/data/sg-school-holidays.json (new)
+  - tests/planner.test.mjs (+38 assertions), README.md, CHANGELOG.md, progress.md
+
 ## Test Results
 
 | Test | Input | Expected | Actual | Status |
