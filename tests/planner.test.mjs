@@ -559,16 +559,20 @@ group('corrupt part-2 state');
 
 group('STA link lookup');
 {
-  // Shape copied from the live api.singtennis.org.sg response.
-  const STA_PAYLOAD = {
-    status: 'Success', message: '', data: [
-      { date: 'Aug 2026', tournamentResps: [
-        { tournamentId: 351, slug: 'j60-singapore-itf-junior-championships-vi-2026',
-          tournamentName: 'J60 Singapore ITF Junior Championships (VI) 2026',
-          entryOpen: false, tournamentLevelName: 'Junior', tournamentTypeName: 'ITF',
-          startDate: '23/08/2026', endDate: '29/08/2026', deadline: '04/08/2026' }] },
-    ],
+  // Shape copied from the live GetTournamentInfoBySlug response. Note this is
+  // a tournament ABSENT from GetTournamentList — the case that used to fail.
+  const BY_SLUG = {
+    status: 'Success', message: '', data: {
+      tournamentId: 297,
+      slug: 'sta-spex-u10-red-competition-viii-2026',
+      tournamentName: 'STA SPEX U10 Red Competition VIII 2026',
+      tournamentLevelName: 'Junior (U10)', tournamentTypeName: 'STA', isU10: true,
+      venue: 'Yio Chu Kang Tennis Centre',
+      tournamentStartDate: '26/09/2026', tournamentEndDate: '04/10/2026',
+      closingDeadline: '11/09/2026',
+    },
   };
+  const NOT_FOUND = { status: 'Failed', message: 'Unable to find this tournament.', data: null };
   // Boot with fetch stubbed. data/matches.json must still resolve as a 404.
   const bootWithApi = (impl) => new JSDOM(SRC, {
     runScripts: 'dangerously', url: 'https://example.test/', pretendToBeVisual: true,
@@ -579,24 +583,38 @@ group('STA link lookup');
       };
     },
   });
-  const okApi = () => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(STA_PAYLOAD) });
+  const seen = { url: null, body: null };
+  const okApi = (url, opts) => {
+    seen.url = String(url);
+    seen.body = opts && opts.body ? JSON.parse(opts.body) : null;
+    const found = seen.body && seen.body.slug === BY_SLUG.data.slug;
+    return Promise.resolve({ ok: true, status: 200,
+      json: () => Promise.resolve(found ? BY_SLUG : NOT_FOUND) });
+  };
   const settle = () => new Promise(r => setTimeout(r, 30));
 
   {
     const dom = bootWithApi(okApi);
     const d = dom.window.document;
     click(dom, $(d, '#nav-matches'));
-    input(dom, $(d, '#t-url'), 'https://www-new.singtennis.org.sg/tournaments/j60-singapore-itf-junior-championships-vi-2026?type=information');
+    input(dom, $(d, '#t-url'), 'https://www-new.singtennis.org.sg/tournaments/sta-spex-u10-red-competition-viii-2026?type=information');
     click(dom, $(d, '#t-lookup'));
     await settle();
-    ok('name filled from the link', $(d, '#t-name').value === 'J60 Singapore ITF Junior Championships (VI) 2026',
-       $(d, '#t-name').value);
-    ok('start date converted dd/mm/yyyy -> iso', $(d, '#t-start').value === '2026-08-23', $(d, '#t-start').value);
-    ok('end date converted', $(d, '#t-end').value === '2026-08-29', $(d, '#t-end').value);
-    ok('entry deadline converted', $(d, '#t-deadline').value === '2026-08-04', $(d, '#t-deadline').value);
-    ok('categories from type + level', $(d, '#t-cat').value === 'ITF · Junior', $(d, '#t-cat').value);
-    ok('note says what it found', $(d, '#lookupnote').textContent.includes('Found'), $(d, '#lookupnote').textContent);
-    ok('note admits venue is unavailable', $(d, '#lookupnote').textContent.includes('venue'));
+    // This tournament is NOT in GetTournamentList; resolving it by slug is the
+    // whole point of the change.
+    ok('a tournament missing from the list still resolves',
+       $(d, '#t-name').value === 'STA SPEX U10 Red Competition VIII 2026', $(d, '#t-name').value);
+    ok('start date converted dd/mm/yyyy -> iso', $(d, '#t-start').value === '2026-09-26', $(d, '#t-start').value);
+    ok('end date converted', $(d, '#t-end').value === '2026-10-04', $(d, '#t-end').value);
+    ok('entry deadline converted', $(d, '#t-deadline').value === '2026-09-11', $(d, '#t-deadline').value);
+    ok('venue filled in', $(d, '#t-venue').value === 'Yio Chu Kang Tennis Centre', $(d, '#t-venue').value);
+    ok('categories from type + level', $(d, '#t-cat').value === 'STA · Junior (U10)', $(d, '#t-cat').value);
+    ok('note names the venue', $(d, '#lookupnote').textContent.includes('Yio Chu Kang'),
+       $(d, '#lookupnote').textContent);
+    ok('it calls GetTournamentInfoBySlug, not the whole list',
+       seen.url.includes('GetTournamentInfoBySlug'), seen.url);
+    ok('and posts the slug parsed out of the URL',
+       seen.body.slug === 'sta-spex-u10-red-competition-viii-2026', JSON.stringify(seen.body));
 
     click(dom, $(d, '#t-add'));
     ok('the looked-up tournament is added', $$(d, '.tourn').length === 1, $$(d, '.tourn').length);

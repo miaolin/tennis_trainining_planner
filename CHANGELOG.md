@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Pasting a link to a tournament that is not yet in STA's tournament list now
+  works.** The lookup searched `GetTournamentList`, which omits competitions
+  that are published but not open for entry — the Red/Orange/Green events on
+  `/red-orange-green` are a standing example, and `sta-spex-u10-red-competition-
+  viii-2026` returned "No STA tournament matches". It now resolves the slug
+  directly via `Tournament/GetTournamentInfoBySlug`, which is unauthenticated
+  and CORS-open like the list endpoint.
+- **Venue is filled in.** An earlier note claimed STA did not publish it; that
+  was wrong — the list endpoint omits it, but the by-slug endpoint carries it.
+  The lookup no longer tells you to add it by hand.
+
 ### Added
 
 - **Each child has a birth year**, which sets their age group (U10, 14&U, 16&U,

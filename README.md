@@ -91,10 +91,15 @@ into the add form. The name, start, end, entry deadline and categories fill
 themselves in; the link is kept on the row. Lookup fires on paste, on Enter, or
 from the **Look up** button.
 
-This works because `api.singtennis.org.sg` answers an unauthenticated
-`POST {}` with every tournament and sends `Access-Control-Allow-Origin: *`, so
-the page reads it directly — no proxy, no scraper. **Venue is not filled**: STA
-does not publish it anywhere, so add it by hand if you want it.
+The lookup resolves the slug in the URL through
+`api.singtennis.org.sg/web-api/Tournament/GetTournamentInfoBySlug`, which is
+unauthenticated and sends `Access-Control-Allow-Origin: *`, so the page reads it
+directly — no proxy, no scraper. It fills the **venue** too.
+
+Resolving the slug rather than searching the tournament list matters: the list
+omits competitions that are published but not yet open for entry, such as the
+Red/Orange/Green events linked from `/red-orange-green`. Those resolve fine by
+slug.
 
 Only STA links work. Other sites — jttsingapore.com among them — send no CORS
 headers, so the browser cannot read them; add those tournaments by hand.

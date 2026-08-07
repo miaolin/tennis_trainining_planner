@@ -626,7 +626,7 @@ input[type=number]#days{width:74px}
       </div>
       <button id="t-lookup">Look up</button>
     </div>
-    <p class="hint" id="lookupnote">Paste an STA tournament link and the details fill themselves in.</p>
+    <p class="hint" id="lookupnote">Paste an STA tournament link and the details — including the venue — fill themselves in.</p>
     <div class="formgrid">
       <div class="fld"><label for="t-name">Name</label><input type="text" id="t-name" maxlength="80" placeholder="STA Junior Championships"></div>
       <div class="fld"><label for="t-start">Starts</label><input type="date" id="t-start"></div>
@@ -1239,6 +1239,11 @@ async function loadFeed(){
    field stays manual.
    ------------------------------------------------------------------------ */
 const STA_API = 'https://api.singtennis.org.sg/web-api/Tournament/GetTournamentList';
+// Resolving one slug beats searching the list: the list omits tournaments that
+// are published but not yet open for entry — the Red/Orange/Green competitions
+// on /red-orange-green are a standing example — and this endpoint also returns
+// the venue, which the list does not carry.
+const STA_SLUG_API = 'https://api.singtennis.org.sg/web-api/Tournament/GetTournamentInfoBySlug';
 let staCache = null;
 
 function slugFromUrl(raw){
@@ -1284,18 +1289,23 @@ async function lookupLink(){
   }
   lookupNote('Looking up…', 'busy');
   try{
-    const rows = await fetchStaList();
-    const hit = rows.find(t => t && t.slug === slug);
-    if(!hit){
+    const r = await fetch(STA_SLUG_API, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({slug})
+    });
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    if(!j || j.status !== 'Success' || !j.data){
       lookupNote(`No STA tournament matches “${slug}”. Check the link, or fill the fields in by hand.`, 'bad');
       return false;
     }
-    setField('t-name', hit.tournamentName);
-    setField('t-start', dmyToIso(hit.startDate));
-    setField('t-end', dmyToIso(hit.endDate));
-    setField('t-deadline', dmyToIso(hit.deadline));
-    setField('t-cat', [hit.tournamentTypeName, hit.tournamentLevelName].filter(Boolean).join(' · '));
-    lookupNote(`Found “${hit.tournamentName}”. STA does not publish a venue — add one by hand if you want it.`, 'good');
+    const t = j.data;
+    setField('t-name', t.tournamentName);
+    setField('t-start', dmyToIso(t.tournamentStartDate));
+    setField('t-end', dmyToIso(t.tournamentEndDate));
+    setField('t-deadline', dmyToIso(t.closingDeadline));
+    setField('t-venue', t.venue);
+    setField('t-cat', [t.tournamentTypeName, t.tournamentLevelName].filter(Boolean).join(' · '));
+    lookupNote(`Found “${t.tournamentName}”${t.venue ? ' at ' + t.venue : ''}.`, 'good');
     return true;
   }catch(e){
     lookupNote('Could not reach the STA API (' + e.message + '). Fill the fields in by hand.', 'bad');
