@@ -46,8 +46,11 @@ tests/                          jsdom harness — dev only, never deployed
 - **A slot holds more than one session.** A morning can be a private and then
   physical, an afternoon school and then a lesson. The stack is kept in clock
   order and capped at four; the **+** strip under a filled slot adds another.
-- **Five session types** — private 1h, private 1.5h, group 2h, physical 1h, and
-  rest. Rest clears the whole day.
+- **A length on every session.** The dialog fills in the usual one for the chip
+  you placed (1h private, 2h group, 1h physical) and you can change it there or
+  later from the grid — quarter hours, up to 12.
+- **Four session types** — private, group, physical, and rest. Rest clears the
+  whole day.
 - **Study / other** blocks out a slot that is not training: give it your own
   label and length (study, school, a piano lesson). It holds the slot and shows
   its hours, but never counts towards the daily or weekly load, so blocking an

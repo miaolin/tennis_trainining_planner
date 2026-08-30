@@ -27,6 +27,18 @@ simply shows no time until you give it one.
   another slot keeps the time it already has — a move is not a re-booking.
 - A session may carry **no time at all**; it stays in its slot and says so.
 
+**A length on every session, not on the chip**
+
+- **One Private chip instead of two.** The length now belongs to the session,
+  set in the same dialog that asks for the time, so a 45-minute fitness block or
+  a 90-minute group needs no chip of its own. The palette is five chips.
+- The dialog **fills in the usual length** for the chip you placed — 1h, 2h, 1h
+  — so accepting it is still one keystroke, and the length can be changed later
+  from the grid the same way the time can.
+- Quarter hours, up to 12. An impossible length falls back to the chip's usual.
+- **`p15` still reads.** A plan saved with the old 1.5h private type loads as an
+  ordinary private of that length.
+
 **More than one thing in a slot**
 
 - **A slot holds a stack, not a single session.** A morning can be a private and
@@ -54,6 +66,8 @@ simply shows no time until you give it one.
 
 ### Changed
 
+- **The 1.5h private chip is gone**, replaced by the length field above. Nothing
+  is lost — existing 1.5h sessions load unchanged.
 - The **suggested plan** puts the second tennis block of a day in the evening
   rather than straight after lunch, which is what its own load check has always
   advised. The total is unchanged.

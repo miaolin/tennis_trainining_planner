@@ -112,7 +112,7 @@ group('cold boot — default block with the suggested plan');
   ok('week 1 = 10.0h', $$(d, '.wcap')[0].textContent.includes('10.0'), $$(d, '.wcap')[0].textContent);
   ok('week 2 = 9.0h', $$(d, '.wcap')[1].textContent.includes('9.0'), $$(d, '.wcap')[1].textContent);
   ok('load checks rendered', $$(d, '#notes .note').length > 0);
-  ok('6 session chips', $$(d, '#chips .chip').length === 6);
+  ok('5 session chips', $$(d, '#chips .chip').length === 5);
   ok('state persisted under the v2 key', !!dom.window.localStorage.getItem(KEY));
 }
 
@@ -413,13 +413,74 @@ group('two things in one slot can still clash');
 }
 
 /* ------------------------------------------------------------------ */
+group('a session sets its own length');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  click(dom, $(d, '#btn-clear'));
+
+  // the dialog offers the chip's usual length, and it can be overridden
+  click(dom, $$(d, '.chip').find(c => c.dataset.type === 'g2'));
+  click(dom, daySlots(d)[0]);
+  ok('the dialog offers the usual length', $(d, '#m-dur').value === '2', $(d, '#m-dur').value);
+  fill(dom, { time: '09:00', hours: '1.5' });
+  ok('a shorter group is kept', slot(dom, 0, 'am').hrs === 1.5,
+     JSON.stringify(slot(dom, 0, 'am')));
+  ok('and it costs what it runs', $(d, '#tot').textContent === '1.5', $(d, '#tot').textContent);
+  ok('the grid shows the real window', $(d, '#grid .placed .tm').textContent.includes('09:00–10:30'),
+     $(d, '#grid .placed .tm').textContent);
+
+  // and the length can be changed again from the grid
+  fillAt(dom, $(d, '#grid .placed .tm'), { hours: '2.5' });
+  ok('a length changed in place sticks', $(d, '#tot').textContent === '2.5', $(d, '#tot').textContent);
+  ok('and redraws the end time', $(d, '#grid .placed .tm').textContent.includes('09:00–11:30'),
+     $(d, '#grid .placed .tm').textContent);
+
+  // a nonsense length falls back to the chip's own
+  tap(dom, 'phys', daySlots(d)[1], { time: '14:00', hours: '0' });
+  ok('an impossible length falls back to the usual', slot(dom, 0, 'pm').hrs === 1,
+     JSON.stringify(slot(dom, 0, 'pm')));
+
+  // rest has no length to set
+  tap(dom, 'rest', daySlots(d)[2]);
+  ok('rest never asks', $(d, '#modal').hidden);
+  ok('and carries no length', slot(dom, 0, 'am').hrs === undefined,
+     JSON.stringify(slot(dom, 0, 'am')));
+}
+
+/* ------------------------------------------------------------------ */
+group('the retired 1.5h private chip still reads');
+{
+  // Up to v2.2 a 1.5h private was its own type, `p15`.
+  const dom = boot({
+    [KEY]: JSON.stringify({
+      version: 2,
+      blocks: [{ id: 'b1', name: 'Old', start: '2026-11-21', days: 7,
+                 plan: { 0: { am: { type: 'p15', at: '08:00' }, pm: 'p15' } } }],
+      activeBlockId: 'b1',
+    }),
+  });
+  const d = dom.window.document;
+  ok('it loads as a private of that length', $(d, '#tot').textContent === '3.0',
+     $(d, '#tot').textContent);
+  ok('and is drawn as one', $(d, '#grid .placed .nm').textContent === 'Private',
+     $(d, '#grid .placed .nm').textContent);
+  ok('keeping its 90 minutes', $(d, '#grid .placed .tm').textContent.includes('08:00–09:30'),
+     $(d, '#grid .placed .tm').textContent);
+  // the bare type key, with no time on it, reads the same way
+  const back = dom.window.sanitiseState(JSON.parse(dom.window.localStorage.getItem(KEY)), true);
+  ok('the bare type key reads too', slotOf(back.blocks[0], 0, 'pm').hrs === 1.5,
+     JSON.stringify(slotOf(back.blocks[0], 0, 'pm')));
+}
+
+/* ------------------------------------------------------------------ */
 group('exact times');
 {
   const dom = boot();
   const d = dom.window.document;
   click(dom, $(d, '#btn-clear'));
 
-  tap(dom, 'p15', daySlots(d)[0], { time: '07:30' });
+  tap(dom, 'p1', daySlots(d)[0], { time: '07:30', hours: '1.5' });
   ok('the given time is kept', slot(dom, 0, 'am').at === '07:30',
      JSON.stringify(slot(dom, 0, 'am')));
   ok('the end time follows the length',

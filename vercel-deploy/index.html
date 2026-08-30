@@ -766,7 +766,7 @@ input[type=number]#days{width:74px}
       <input type="time" id="m-time" step="300">
     </div>
     <div class="mrow" id="m-durrow">
-      <label class="lab" for="m-dur">Hours</label>
+      <label class="lab" for="m-dur">Length (h)</label>
       <input type="number" id="m-dur" min="0.25" max="12" step="0.25">
     </div>
     <p class="hint" id="m-note"></p>
@@ -784,9 +784,11 @@ input[type=number]#days{width:74px}
 </div>
 
 <script>
+// One chip per kind. `hrs` is the length the chip offers, not a fixed cost —
+// every session carries its own, set when it is placed, so a 90-minute group
+// or a 45-minute fitness block needs no chip of its own.
 const TYPES = {
   p1:   {nm:'Private',  dur:"1h",   hrs:1,   c:'#5B9BD5', tennis:true},
-  p15:  {nm:'Private',  dur:"1.5h", hrs:1.5, c:'#3C7CB8', tennis:true},
   g2:   {nm:'Group',    dur:"2h",   hrs:2,   c:'#9B87D4', tennis:true},
   phys: {nm:'Physical', dur:"1h",   hrs:1,   c:'#E8A33D', tennis:false},
   // Anything that is not training but still owns the slot — study, school, a
@@ -877,14 +879,24 @@ function roundHrs(v){
   const n = Math.round(parseFloat(v) * 4) / 4;
   return (n > 0 && n <= 12) ? n : null;
 }
+// Up to 2.2 the 1.5h private was a type of its own. It is now an ordinary
+// private with its length set, and old plans are read that way.
+const RETIRED = {p15:{type:'p1', hrs:1.5}};
 function normEntry(v){
-  if(typeof v === 'string') return TYPES[v] ? {type:v, at:null} : null;
-  if(!v || typeof v !== 'object' || !TYPES[v.type]) return null;
-  const e = {type:v.type, at:validTime(v.at)};
-  if(TYPES[v.type].custom){
-    e.label = (typeof v.label === 'string' && v.label.trim())
-              ? v.label.trim().slice(0, 24) : 'Blocked';
-    e.hrs = roundHrs(v.hrs) || 1;
+  const raw = (typeof v === 'string') ? {type:v} : v;
+  if(!raw || typeof raw !== 'object') return null;
+  let type = raw.type, hrs = raw.hrs;
+  const was = RETIRED[type];
+  if(was){ type = was.type; if(hrs == null) hrs = was.hrs; }
+  const t = TYPES[type];
+  if(!t) return null;
+  const e = {type, at:validTime(raw.at)};
+  if(t.custom){
+    e.label = (typeof raw.label === 'string' && raw.label.trim())
+              ? raw.label.trim().slice(0, 24) : 'Blocked';
+    e.hrs = roundHrs(hrs) || 1;
+  } else if(t.hrs){
+    e.hrs = roundHrs(hrs) || t.hrs;      // rest has no length to set
   }
   return e;
 }
@@ -901,7 +913,9 @@ function entryInfo(e){
     return {nm:e.label || 'Blocked', c:t.c, hrs:0, span, dur:fmtHrs(span),
             tennis:false, custom:true};
   }
-  return {nm:t.nm, c:t.c, hrs:t.hrs, span:t.hrs, dur:t.dur, tennis:t.tennis, custom:false};
+  const span = t.hrs ? (e.hrs || t.hrs) : 0;
+  return {nm:t.nm, c:t.c, hrs:span, span, dur:span ? fmtHrs(span) : t.dur,
+          tennis:t.tennis, custom:false};
 }
 function endOf(at, span){
   const [h, m] = at.split(':').map(Number);
@@ -1161,11 +1175,12 @@ function openDialog(o){
   document.getElementById('m-note').textContent = o.note || '';
   document.getElementById('m-ok').textContent = o.action || 'Place';
   document.getElementById('m-labelrow').hidden = !custom;
-  document.getElementById('m-durrow').hidden = !custom;
+  // Everything but rest has a length, and rest never opens the dialog.
+  document.getElementById('m-durrow').hidden = false;
   const lab = document.getElementById('m-label');
   const tm  = document.getElementById('m-time');
   lab.value = o.entry.label && o.entry.label !== 'Blocked' ? o.entry.label : '';
-  document.getElementById('m-dur').value = o.entry.hrs || 1;
+  document.getElementById('m-dur').value = o.entry.hrs || (t && t.hrs) || 1;
   tm.value = o.entry.at || '';
   dialogEntry.done = o.ok;
   document.getElementById('modal').hidden = false;
@@ -1181,11 +1196,9 @@ function closeDialog(){
 function commitDialog(){
   if(!dialogEntry) return;
   const done = dialogEntry.done;
-  const out = {type:dialogEntry.type, at:document.getElementById('m-time').value};
-  if(TYPES[out.type].custom){
-    out.label = document.getElementById('m-label').value;
-    out.hrs = document.getElementById('m-dur').value;
-  }
+  const out = {type:dialogEntry.type, at:document.getElementById('m-time').value,
+               hrs:document.getElementById('m-dur').value};
+  if(TYPES[out.type].custom) out.label = document.getElementById('m-label').value;
   const e = normEntry(out);
   closeDialog();
   if(e && done) done(e);
@@ -1204,10 +1217,11 @@ function startPlace(day, slot, entry){
   if(!roomIn(day, slot, null)) return;
   openDialog({
     title: slotTitle(day, slot),
-    entry: {type:entry.type, at:entry.at || SLOT_TIME[slot], label:entry.label, hrs:entry.hrs || 1},
+    entry: {type:entry.type, at:entry.at || SLOT_TIME[slot], label:entry.label,
+            hrs:entry.hrs || t.hrs || 1},
     note: t.custom
       ? 'A blocked slot keeps the time free of training. It does not add to the daily or weekly load.'
-      : `${t.nm} · ${t.dur}. The end time follows from the length.`,
+      : `${t.nm}. The usual ${t.dur} is filled in — change it for a longer or shorter one.`,
     ok: e => place(day, slot, e, null)
   });
 }
@@ -1218,7 +1232,7 @@ function editEntry(day, slot, idx){
   if(!e) return;
   openDialog({
     title: slotTitle(day, slot), entry: {...e}, action: 'Save',
-    note: TYPES[e.type].custom ? '' : `${TYPES[e.type].nm} · ${TYPES[e.type].dur}.`,
+    note: TYPES[e.type].custom ? '' : `${TYPES[e.type].nm}. The end time follows from the length.`,
     ok: ne => setEntry(day, slot, idx, ne)
   });
 }
