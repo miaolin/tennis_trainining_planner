@@ -10,11 +10,12 @@ A single-page planner for a junior tennis season, in three parts:
 2. **Tournaments** — every tournament with its dates, venue, categories and
    entry deadline, plus which of your kids is going to each one. Surfaces
    closing deadlines, clashes, and the longest clear gap to book a trip into.
-3. **Training** — build training blocks by dropping session types onto morning,
-   afternoon and evening slots, each with an exact start time, and block out the
-   hours that are not training at all. The page tallies daily and weekly hours
-   and flags a plan that is too heavy, too relentless, or too solitary for a
-   young player.
+3. **Training** — build training blocks by dropping sessions onto morning,
+   afternoon and evening slots. Each session carries its own start time and
+   length, a slot takes more than one, and the hours that are not training at
+   all can be blocked out alongside. The page tallies daily and weekly hours and
+   flags a plan that is too heavy, too relentless, or too solitary for a young
+   player.
 
 The design and the source research behind it are in `task_plan.md` and
 `findings.md`.

@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.2.0] — 2026-08-30
 
-The training grid now says *when*, not only *what* — and it makes room for the
-hours that are not training at all.
+The training grid now says *when*, not only *what*. A day is three slots; each
+slot holds as much as the day really holds; every session carries its own start
+time and its own length; and there is finally somewhere to put the hours that
+are not training at all.
 
-Existing plans load unchanged: a session saved without a time keeps its slot and
-simply shows no time until you give it one.
+Existing plans load unchanged. A session saved without a time keeps its slot and
+simply says so until you give it one, a slot that held one session becomes a
+stack of one, and the retired 1.5h private type loads as an ordinary private of
+that length.
 
 ### Added
 
