@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.1.0** · [Changelog](CHANGELOG.md)
+**Version 2.2.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in three parts:
 
@@ -10,9 +10,11 @@ A single-page planner for a junior tennis season, in three parts:
 2. **Tournaments** — every tournament with its dates, venue, categories and
    entry deadline, plus which of your kids is going to each one. Surfaces
    closing deadlines, clashes, and the longest clear gap to book a trip into.
-3. **Training** — build training blocks by dropping session types onto morning
-   and afternoon slots. The page tallies daily and weekly hours and flags a plan
-   that is too heavy, too relentless, or too solitary for a young player.
+3. **Training** — build training blocks by dropping session types onto morning,
+   afternoon and evening slots, each with an exact start time, and block out the
+   hours that are not training at all. The page tallies daily and weekly hours
+   and flags a plan that is too heavy, too relentless, or too solitary for a
+   young player.
 
 The design and the source research behind it are in `task_plan.md` and
 `findings.md`.
@@ -36,14 +38,23 @@ tests/                          jsdom harness — dev only, never deployed
   (1–60 days), and switch between them from the tab row. A new block starts the
   day after the previous one ends.
 - **Calendar grid** laid out Sun–Sat, aligned to whatever weekday the block
-  starts on. Each day has a morning and an afternoon slot.
+  starts on. Each day has a morning, an afternoon and an evening slot.
+- **An exact start time on every session.** Placing one asks when it starts —
+  the slot offers 09:00, 14:00 or 17:00 — and the grid then shows the real
+  window, `09:00–10:00 · 1h`. Click the time on any placed session to change it.
+  A session may also carry no time at all; it just says so.
 - **Five session types** — private 1h, private 1.5h, group 2h, physical 1h, and
   rest. Rest clears the whole day.
+- **Study / other** blocks out a slot that is not training: give it your own
+  label and length (study, school, a piano lesson). It holds the slot and shows
+  its hours, but never counts towards the daily or weekly load, so blocking an
+  afternoon does not make the week look heavier than it is.
 - **Running totals** per day, per 7-day week, and across the block, with a
   per-day load bar that turns amber at 3h and red past the daily cap.
 - **Load checks** that re-evaluate on every edit: days over the cap, long runs
   without a rest day, too few group sessions, two private blocks stacked on one
-  day, physical work crowding out court time, and weeks over the weekly cap.
+  day, two things booked over the same hour, physical work crowding out court
+  time, and weeks over the weekly cap.
 - **Export** the plan as plain text to the clipboard, or print it — the print
   stylesheet drops the controls and prints the grid on white.
 
@@ -153,9 +164,11 @@ sends no CORS header, and moe.gov.sg is not readable from the browser either.
 
 ## Using it
 
-Drag a session from the palette onto a slot. Drag a placed session to another
-slot to move it; click its **×** to remove it. On a phone, tap a session to arm
-it and then tap a slot — the grid stacks to one day per row.
+Drag a session from the palette onto a slot, then give it a start time — the
+slot's usual time is filled in, so it is one keystroke to accept. Drag a placed
+session to another slot to move it, which keeps the time it already has; click
+the time to change it, or its **×** to remove it. On a phone, tap a session to
+arm it and then tap a slot — the grid stacks to one day per row.
 
 Pick a block from the tab row, or **+ New block**. **Starts** shifts the whole
 block — the grid, header range and day labels all follow. **Days** changes its

@@ -5,6 +5,48 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] — 2026-08-30
+
+The training grid now says *when*, not only *what* — and it makes room for the
+hours that are not training at all.
+
+Existing plans load unchanged: a session saved without a time keeps its slot and
+simply shows no time until you give it one.
+
+### Added
+
+**An exact time on every session**
+
+- **Three slots a day** — morning, afternoon and evening — instead of two, so a
+  study block can sit alongside training rather than displacing it.
+- **Placing a session asks when it starts.** The slot's usual time is filled in
+  (09:00, 14:00, 17:00), so accepting it is one keystroke, and the grid then
+  shows the real window: `09:00–10:00 · 1h`. The end time follows from the
+  session length.
+- **Click the time on any placed session to change it.** Dragging a session to
+  another slot keeps the time it already has — a move is not a re-booking.
+- A session may carry **no time at all**; it stays in its slot and says so.
+
+**Blocking a slot that is not training**
+
+- A **Study / other** chip takes your own label and length — study, school, a
+  piano lesson — and holds the slot for that time.
+- **It never counts towards the load.** Daily hours, weekly totals and the block
+  total all ignore it, so blocking out an afternoon does not make the week look
+  heavier than it is, and a day of nothing but study still reads as a rest day.
+
+**A clash check**
+
+- Two things booked over the same hour is now called out by name. Hour caps
+  could never catch this: a day can be over-booked without being over-loaded.
+
+### Changed
+
+- The **suggested plan** puts the second tennis block of a day in the evening
+  rather than straight after lunch, which is what its own load check has always
+  advised. The total is unchanged.
+- The **text export** carries the times: `AM 09:00–10:00 Private 1h`.
+
 ## [2.1.0] — 2026-08-07
 
 Two kids, properly. Tournaments now know which child can enter them, and there
@@ -245,6 +287,7 @@ site that works on any host.
 - `place()` now ignores unknown session types rather than writing them into the
   plan.
 
+[2.2.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.2.0
 [2.1.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.1.0
 [2.0.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.0.0
 [1.0.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v1.0.0
