@@ -5,6 +5,78 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] — 2026-08-30
+
+The training grid now says *when*, not only *what*. A day is three slots; each
+slot holds as much as the day really holds; every session carries its own start
+time and its own length; and there is finally somewhere to put the hours that
+are not training at all.
+
+Existing plans load unchanged. A session saved without a time keeps its slot and
+simply says so until you give it one, a slot that held one session becomes a
+stack of one, and the retired 1.5h private type loads as an ordinary private of
+that length.
+
+### Added
+
+**An exact time on every session**
+
+- **Three slots a day** — morning, afternoon and evening — instead of two, so a
+  study block can sit alongside training rather than displacing it.
+- **Placing a session asks when it starts.** The slot's usual time is filled in
+  (09:00, 14:00, 17:00), so accepting it is one keystroke, and the grid then
+  shows the real window: `09:00–10:00 · 1h`. The end time follows from the
+  session length.
+- **Click the time on any placed session to change it.** Dragging a session to
+  another slot keeps the time it already has — a move is not a re-booking.
+- A session may carry **no time at all**; it stays in its slot and says so.
+
+**A length on every session, not on the chip**
+
+- **One Private chip instead of two.** The length now belongs to the session,
+  set in the same dialog that asks for the time, so a 45-minute fitness block or
+  a 90-minute group needs no chip of its own. The palette is five chips.
+- The dialog **fills in the usual length** for the chip you placed — 1h, 2h, 1h
+  — so accepting it is still one keystroke, and the length can be changed later
+  from the grid the same way the time can.
+- Quarter hours, up to 12. An impossible length falls back to the chip's usual.
+- **`p15` still reads.** A plan saved with the old 1.5h private type loads as an
+  ordinary private of that length.
+
+**More than one thing in a slot**
+
+- **A slot holds a stack, not a single session.** A morning can be a private and
+  then physical; an afternoon can be school and then a lesson after it. Placing
+  a second session adds to the slot rather than taking it over.
+- The stack is **kept in clock order**, however it was entered, and each slot is
+  capped at four — past that a day is a mistake, not a schedule.
+- A filled slot keeps a **`+ AM`** strip under it: that is what you tap or drop
+  on to add another, and it is what marks where one slot ends and the next
+  begins. Dragging one session out of a stack leaves the rest where they were.
+
+**Blocking a slot that is not training**
+
+- A **Study / other** chip takes your own label and length — study, school, a
+  piano lesson — and holds the slot for that time.
+- **It never counts towards the load.** Daily hours, weekly totals and the block
+  total all ignore it, so blocking out an afternoon does not make the week look
+  heavier than it is, and a day of nothing but study still reads as a rest day.
+
+**A clash check**
+
+- Two things booked over the same hour is now called out by name — including
+  two inside the same slot. Hour caps could never catch this: a day can be
+  over-booked without being over-loaded.
+
+### Changed
+
+- **The 1.5h private chip is gone**, replaced by the length field above. Nothing
+  is lost — existing 1.5h sessions load unchanged.
+- The **suggested plan** puts the second tennis block of a day in the evening
+  rather than straight after lunch, which is what its own load check has always
+  advised. The total is unchanged.
+- The **text export** carries the times: `AM 09:00–10:00 Private 1h`.
+
 ## [2.1.0] — 2026-08-07
 
 Two kids, properly. Tournaments now know which child can enter them, and there
@@ -245,6 +317,7 @@ site that works on any host.
 - `place()` now ignores unknown session types rather than writing them into the
   plan.
 
+[2.2.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.2.0
 [2.1.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.1.0
 [2.0.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.0.0
 [1.0.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v1.0.0
