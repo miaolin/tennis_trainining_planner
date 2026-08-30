@@ -91,6 +91,9 @@ const drop = (dom, el, payload) => {
 const firstSlot = d => $(d, '#grid .day:not(.blank) .slot');
 const daySlots = (d, i = 0) => [...$$(d, '#grid .day:not(.blank)')[i].querySelectorAll('.slot')];
 const saved = dom => JSON.parse(dom.window.localStorage.getItem(KEY));
+// A slot holds a list of entries, so a saved slot is read by position.
+const slot = (dom, day, sl, idx = 0) => (saved(dom).blocks[0].plan[day] || {})[sl][idx];
+const slotOf = (block, day, sl, idx = 0) => block.plan[day][sl][idx];
 
 /* ------------------------------------------------------------------ */
 group('cold boot — default block with the suggested plan');
@@ -322,7 +325,91 @@ group('three slots a day');
   tap(dom, 'phys', daySlots(d)[1]);
   ok('three sessions on one day add up', $(d, '#tot').textContent === '3.0', $(d, '#tot').textContent);
   ok('all three are saved', Object.keys(saved(dom).blocks[0].plan[0]).filter(
-       k => saved(dom).blocks[0].plan[0][k]).sort().join(',') === 'am,eve,pm');
+       k => saved(dom).blocks[0].plan[0][k].length).sort().join(',') === 'am,eve,pm');
+}
+
+/* ------------------------------------------------------------------ */
+group('more than one thing in a slot');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  click(dom, $(d, '#btn-clear'));
+
+  tap(dom, 'p1', daySlots(d)[0], { time: '09:00' });
+  tap(dom, 'phys', daySlots(d)[0], { time: '10:30' });
+  ok('a slot takes a second session', daySlots(d)[0].querySelectorAll('.placed').length === 2,
+     daySlots(d)[0].querySelectorAll('.placed').length);
+  ok('the second does not replace the first', $(d, '#tot').textContent === '2.0',
+     $(d, '#tot').textContent);
+  ok('both are saved in the one slot', saved(dom).blocks[0].plan[0].am.length === 2,
+     JSON.stringify(saved(dom).blocks[0].plan[0].am));
+  ok('a filled slot still offers room for another',
+     !!daySlots(d)[0].querySelector('.add.more'));
+
+  // the stack reads in clock order however it was entered
+  tap(dom, 'p1', daySlots(d)[1], { time: '16:00' });
+  tap(dom, 'g2', daySlots(d)[1], { time: '13:00' });
+  const pm = [...daySlots(d)[1].querySelectorAll('.placed .tm')].map(e => e.textContent);
+  ok('the earlier session is drawn first', pm[0].includes('13:00') && pm[1].includes('16:00'),
+     pm.join(' / '));
+
+  // removing one leaves the rest of the stack alone
+  click(dom, daySlots(d)[0].querySelectorAll('.placed .x')[0]);
+  ok('removing one leaves the other', daySlots(d)[0].querySelectorAll('.placed').length === 1,
+     daySlots(d)[0].querySelectorAll('.placed').length);
+  ok('and it is the one that was not removed', $(d, '#grid .placed .nm').textContent === 'Physical',
+     $(d, '#grid .placed .nm').textContent);
+
+  // rest still takes the whole day, stack and all
+  tap(dom, 'rest', daySlots(d)[0]);
+  ok('rest clears a stacked day too', $(d, '#tot').textContent === '0.0', $(d, '#tot').textContent);
+}
+
+/* ------------------------------------------------------------------ */
+group('a stacked slot has a ceiling');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  click(dom, $(d, '#btn-clear'));
+
+  ['p1', 'phys', 'p1', 'phys'].forEach((t, k) =>
+    tap(dom, t, daySlots(d)[0], { time: `0${6 + k}:00` }));
+  ok('four fit in one slot', daySlots(d)[0].querySelectorAll('.placed').length === 4,
+     daySlots(d)[0].querySelectorAll('.placed').length);
+  ok('and then the + is withdrawn', !daySlots(d)[0].querySelector('.add:not(.full)'));
+  ok('but the slot is still named', daySlots(d)[0].querySelector('.add.full').textContent === 'AM',
+     daySlots(d)[0].querySelector('.add.full').textContent);
+
+  click(dom, $$(d, '.chip').find(c => c.dataset.type === 'p1'));
+  click(dom, daySlots(d)[0]);
+  ok('a fifth is refused rather than asked about', $(d, '#modal').hidden);
+  ok('and nothing was added', saved(dom).blocks[0].plan[0].am.length === 4,
+     saved(dom).blocks[0].plan[0].am.length);
+}
+
+/* ------------------------------------------------------------------ */
+group('two things in one slot can still clash');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  click(dom, $(d, '#btn-clear'));
+
+  tap(dom, 'p1', daySlots(d)[0], { time: '09:00' });
+  tap(dom, 'phys', daySlots(d)[0], { time: '10:00' });
+  ok('back to back inside one slot is fine', !$(d, '#notes').textContent.includes('Times overlap'));
+
+  fillAt(dom, $$(d, '#grid .placed .tm')[1], { time: '09:30' });
+  ok('an overlap inside one slot is caught', $(d, '#notes').textContent.includes('Times overlap'));
+
+  // dragging the second of a stack moves that one, not the first
+  drop(dom, daySlots(d, 1)[2],
+       JSON.stringify({ entry: { type: 'phys', at: '09:30' }, from: { day: 0, slot: 'am', idx: 1 } }));
+  ok('the dragged one left the stack', saved(dom).blocks[0].plan[0].am.length === 1,
+     JSON.stringify(saved(dom).blocks[0].plan[0].am));
+  ok('and it was the right one', slot(dom, 0, 'am').type === 'p1', slot(dom, 0, 'am').type);
+  ok('it landed where it was dropped', slot(dom, 1, 'eve').type === 'phys',
+     JSON.stringify(saved(dom).blocks[0].plan[1]));
+  ok('and the clash is gone with it', !$(d, '#notes').textContent.includes('Times overlap'));
 }
 
 /* ------------------------------------------------------------------ */
@@ -333,8 +420,8 @@ group('exact times');
   click(dom, $(d, '#btn-clear'));
 
   tap(dom, 'p15', daySlots(d)[0], { time: '07:30' });
-  ok('the given time is kept', saved(dom).blocks[0].plan[0].am.at === '07:30',
-     JSON.stringify(saved(dom).blocks[0].plan[0].am));
+  ok('the given time is kept', slot(dom, 0, 'am').at === '07:30',
+     JSON.stringify(slot(dom, 0, 'am')));
   ok('the end time follows the length',
      $(d, '#grid .placed .tm').textContent.includes('07:30–09:00'),
      $(d, '#grid .placed .tm').textContent);
@@ -346,22 +433,21 @@ group('exact times');
   ok('the time is editable in place', !$(d, '#modal').hidden);
   ok('the dialog opens on the current time', $(d, '#m-time').value === '07:30', $(d, '#m-time').value);
   fill(dom, { time: '16:00' });
-  ok('the new time sticks', saved(dom).blocks[0].plan[0].am.at === '16:00',
-     saved(dom).blocks[0].plan[0].am.at);
+  ok('the new time sticks', slot(dom, 0, 'am').at === '16:00', slot(dom, 0, 'am').at);
   ok('and is drawn', $(d, '#grid .placed .tm').textContent.includes('16:00–17:30'),
      $(d, '#grid .placed .tm').textContent);
 
   // a blank time is allowed — the slot still says morning
   fillAt(dom, $(d, '#grid .placed .tm'), { time: null });
-  ok('a session may carry no time at all', saved(dom).blocks[0].plan[0].am.at === null,
-     JSON.stringify(saved(dom).blocks[0].plan[0].am));
+  ok('a session may carry no time at all', slot(dom, 0, 'am').at === null,
+     JSON.stringify(slot(dom, 0, 'am')));
   ok('and says so on the grid', $(d, '#grid .placed .tm').textContent.includes('set a time'),
      $(d, '#grid .placed .tm').textContent);
 
   // a rubbish time is dropped rather than stored
   fillAt(dom, $(d, '#grid .placed .tm'), { time: '99:99' });
-  ok('an impossible time is refused', saved(dom).blocks[0].plan[0].am.at === null,
-     JSON.stringify(saved(dom).blocks[0].plan[0].am));
+  ok('an impossible time is refused', slot(dom, 0, 'am').at === null,
+     JSON.stringify(slot(dom, 0, 'am')));
 
   // midnight roll-over
   fillAt(dom, $(d, '#grid .placed .tm'), { time: '23:00' });
@@ -388,9 +474,8 @@ group('blocking a slot with study');
   ok('the day still counts as one on-court day', $(d, '#ondays').textContent === '1',
      $(d, '#ondays').textContent);
 
-  const cell = saved(dom).blocks[0].plan[0];
-  ok('label and length are persisted', cell.pm.label === 'Study' && cell.pm.hrs === 2,
-     JSON.stringify(cell.pm));
+  const pm = slot(dom, 0, 'pm');
+  ok('label and length are persisted', pm.label === 'Study' && pm.hrs === 2, JSON.stringify(pm));
 
   // a day of nothing but study is still a rest day for the load checks
   click(dom, $(d, '#btn-clear'));
@@ -405,8 +490,8 @@ group('blocking a slot with study');
      $(d, '#grid .placed .tm').textContent);
   click(dom, $(d, '#btn-clear'));
   tap(dom, 'other', daySlots(d)[0], { label: '', hours: '999', time: '10:00' });
-  ok('an absurd length falls back to an hour', saved(dom).blocks[0].plan[0].am.hrs === 1,
-     JSON.stringify(saved(dom).blocks[0].plan[0].am));
+  ok('an absurd length falls back to an hour', slot(dom, 0, 'am').hrs === 1,
+     JSON.stringify(slot(dom, 0, 'am')));
   ok('an unnamed block still gets a name', $(d, '#grid .placed .nm').textContent === 'Blocked',
      $(d, '#grid .placed .nm').textContent);
 }
@@ -438,16 +523,17 @@ group('moving a placed session keeps its time');
   const payload = JSON.stringify({ entry: { type: 'p1', at: '08:15' }, from: { day: 0, slot: 'am' } });
   drop(dom, daySlots(d, 1)[2], payload);
   ok('a move never asks for the time again', $(d, '#modal').hidden);
-  ok('it left the old slot', !saved(dom).blocks[0].plan[0].am, JSON.stringify(saved(dom).blocks[0].plan[0]));
+  ok('it left the old slot', saved(dom).blocks[0].plan[0].am.length === 0,
+     JSON.stringify(saved(dom).blocks[0].plan[0]));
   ok('it landed in the new one with its time',
-     saved(dom).blocks[0].plan[1].eve.at === '08:15', JSON.stringify(saved(dom).blocks[0].plan[1]));
+     slot(dom, 1, 'eve').at === '08:15', JSON.stringify(saved(dom).blocks[0].plan[1]));
 
   // a fresh session dragged from the palette still gets asked
   drop(dom, daySlots(d, 2)[0], JSON.stringify({ entry: { type: 'g2' } }));
   ok('a drag from the palette asks', !$(d, '#modal').hidden);
   fill(dom, { time: '10:00' });
   ok('and lands with the time it was given',
-     saved(dom).blocks[0].plan[2].am.at === '10:00', JSON.stringify(saved(dom).blocks[0].plan[2]));
+     slot(dom, 2, 'am').at === '10:00', JSON.stringify(saved(dom).blocks[0].plan[2]));
 }
 
 /* ------------------------------------------------------------------ */
@@ -469,6 +555,21 @@ group('v2.1 plans without times still load');
      $$(d, '#grid .placed .tm')[0].textContent);
   ok('the rest day survives', $$(d, '#grid .day.rest').length === 1);
   ok('and an evening slot is now offered', daySlots(d).length === 3, daySlots(d).length);
+
+  // v2.2 stored one entry object per slot rather than a list
+  const dom22 = boot({
+    [KEY]: JSON.stringify({
+      version: 2,
+      blocks: [{ id: 'b1', name: 'X', start: '2026-11-21', days: 7,
+                 plan: { 0: { am: { type: 'p1', at: '08:00' }, pm: null } } }],
+      activeBlockId: 'b1',
+    }),
+  });
+  ok('a v2.2 slot holding a single session still loads',
+     $$(dom22.window.document, '#grid .placed').length === 1);
+  ok('and keeps the time it was given',
+     $(dom22.window.document, '#grid .placed .tm').textContent.includes('08:00–09:00'),
+     $(dom22.window.document, '#grid .placed .tm').textContent);
 
   // a rest day with a session smuggled alongside it collapses to rest
   const dom2 = boot({
@@ -502,12 +603,16 @@ group('times reach the text and the backup');
   ok('the evening slot reaches the text as EVE',
      dom.window.asText().includes('EVE 17:30–18:30 Physical 1h'), dom.window.asText().split('\n')[2]);
 
+  tap(dom, 'phys', daySlots(d)[0], { time: '10:15' });
+  ok('a second session in the same slot reaches the text too',
+     dom.window.asText().includes('AM 10:15–11:15 Physical 1h'), dom.window.asText().split('\n')[2]);
+
   // round-trip through the sanitiser the backup restore uses
   const back = dom.window.sanitiseState(JSON.parse(dom.window.localStorage.getItem(KEY)), true);
-  ok('a restored plan keeps its times', back.blocks[0].plan[0].am.at === '09:00',
+  ok('a restored plan keeps its times', slotOf(back.blocks[0], 0, 'am').at === '09:00',
      JSON.stringify(back.blocks[0].plan[0]));
   ok('a restored block keeps its label and length',
-     back.blocks[0].plan[0].pm.label === 'Study' && back.blocks[0].plan[0].pm.hrs === 2,
+     slotOf(back.blocks[0], 0, 'pm').label === 'Study' && slotOf(back.blocks[0], 0, 'pm').hrs === 2,
      JSON.stringify(back.blocks[0].plan[0].pm));
 }
 

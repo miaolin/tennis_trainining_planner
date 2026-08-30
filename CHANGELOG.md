@@ -27,6 +27,17 @@ simply shows no time until you give it one.
   another slot keeps the time it already has — a move is not a re-booking.
 - A session may carry **no time at all**; it stays in its slot and says so.
 
+**More than one thing in a slot**
+
+- **A slot holds a stack, not a single session.** A morning can be a private and
+  then physical; an afternoon can be school and then a lesson after it. Placing
+  a second session adds to the slot rather than taking it over.
+- The stack is **kept in clock order**, however it was entered, and each slot is
+  capped at four — past that a day is a mistake, not a schedule.
+- A filled slot keeps a **`+ AM`** strip under it: that is what you tap or drop
+  on to add another, and it is what marks where one slot ends and the next
+  begins. Dragging one session out of a stack leaves the rest where they were.
+
 **Blocking a slot that is not training**
 
 - A **Study / other** chip takes your own label and length — study, school, a
@@ -37,8 +48,9 @@ simply shows no time until you give it one.
 
 **A clash check**
 
-- Two things booked over the same hour is now called out by name. Hour caps
-  could never catch this: a day can be over-booked without being over-loaded.
+- Two things booked over the same hour is now called out by name — including
+  two inside the same slot. Hour caps could never catch this: a day can be
+  over-booked without being over-loaded.
 
 ### Changed
 

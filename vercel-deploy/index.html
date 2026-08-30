@@ -111,7 +111,7 @@ button, input[type=date], input[type=time], input[type=text], input[type=number]
 button{cursor:pointer}
 button:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.4)}
 button.danger:hover{background:rgba(217,96,63,.2);border-color:var(--bad)}
-button:focus-visible,input:focus-visible,.chip:focus-visible,.slot:focus-visible,.btab:focus-visible{
+button:focus-visible,input:focus-visible,.chip:focus-visible,.add:focus-visible,.btab:focus-visible{
   outline:2px solid var(--ball);outline-offset:2px;
 }
 input[type=date],input[type=time]{color-scheme:dark}
@@ -197,7 +197,10 @@ input[type=number]#days{width:74px}
 }
 .day-tag{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
 .slots{display:flex;flex-direction:column;gap:6px;flex:1}
-.slot{
+/* A slot is a stack of what is placed in it, ending in the strip you drop on. */
+.slot{display:flex;flex-direction:column;gap:4px;border-radius:3px;padding:1px}
+.slot.over{background:rgba(214,230,75,.14);box-shadow:inset 0 0 0 1px var(--ball)}
+.add{
   border:1px dashed rgba(255,255,255,.22);
   border-radius:3px;
   min-height:44px;
@@ -207,11 +210,14 @@ input[type=number]#days{width:74px}
   cursor:pointer;transition:border-color .15s,background .15s;
   padding:3px;
 }
-.slot:hover{border-color:rgba(255,255,255,.45)}
-.slot.over{border-color:var(--ball);background:rgba(214,230,75,.14);border-style:solid}
-.slot.filled{border:none;padding:0;cursor:default}
+.add:hover{border-color:rgba(255,255,255,.45)}
+/* Once the slot holds something the tail shrinks to a hairline, so a second
+   session is one tap away without the empty slot shouting — and the slot is
+   still named, which is the only thing marking where one slot ends. */
+.add.more{min-height:14px;font-size:9px;line-height:1;padding:2px}
+.add.full{border-color:transparent;cursor:default}
 .placed{
-  width:100%;height:100%;min-height:44px;
+  width:100%;min-height:44px;
   border-radius:3px;border-left:4px solid var(--c);
   background:rgba(255,255,255,.09);
   padding:7px 8px;text-align:left;
@@ -603,7 +609,7 @@ input[type=number]#days{width:74px}
   <div class="head-row">
     <div>
       <h1><span id="title">Training block</span> <em>/</em> <span id="range">&nbsp;</span></h1>
-      <p class="sub" id="sub">Drop a session on a morning, afternoon or evening slot and give it a start time. On a phone, tap a session then tap the slot.</p>
+      <p class="sub" id="sub">Drop a session on a morning, afternoon or evening slot and give it a start time — a slot takes more than one. On a phone, tap a session then tap the slot.</p>
     </div>
     <div class="readout">
       <div class="stat"><span class="n" id="tot">0</span><span class="l" id="lab1">Total hrs</span></div>
@@ -640,6 +646,7 @@ input[type=number]#days{width:74px}
   <h2>Sessions</h2>
   <div class="chips" id="chips"></div>
   <p class="hint">Every placed session asks for a start time — click the time on the grid to change it.
+    A slot holds more than one session: use the <b>+</b> under it to add another.
     Drag a session to another slot to move it, click the &times; to remove it. Rest clears the whole day.
     &ldquo;Study / other&rdquo; blocks a slot without adding training hours. Every block is saved in this browser.</p>
 </div>
@@ -795,6 +802,10 @@ const TYPES = {
 const SLOTS = ['am','pm','eve'];
 const SLOT_NAME = {am:'AM', pm:'PM', eve:'Eve'};
 const SLOT_TIME = {am:'09:00', pm:'14:00', eve:'17:00'};
+// A slot holds a list, not one session: a morning can be a private and then
+// physical. Four is already past a sane day and stops a stuck finger from
+// filling a cell.
+const MAX_PER_SLOT = 4;
 
 const DAY_CAP  = 3.5;      // sensible daily ceiling for a 9-year-old
 const WEEK_CAP = 13;       // per rolling 7-day week of a block
@@ -839,9 +850,14 @@ function active(){
 }
 function planAt(b, i){
   const d = b.plan[i];
-  const out = {am:null, pm:null, eve:null};
-  if(d) SLOTS.forEach(s => { out[s] = d[s] || null; });
+  const out = emptyCell();
+  if(d) SLOTS.forEach(s => { out[s] = normSlot(d[s]); });
   return out;
+}
+// Everything on one day, in the order it runs.
+function dayEntries(b, i){
+  const d = planAt(b, i);
+  return SLOTS.reduce((a, sl) => a.concat(d[sl]), []);
 }
 
 /* --------------------------------------------------------------- slots ---
@@ -897,13 +913,50 @@ function timeLabel(e){
   if(!inf || !e.at) return '';
   return inf.span ? `${e.at}–${endOf(e.at, inf.span)}` : e.at;
 }
-// Minutes from midnight, for the clash check. Null when the entry has no time.
+// Minutes from midnight. Null when the entry has no time.
+function minsOf(e){
+  const t = e && validTime(e.at);
+  if(!t) return null;
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+// For the clash check. Null when there is no time or nothing to occupy.
 function span(e){
   const inf = entryInfo(e);
-  if(!inf || !e.at || !inf.span) return null;
-  const [h, m] = e.at.split(':').map(Number);
-  const from = h * 60 + m;
+  const from = minsOf(e);
+  if(!inf || from === null || !inf.span) return null;
   return {from, to: from + Math.round(inf.span * 60)};
+}
+
+/* ----------------------------------------------------------- a slot ---
+   A slot is a list: an afternoon can be school and then a private. Up to 2.2
+   it held a single entry, and up to 2.1 a bare type key, so both still read. */
+function emptyCell(){ return {am:[], pm:[], eve:[]}; }
+function restCell(){ return {am:[{type:'rest', at:null}], pm:[], eve:[]}; }
+function isRestCell(cell){ return !!(cell.am.length && cell.am[0].type === 'rest'); }
+// A stacked slot reads top to bottom like a clock. Anything without a time
+// sits at the end, keeping the order it was added in.
+function sortSlot(list){
+  return list.map((e, i) => ({e, i}))
+    .sort((a, b) => {
+      const x = minsOf(a.e), y = minsOf(b.e);
+      if(x === y) return a.i - b.i;
+      if(x === null) return 1;
+      if(y === null) return -1;
+      return x - y;
+    })
+    .map(o => o.e);
+}
+function normSlot(v){
+  const raw = Array.isArray(v) ? v : (v == null ? [] : [v]);
+  const out = [];
+  for(const item of raw){
+    const e = normEntry(item);
+    if(!e) continue;
+    out.push(e);
+    if(out.length >= MAX_PER_SLOT) break;
+  }
+  return sortSlot(out);
 }
 
 /* --------------------------------------------------------- persistence --- */
@@ -933,17 +986,16 @@ function sanitiseBlock(raw){
       if(!(i >= 0) || i >= MAX_DAYS) continue;
       const d = p[k];
       if(!d || typeof d !== 'object') continue;
-      const cell = {am:null, pm:null, eve:null};
+      const cell = emptyCell();
       let any = false, resting = false;
       for(const sl of SLOTS){
-        const e = normEntry(d[sl]);
-        if(!e) continue;
-        if(e.type === 'rest') resting = true;
-        cell[sl] = e; any = true;
+        cell[sl] = normSlot(d[sl]);
+        if(cell[sl].some(e => e.type === 'rest')) resting = true;
+        if(cell[sl].length) any = true;
       }
       // Rest owns the whole day. A hand-edited backup could put a session
       // alongside it; the grid has no way to draw that, so rest wins.
-      if(resting) b.plan[i] = {am:{type:'rest'}, pm:null, eve:null};
+      if(resting) b.plan[i] = restCell();
       else if(any) b.plan[i] = cell;
     }
   }
@@ -1035,12 +1087,13 @@ function applySuggested(b){
     const i = parseInt(k, 10);
     if(i >= b.days) continue;          // a shorter block only takes what fits
     const src = SUGGESTED[k];
-    const cell = {am:null, pm:null, eve:null};
+    const cell = emptyCell();
     // The suggested shape is type keys only, so each one takes its slot's
     // default time — the plan arrives with real times on it, not blanks.
     SLOTS.forEach(sl => {
       if(!src[sl]) return;
-      cell[sl] = normEntry(src[sl] === 'rest' ? 'rest' : {type:src[sl], at:SLOT_TIME[sl]});
+      const want = Array.isArray(src[sl]) ? src[sl] : [src[sl]];
+      cell[sl] = normSlot(want.map(k => k === 'rest' ? 'rest' : {type:k, at:SLOT_TIME[sl]}));
     });
     b.plan[i] = cell;
   }
@@ -1148,6 +1201,7 @@ function startPlace(day, slot, entry){
   const t = TYPES[entry.type];
   if(!t || !active()) return;
   if(entry.type === 'rest'){ place(day, slot, entry, null); return; }
+  if(!roomIn(day, slot, null)) return;
   openDialog({
     title: slotTitle(day, slot),
     entry: {type:entry.type, at:entry.at || SLOT_TIME[slot], label:entry.label, hrs:entry.hrs || 1},
@@ -1158,54 +1212,78 @@ function startPlace(day, slot, entry){
   });
 }
 // From the grid: change the time (and, for a blocked slot, what it is).
-function editEntry(day, slot){
+function editEntry(day, slot, idx){
   const b = active();
-  const e = b && planAt(b, day)[slot];
+  const e = b && planAt(b, day)[slot][idx];
   if(!e) return;
   openDialog({
     title: slotTitle(day, slot), entry: {...e}, action: 'Save',
     note: TYPES[e.type].custom ? '' : `${TYPES[e.type].nm} · ${TYPES[e.type].dur}.`,
-    ok: ne => place(day, slot, ne, null)
+    ok: ne => setEntry(day, slot, idx, ne)
   });
 }
 
 /* ------------------------------------------------------------- edits --- */
+// Room for one more, unless the session is only moving about inside the slot
+// it already sits in.
+function roomIn(day, slot, from){
+  const b = active();
+  if(!b || SLOTS.indexOf(slot) < 0) return false;
+  if(from && from.day === day && from.slot === slot) return true;
+  const cell = planAt(b, day);
+  if(isRestCell(cell)) return true;          // the rest gives way to the first drop
+  return cell[slot].length < MAX_PER_SLOT;
+}
+// Adds to a slot rather than taking it over, so a morning can be a private and
+// then physical. `from` is set when the session is being moved off the grid.
 function place(day, slot, entry, from){
   const b = active();
   const e = normEntry(entry);
   if(!b || !e || SLOTS.indexOf(slot) < 0) return;
   if(e.type === 'rest'){
-    b.plan[day] = {am:{type:'rest'}, pm:null, eve:null};
+    b.plan[day] = restCell();
   } else {
-    // Read the source first: moving a session within one day would otherwise
-    // clear the slot we just wrote to.
+    if(!roomIn(day, slot, from)) return;
+    // Clear the source first: moving a session within one day would otherwise
+    // renumber the slot we are about to write to.
     if(from){
       const src = planAt(b, from.day);
-      src[from.slot] = null;
+      if(src[from.slot]) src[from.slot].splice(from.idx || 0, 1);
       b.plan[from.day] = src;
     }
     const now = planAt(b, day);
-    if(now.am && now.am.type === 'rest') now.am = null;   // a drop ends the rest
-    now[slot] = e;
+    if(isRestCell(now)) now.am = [];         // a drop ends the rest
+    now[slot] = sortSlot(now[slot].concat([e]));
     b.plan[day] = now;
   }
   render(); save();
 }
-function clearSlot(day, slot){
+// Editing one entry in place — the time changed, or what a blocked slot is.
+function setEntry(day, slot, idx, entry){
+  const b = active();
+  const e = normEntry(entry);
+  if(!b || !e || SLOTS.indexOf(slot) < 0) return;
+  const d = planAt(b, day);
+  if(!d[slot][idx]) return;
+  d[slot][idx] = e;
+  d[slot] = sortSlot(d[slot]);
+  b.plan[day] = d;
+  render(); save();
+}
+function clearSlot(day, slot, idx){
   const b = active();
   if(!b) return;
   const d = planAt(b, day);
-  d[slot] = null;
+  d[slot].splice(idx, 1);
   b.plan[day] = d;
   render(); save();
 }
 
 /* -------------------------------------------------------------- maths --- */
 function dayHours(b, i){
-  const d = planAt(b, i);
   let h = 0;
-  SLOTS.forEach(sl => {
-    const inf = entryInfo(d[sl]);
+  dayEntries(b, i).forEach(e => {
+    const inf = entryInfo(e);
     if(inf) h += inf.hrs;
   });
   return h;
@@ -1291,7 +1369,7 @@ function renderTraining(){
     const d = document.createElement('div');
     d.className = 'day';
     const cell = planAt(b, i);
-    const isRest = !!(cell.am && cell.am.type === 'rest');
+    const isRest = isRestCell(cell);
     if(isRest) d.classList.add('rest');
     if(i === b.days-1) d.classList.add('last');
 
@@ -1307,19 +1385,20 @@ function renderTraining(){
       r.textContent = 'Rest';
       r.title = 'Click to clear';
       r.tabIndex = 0;
-      r.addEventListener('click', ()=>{ b.plan[i] = {am:null, pm:null, eve:null}; render(); save(); });
+      r.addEventListener('click', ()=>{ b.plan[i] = emptyCell(); render(); save(); });
       wireDrop(r, i, 'am');
-      r.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();b.plan[i]={am:null,pm:null,eve:null};render();save();} });
+      r.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();b.plan[i]=emptyCell();render();save();} });
       slots.appendChild(r);
     } else {
       SLOTS.forEach(s=>{
         const el = document.createElement('div');
         el.className = 'slot';
-        el.tabIndex = 0;
-        const val = cell[s];
-        const inf = entryInfo(val);
-        if(inf){
-          el.classList.add('filled');
+        const list = cell[s];
+        if(list.length) el.classList.add('filled');
+        // A slot is a stack — a private, then physical after it — drawn in the
+        // order the day runs.
+        list.forEach((val, idx)=>{
+          const inf = entryInfo(val);
           const p = document.createElement('div');
           p.className = 'placed' + (inf.custom ? ' block' : '');
           p.style.setProperty('--c', inf.c);
@@ -1334,18 +1413,29 @@ function renderTraining(){
                          }</button>
                          <button class="x" aria-label="Remove">&times;</button>`;
           p.addEventListener('dragstart', e=>{
-            e.dataTransfer.setData('text/plain', JSON.stringify({entry:val, from:{day:i, slot:s}}));
+            e.dataTransfer.setData('text/plain', JSON.stringify({entry:val, from:{day:i, slot:s, idx}}));
             e.dataTransfer.effectAllowed = 'move';
           });
-          p.querySelector('.x').addEventListener('click', ev=>{ ev.stopPropagation(); clearSlot(i,s); });
-          p.querySelector('.tm').addEventListener('click', ev=>{ ev.stopPropagation(); editEntry(i,s); });
+          p.querySelector('.x').addEventListener('click', ev=>{ ev.stopPropagation(); clearSlot(i,s,idx); });
+          p.querySelector('.tm').addEventListener('click', ev=>{ ev.stopPropagation(); editEntry(i,s,idx); });
           el.appendChild(p);
-        } else {
-          el.textContent = SLOT_NAME[s];
-        }
+        });
         const drop = ()=>{ if(armed){ const a = armed; arm(a); startPlace(i, s, {type:a}); } };
+        // Every slot ends in a tail: the slot's name on its own while it is
+        // empty, and once it holds something, a thin strip that both names the
+        // slot and adds another session to it. A full slot keeps the name and
+        // loses the +, so it is still obvious where one slot ends.
+        const full = list.length >= MAX_PER_SLOT;
+        const add = document.createElement('div');
+        add.className = 'add' + (list.length ? ' more' : '') + (full ? ' full' : '');
+        add.textContent = list.length ? (full ? SLOT_NAME[s] : '+ ' + SLOT_NAME[s]) : SLOT_NAME[s];
+        if(!full){
+          add.tabIndex = 0;
+          if(list.length) add.title = 'Add another session to this slot';
+          add.addEventListener('keydown', e=>{ if((e.key==='Enter'||e.key===' ')&&armed){e.preventDefault();drop();} });
+        }
+        el.appendChild(add);
         el.addEventListener('click', drop);
-        el.addEventListener('keydown', e=>{ if((e.key==='Enter'||e.key===' ')&&armed){e.preventDefault();drop();} });
         wireDrop(el, i, s);
         slots.appendChild(el);
       });
@@ -1413,10 +1503,7 @@ function runChecks(b){
     `${worst} days in a row. Workable, but watch her energy on the last two.`]);
 
   let groups = 0;
-  for(let i=0;i<b.days;i++){
-    const d = planAt(b,i);
-    SLOTS.forEach(sl=>{ if(d[sl] && d[sl].type === 'g2') groups++; });
-  }
+  for(let i=0;i<b.days;i++) groups += dayEntries(b,i).filter(e=>e.type === 'g2').length;
   if(groups === 0) out.push(['bad','No peer time',
     'No group sessions. Weeks of drilling with no other children means technique that never gets tested and a child who gets bored.']);
   else if(groups <= 2) out.push(['warn','Thin peer time',
@@ -1424,8 +1511,7 @@ function runChecks(b){
 
   const twoPriv = [];
   for(let i=0;i<b.days;i++){
-    const d = planAt(b,i);
-    const tennis = SLOTS.map(sl=>d[sl]).filter(e=>{ const inf = entryInfo(e); return inf && inf.tennis; });
+    const tennis = dayEntries(b,i).filter(e=>{ const inf = entryInfo(e); return inf && inf.tennis; });
     if(tennis.length >= 2 && !tennis.some(e=>e.type === 'g2')) twoPriv.push(i+1);
   }
   if(twoPriv.length) out.push(['warn','Two tennis blocks',
@@ -1435,18 +1521,14 @@ function runChecks(b){
   // any hour cap — two things claiming the same hour is worth saying out loud.
   const clash = [];
   for(let i=0;i<b.days;i++){
-    const d = planAt(b,i);
-    const spans = SLOTS.map(sl=>span(d[sl])).filter(Boolean).sort((x,y)=>x.from - y.from);
+    const spans = dayEntries(b,i).map(span).filter(Boolean).sort((x,y)=>x.from - y.from);
     for(let k=1;k<spans.length;k++) if(spans[k].from < spans[k-1].to){ clash.push(i+1); break; }
   }
   if(clash.length) out.push(['bad','Times overlap',
     `Day ${clash.join(', ')} have two things booked at once. Move one — the day cannot run as written.`]);
 
   let phys = 0;
-  for(let i=0;i<b.days;i++){
-    const d = planAt(b,i);
-    SLOTS.forEach(sl=>{ if(d[sl] && d[sl].type === 'phys') phys++; });
-  }
+  for(let i=0;i<b.days;i++) phys += dayEntries(b,i).filter(e=>e.type === 'phys').length;
   if(phys > 5) out.push(['warn','Heavy on physical',
     `${phys} physical sessions. At 9, movement work belongs mostly in the warm-up — court time teaches more.`]);
 
@@ -2328,7 +2410,7 @@ function renderHeader(){
     document.getElementById('lab2').textContent = 'Kids';
     document.getElementById('lab3').textContent = 'Entered';
   } else {
-    sub.textContent = 'Drop a session on a morning, afternoon or evening slot and give it a start time. On a phone, tap a session then tap the slot.';
+    sub.textContent = 'Drop a session on a morning, afternoon or evening slot and give it a start time — a slot takes more than one. On a phone, tap a session then tap the slot.';
     document.getElementById('lab1').textContent = 'Total hrs';
     document.getElementById('lab2').textContent = 'On-court days';
     document.getElementById('lab3').textContent = 'Rest days';
@@ -2361,10 +2443,12 @@ function asText(){
     const cell = planAt(b, i);
     const bits = [];
     SLOTS.forEach(sl=>{
-      const inf = entryInfo(cell[sl]);
-      if(!inf) return;
-      const when = timeLabel(cell[sl]);
-      bits.push(`${SLOT_NAME[sl].toUpperCase()} ${when ? when + ' ' : ''}${inf.nm}${inf.span ? ' ' + inf.dur : ''}`);
+      cell[sl].forEach(e=>{
+        const inf = entryInfo(e);
+        if(!inf) return;
+        const when = timeLabel(e);
+        bits.push(`${SLOT_NAME[sl].toUpperCase()} ${when ? when + ' ' : ''}${inf.nm}${inf.span ? ' ' + inf.dur : ''}`);
+      });
     });
     const h = dayHours(b, i);
     s += `${head.padEnd(12)} ${bits.length ? bits.join('  |  ') : '—'}${h ? '   ('+h.toFixed(1)+'h)' : ''}\n`;

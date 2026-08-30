@@ -43,6 +43,9 @@ tests/                          jsdom harness — dev only, never deployed
   the slot offers 09:00, 14:00 or 17:00 — and the grid then shows the real
   window, `09:00–10:00 · 1h`. Click the time on any placed session to change it.
   A session may also carry no time at all; it just says so.
+- **A slot holds more than one session.** A morning can be a private and then
+  physical, an afternoon school and then a lesson. The stack is kept in clock
+  order and capped at four; the **+** strip under a filled slot adds another.
 - **Five session types** — private 1h, private 1.5h, group 2h, physical 1h, and
   rest. Rest clears the whole day.
 - **Study / other** blocks out a slot that is not training: give it your own
@@ -165,10 +168,12 @@ sends no CORS header, and moe.gov.sg is not readable from the browser either.
 ## Using it
 
 Drag a session from the palette onto a slot, then give it a start time — the
-slot's usual time is filled in, so it is one keystroke to accept. Drag a placed
-session to another slot to move it, which keeps the time it already has; click
-the time to change it, or its **×** to remove it. On a phone, tap a session to
-arm it and then tap a slot — the grid stacks to one day per row.
+slot's usual time is filled in, so it is one keystroke to accept. A slot takes
+more than one: drop a second session on it, or use the **+** strip under it, and
+the two sit in clock order. Drag a placed session to another slot to move it,
+which keeps the time it already has; click the time to change it, or its **×**
+to remove it. On a phone, tap a session to arm it and then tap a slot — the grid
+stacks to one day per row.
 
 Pick a block from the tab row, or **+ New block**. **Starts** shifts the whole
 block — the grid, header range and day labels all follow. **Days** changes its
