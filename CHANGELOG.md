@@ -28,7 +28,9 @@ One plan on two devices, without an account to keep.
   shape Vercel hands it over: a `REDIS_URL` connection string, or a REST url and
   token from a marketplace store. REST needs nothing but `fetch`; the connection
   string pulls in the `redis` client, imported only on that path. Connecting a
-  store is the whole of the setup.
+  store is the whole of the setup — including the name it arrives under, since
+  Vercel prefixes a store's variables with the store's own name and the function
+  takes the prefixed form as readily as the plain one.
 - Without a store configured the function answers 503 and says so; the planner
   carries on working locally, which is also what happens offline — the code
   stays on screen, the plan stays in the browser, and the next change retries.

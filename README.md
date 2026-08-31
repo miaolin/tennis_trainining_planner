@@ -300,6 +300,11 @@ REST wins if both are present, since it costs a request rather than a held
 connection. The `redis` package in `vercel-deploy/package.json` is imported only
 on the connection-string path, and is the one dependency in the project.
 
+Vercel names a store's variables after the store, so a managed Redis called
+*tennis plan* arrives as `tennis_plan_REDIS_URL` rather than `REDIS_URL`. The
+function takes either — an unprefixed name wins if both exist, and a REST token
+is only paired with a url from the same store — so there is nothing to rename.
+
 Until a store is connected the function answers `503` and the page says sync is
 not set up — the planner itself carries on working, locally, exactly as before.
 Sync also does nothing when you open `index.html` from disk or serve the folder

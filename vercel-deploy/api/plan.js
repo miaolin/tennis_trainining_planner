@@ -27,10 +27,37 @@ const TTL_SECONDS = 400 * 24 * 60 * 60;
    which needs the redis client — imported only on that path, so the REST setup
    and the tests never have to have it installed. */
 
+// Vercel prefixes a store's variables with the store's own name, so a store
+// called "tennis plan" arrives as tennis_plan_REDIS_URL and not REDIS_URL.
+// Take the plain name when it is there, and otherwise whatever the store called
+// itself — connecting a store stays the whole of the setup, with nothing to
+// rename by hand.
+function envEndingWith(suffix) {
+  if (process.env[suffix]) return { value: process.env[suffix], prefix: '' };
+  const name = Object.keys(process.env)
+    .filter((k) => k.length > suffix.length && k.endsWith(suffix) && process.env[k])
+    .sort()[0];
+  return name ? { value: process.env[name], prefix: name.slice(0, -suffix.length) } : null;
+}
+
 function restConfig() {
-  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-  return url && token ? { url: url.replace(/\/+$/, ''), token } : null;
+  for (const urlName of ['KV_REST_API_URL', 'UPSTASH_REDIS_REST_URL']) {
+    const found = envEndingWith(urlName);
+    if (!found) continue;
+    // The token has to be the one belonging to this store, not another's.
+    const tokenName = urlName.replace(/_URL$/, '_TOKEN');
+    const token = process.env[found.prefix + tokenName] || process.env[tokenName];
+    if (token) return { url: found.value.replace(/\/+$/, ''), token };
+  }
+  return null;
+}
+
+function redisUrl() {
+  for (const name of ['REDIS_URL', 'KV_URL']) {
+    const found = envEndingWith(name);
+    if (found) return found.value;
+  }
+  return null;
 }
 
 function restStore(cfg) {
@@ -82,7 +109,7 @@ function redisStore(url) {
 export function store() {
   const rest = restConfig();
   if (rest) return restStore(rest);
-  const url = process.env.REDIS_URL || process.env.KV_URL;
+  const url = redisUrl();
   return url ? redisStore(url) : null;
 }
 

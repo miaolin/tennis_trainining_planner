@@ -34,10 +34,12 @@ function fakeRes() {
 }
 
 // A Redis standing in for the REST API: one map, and the two commands used.
+let lastAuth = null;
 function restStub() {
   const kept = new Map();
   const seen = [];
   globalThis.fetch = async (url, opts) => {
+    lastAuth = opts.headers && opts.headers.Authorization;
     const args = JSON.parse(opts.body);
     seen.push(args);
     const [cmd, key, value] = args;
@@ -56,9 +58,14 @@ function useRest() {
   delete process.env.REDIS_URL;
   delete process.env.KV_URL;
 }
+// Vercel names a store's variables after the store, so anything ending in one
+// of these counts — and the test has to clear those too.
 function useNothing() {
-  ['KV_REST_API_URL', 'KV_REST_API_TOKEN', 'UPSTASH_REDIS_REST_URL',
-   'UPSTASH_REDIS_REST_TOKEN', 'REDIS_URL', 'KV_URL'].forEach(k => delete process.env[k]);
+  const suffixes = ['KV_REST_API_URL', 'KV_REST_API_TOKEN', 'UPSTASH_REDIS_REST_URL',
+                    'UPSTASH_REDIS_REST_TOKEN', 'REDIS_URL', 'KV_URL'];
+  Object.keys(process.env)
+    .filter(k => suffixes.some(sfx => k.endsWith(sfx)))
+    .forEach(k => delete process.env[k]);
 }
 
 const { default: handler, store, readDoc } = await import(MODULE.href);
@@ -103,6 +110,39 @@ group('choosing a backend');
   const stub = restStub();
   await call({ query: { k: KEY } });
   ok('REST wins when both are set', stub.seen.length === 1, JSON.stringify(stub.seen));
+}
+
+/* ------------------------------------------------------------------ */
+group('a store named after itself');
+{
+  // what Vercel actually injects for a managed Redis called "tennis plan"
+  useNothing();
+  process.env.tennis_plan_REDIS_URL = 'redis://user:pw@host:6379';
+  ok('a prefixed connection string is found', store() !== null);
+
+  useNothing();
+  process.env.tennis_plan_KV_REST_API_URL = 'https://store.example';
+  ok('a prefixed REST url alone is not enough', store() === null);
+  process.env.tennis_plan_KV_REST_API_TOKEN = 'prefixed-token';
+  ok('with its token it is', store() !== null);
+
+  const stub = restStub();
+  await call({ query: { k: KEY } });
+  ok('and the store is reached with that token',
+     /prefixed-token/.test(String(lastAuth)), String(lastAuth));
+
+  // the token has to belong to the same store, not a neighbouring one
+  useNothing();
+  process.env.other_KV_REST_API_URL = 'https://other.example';
+  process.env.tennis_plan_KV_REST_API_TOKEN = 'wrong-store';
+  ok('a token from a different store is not borrowed', store() === null);
+
+  // an unprefixed variable still wins, so nothing changes for a plain setup
+  useNothing();
+  process.env.REDIS_URL = 'redis://plain:6379';
+  process.env.zzz_REDIS_URL = 'redis://prefixed:6379';
+  ok('the plain name is preferred', store() !== null);
+  useNothing();
 }
 
 /* ------------------------------------------------------------------ */
