@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.3.0** · [Changelog](CHANGELOG.md)
+**Version 2.4.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in three parts:
 
@@ -20,17 +20,20 @@ A single-page planner for a junior tennis season, in three parts:
 The design and the source research behind it are in `task_plan.md` and
 `findings.md`.
 
-Everything lives in `vercel-deploy/index.html` — no build step, no dependencies,
-no backend. Plans are saved to the browser's `localStorage`, so they persist
-per-device.
+The page is `vercel-deploy/index.html` — one file, no build step, no
+dependencies, nothing to compile. Plans live in the browser's `localStorage`.
+The only server-side code is `api/plan.js`, which exists so two devices can hold
+the same plan; leave sync off and nothing in the site touches it.
 
 ```
 vercel-deploy/
   index.html                    the entire site
+  api/plan.js                   sync endpoint — the only server-side code
+  package.json                  a Redis client, for api/plan.js alone
   data/matches.json             optional tournament feed — ships empty
   data/sg-school-holidays.json  Singapore MOE school calendar
   vercel.json                   cache + security headers
-tests/                          jsdom harness — dev only, never deployed
+tests/                          jsdom harness + api tests — dev only, never deployed
 ```
 
 ## What it does — Training
@@ -196,7 +199,9 @@ Space arms and places.
 
 ## Run locally
 
-Open `vercel-deploy/index.html` in a browser, or serve the folder:
+Open `vercel-deploy/index.html` in a browser, or serve the folder. Everything
+works except sync, which needs the serverless function and so only runs on a
+real deployment:
 
 ```sh
 cd vercel-deploy && python3 -m http.server 8000   # then open http://localhost:8000
@@ -246,18 +251,82 @@ Changing the shape of saved state? Bump `STORE_KEY` so existing saves are
 ignored rather than half-read, and leave the old key in place so a rollback to
 the previous deploy still finds its data.
 
+## Syncing across devices
+
+Turn on sync and the laptop and the phone hold the same plan. There is no
+account: one device generates a random 16-character **sync code**, you type it
+on the other, and from then on every change goes up and every load comes down.
+
+**On the deployed site**, at the foot of the page:
+
+1. **Turn on sync** on the device that has the plan you want to keep. Write the
+   code down — the page shows it as `XXXX-XXXX-XXXX-XXXX`.
+2. On the other device, **Use a code**, type it, **Connect**. That device takes
+   whatever is stored under the code, so join *from* the device you are willing
+   to overwrite.
+3. After that it looks after itself. **Sync now** forces a check, **Stop
+   syncing** disconnects this device and forgets the code.
+
+**What the code is.** It is the whole of the security model, so treat it like a
+password: anyone with it can read and change the plan. The server only ever sees
+its SHA-256, so the code itself never leaves your browser and nothing on the
+server can be turned back into one. Losing every device that has it means losing
+the plan — the server cannot help you, because it does not know who you are.
+
+**When two devices disagree**, the newer plan wins, and the page says so rather
+than deciding quietly. If the other device saved something while this one was
+holding a change, the push is refused and you are asked: *take their copy*, or
+*keep mine* and overwrite. Nothing is lost without you choosing it.
+
+### Setting it up on your own deployment
+
+The page talks to `/api/plan`, a serverless function in `vercel-deploy/api/`.
+It needs somewhere to put a few kilobytes:
+
+1. In the Vercel project → **Storage** → add a **Redis** store and connect it
+   to the project. Vercel's own managed Redis and the Upstash marketplace one
+   both work, and either free tier is far more than a few kilobytes needs.
+2. Redeploy. That is all — there is nothing to configure by hand.
+
+The function takes whichever shape the store arrives in:
+
+| The store injects | How the function reaches it |
+| --- | --- |
+| `REDIS_URL` or `KV_URL` | the `redis` client, over the connection string |
+| `KV_REST_API_URL` + `..._TOKEN` | plain `fetch`, no client at all |
+| `UPSTASH_REDIS_REST_URL` + `..._TOKEN` | the same |
+
+REST wins if both are present, since it costs a request rather than a held
+connection. The `redis` package in `vercel-deploy/package.json` is imported only
+on the connection-string path, and is the one dependency in the project.
+
+Vercel names a store's variables after the store, so a managed Redis called
+*tennis plan* arrives as `tennis_plan_REDIS_URL` rather than `REDIS_URL`. The
+function takes either — an unprefixed name wins if both exist, and a REST token
+is only paired with a url from the same store — so there is nothing to rename.
+
+Until a store is connected the function answers `503` and the page says sync is
+not set up — the planner itself carries on working, locally, exactly as before.
+Sync also does nothing when you open `index.html` from disk or serve the folder
+statically, since there is no function to answer.
+
+A plan is stored under the hash of its code and expires 400 days after its last
+write, so an abandoned code does not sit there forever.
+
 ## Backing up your data
 
-Everything you enter lives in that browser's `localStorage` — it does not follow
-you to another device, and **Safari deletes script-writable storage after about
-a week without a visit**, so a plan left unopened can disappear.
+Sync keeps two devices level; a backup is what saves you from both of them.
+Everything you enter also lives in that browser's `localStorage`, and **Safari
+deletes script-writable storage after about a week without a visit**, so a plan
+left unopened can disappear.
 
 Use **Download backup** at the foot of the page. It writes one dated JSON file
 with every training block, child, tournament and entry status. **Restore backup**
 reads it back, after confirming, and refuses anything that is not a valid backup
 without touching what you already have.
 
-That file is also how you move a plan from laptop to phone.
+That file is also how you move a plan from laptop to phone without turning sync
+on at all.
 
 ## Tests
 
@@ -265,12 +334,20 @@ That file is also how you move a plan from laptop to phone.
 cd tests && npm install && npm test
 ```
 
-140 assertions driving the real page under jsdom: cold boot, the v1.0.0
+Two suites. `api.test.mjs` drives `api/plan.js` directly with a stubbed store —
+backend choice, key validation, the 409 refusal and the forced write, bodies
+that are not plans, junk in the store, and an unreachable one.
+
+The rest is 430 assertions driving the real page under jsdom: cold boot, the v1.0.0
 migration, state round-trips, thirteen kinds of corrupt saved state, block
 create/rename/switch/delete, variable length and its clamps, calendar alignment
 for different start weekdays, the load checks, a timezone regression, view
 switching, kids, tournament add/delete, the entry-status cycle, and the season
 checks.
+
+Sync is covered by a fake server that honours the same contract as the real
+endpoint — joining, the debounced push, both sides of a conflict, and being
+offline.
 
 Drag-and-drop is **not** covered — jsdom has no real drag implementation. The
 tap-to-place and keyboard paths are.
@@ -279,8 +356,9 @@ tap-to-place and keyboard paths are.
 
 - Fonts (Barlow Condensed, Karla) load from Google Fonts; the page falls back to
   system fonts if that request is blocked or offline.
-- Saved plans are per-browser and per-device — there is no account and no sync.
-  Private-browsing modes that block `localStorage` degrade to a working page
-  that just does not remember anything.
+- Saved plans are per-browser until you turn sync on, and there is no account
+  either way — a sync code is the only credential. Private-browsing modes that
+  block `localStorage` degrade to a working page that just does not remember
+  anything, sync included.
 - Drag-and-drop uses the HTML5 drag API, which does not fire on touch devices;
   that is what the tap-to-place path is for.
