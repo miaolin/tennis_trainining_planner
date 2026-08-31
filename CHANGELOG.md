@@ -19,6 +19,14 @@ Two things the grid was making you work around, now that a day can be full.
 
 ### Changed
 
+- **Rest marks a slot, not the whole day.** It used to take the day it landed
+  on and paint over everything in it, so there was no way to say "the morning is
+  free" — and no way to keep a rest beside anything else. It is now an ordinary
+  entry that happens to mean nothing is booked: it clears the slot it lands on,
+  leaves the other two alone, and gives way to whatever is dropped on it. A day
+  marked rest with nothing else booked still reads as a rest day in the totals
+  and the load checks, and is marked by a rust edge and day label rather than
+  the wash of colour across the whole card that used to say the same thing.
 - **Non-training blocks no longer have to be read to be told apart.** A Study /
   other block is now teal, on a hatched surface, with its name in a quieter
   colour — against the flat cards and solid accents of a real session. The
