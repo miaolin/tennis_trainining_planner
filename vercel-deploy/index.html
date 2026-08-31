@@ -121,13 +121,27 @@ input[type=number]#days{width:74px}
 .spacer{flex:1}
 
 /* ---------- palette ---------- */
+/* The grid runs well past one screen, and a session you cannot see is a session
+   you cannot drag — so the palette holds the top of the window. */
 .palette{
+  position:sticky;top:0;z-index:30;
   background:var(--court-deep);
   border:1px solid var(--hair);
   border-radius:4px;
   padding:16px 18px;
   margin-bottom:22px;
+  transition:padding .12s;
 }
+/* Once it is holding the top it drops to the chips alone, so it costs the grid
+   as little height as possible. */
+.palette.stuck{
+  padding:9px 18px;
+  border-top-color:transparent;
+  border-radius:0 0 4px 4px;
+  box-shadow:0 10px 22px rgba(8,24,38,.55);
+}
+.palette.stuck h2,.palette.stuck .hint{display:none}
+.palette.stuck .chip{padding:6px 12px 6px 10px}
 .palette h2{
   font-family:'Barlow Condensed',sans-serif;font-weight:500;
   font-size:13px;letter-spacing:.16em;text-transform:uppercase;
@@ -186,7 +200,11 @@ input[type=number]#days{width:74px}
   position:relative;
 }
 .day.blank{background:transparent;border:none;min-height:0}
-.day.rest{background:rgba(184,92,60,.16);border-color:rgba(184,92,60,.5)}
+/* A day with nothing booked is still worth spotting from across the fortnight,
+   but rest belongs to a slot now — so the day gets an edge and a tinted tag,
+   not a wash across the whole card. */
+.day.rest{border-color:rgba(184,92,60,.45)}
+.day.rest .day-tag{color:#C9836A}
 .day.last{background:rgba(255,255,255,.03)}
 .day-head{
   display:flex;justify-content:space-between;align-items:baseline;
@@ -238,8 +256,23 @@ input[type=number]#days{width:74px}
 .placed .tm .rg{white-space:nowrap}
 .placed .tm .ln{white-space:nowrap;opacity:.72}
 .placed .tm.unset{font-style:italic}
-/* A blocked slot is not training: dashed edge, no fill weight. */
-.placed.block{background:rgba(255,255,255,.045);border-left-style:dashed}
+/* A blocked slot is not training, and should not have to be read to be told
+   apart from one: its own colour, a hatched surface, and a quieter name. */
+.placed.block,.chip.block{
+  background:
+    repeating-linear-gradient(135deg,
+      rgba(79,179,166,.13) 0 5px, transparent 5px 11px),
+    rgba(79,179,166,.07);
+  border-left-style:dashed;
+}
+.placed.block .nm{color:#A9C6C1;font-weight:600}
+.chip.block:hover{
+  background:
+    repeating-linear-gradient(135deg,
+      rgba(79,179,166,.2) 0 5px, transparent 5px 11px),
+    rgba(79,179,166,.12);
+}
+.chip.block.armed{background:var(--ball)}
 .placed .x{
   position:absolute;top:2px;right:2px;
   width:19px;height:19px;line-height:17px;text-align:center;
@@ -247,13 +280,15 @@ input[type=number]#days{width:74px}
   font-size:14px;padding:0;border-radius:3px;cursor:pointer;
 }
 .placed .x:hover{background:rgba(255,255,255,.16);color:#fff}
-.rest-fill{
-  flex:1;display:flex;align-items:center;justify-content:center;
-  border:1px solid rgba(184,92,60,.5);border-radius:3px;
-  font-family:'Barlow Condensed',sans-serif;font-size:15px;
-  letter-spacing:.18em;text-transform:uppercase;color:#E3A88F;
-  position:relative;cursor:pointer;
+/* Rest is a slot that is deliberately empty, so it is drawn as an outline
+   rather than a card with weight to it. */
+.placed.off{
+  background:rgba(184,92,60,.10);
+  border-left-style:dotted;
+  cursor:default;
 }
+.placed.off .nm{color:#E3A88F}
+.placed.off .tm{font-style:italic;cursor:default}
 .day-foot{
   display:flex;align-items:center;gap:7px;
   margin-top:7px;padding-top:6px;border-top:1px solid var(--hair);
@@ -588,6 +623,10 @@ input[type=number]#days{width:74px}
   .day.blank{display:none}
   .slots{flex-direction:row}
   .slot{flex:1}
+  /* On a phone the chips would wrap to three rows and eat the screen, so the
+     pinned palette keeps them on one line and scrolls sideways instead. */
+  .palette.stuck .chips{flex-wrap:nowrap;overflow-x:auto;gap:7px}
+  .palette.stuck .chip{flex:0 0 auto}
 }
 @media print{
   body{background:#fff;color:#000}
@@ -647,7 +686,8 @@ input[type=number]#days{width:74px}
   <div class="chips" id="chips"></div>
   <p class="hint">Every placed session asks for a start time — click the time on the grid to change it.
     A slot holds more than one session: use the <b>+</b> under it to add another.
-    Drag a session to another slot to move it, click the &times; to remove it. Rest clears the whole day.
+    Drag a session to another slot to move it, click the &times; to remove it.
+    Rest marks one slot as off; a day with nothing else booked reads as a rest day.
     &ldquo;Study / other&rdquo; blocks a slot without adding training hours. Every block is saved in this browser.</p>
 </div>
 
@@ -795,7 +835,7 @@ const TYPES = {
   // piano lesson. It carries its own label and length and never counts towards
   // the training load, so blocking out an afternoon does not make the week
   // look heavier than it is.
-  other:{nm:'Study / other', dur:"", hrs:0,   c:'#6E8AA6', tennis:false, custom:true},
+  other:{nm:'Study / other', dur:"", hrs:0,   c:'#4FB3A6', tennis:false, custom:true},
   rest: {nm:'Rest',     dur:"—",    hrs:0,   c:'#B85C3C', tennis:false}
 };
 
@@ -946,8 +986,16 @@ function span(e){
    A slot is a list: an afternoon can be school and then a private. Up to 2.2
    it held a single entry, and up to 2.1 a bare type key, so both still read. */
 function emptyCell(){ return {am:[], pm:[], eve:[]}; }
-function restCell(){ return {am:[{type:'rest', at:null}], pm:[], eve:[]}; }
-function isRestCell(cell){ return !!(cell.am.length && cell.am[0].type === 'rest'); }
+// Rest is an ordinary entry that happens to mean "nothing here", so it takes a
+// slot rather than the day: an afternoon can be off while the morning is not.
+// It sits alone in its slot — a slot cannot be both resting and booked.
+function isRest(e){ return !!e && e.type === 'rest'; }
+function hasRest(list){ return list.some(isRest); }
+// A day still reads as a rest day when it is marked as one and nothing is
+// booked; that is what tints the card.
+function restDay(b, i){
+  return dayEntries(b, i).some(isRest) && dayHours(b, i) === 0;
+}
 // A stacked slot reads top to bottom like a clock. Anything without a time
 // sits at the end, keeping the order it was added in.
 function sortSlot(list){
@@ -967,6 +1015,9 @@ function normSlot(v){
   for(const item of raw){
     const e = normEntry(item);
     if(!e) continue;
+    // Rest wins its slot outright. A hand-edited backup could put a session
+    // beside it; there is nothing sensible to draw for that.
+    if(e.type === 'rest') return [e];
     out.push(e);
     if(out.length >= MAX_PER_SLOT) break;
   }
@@ -1001,16 +1052,12 @@ function sanitiseBlock(raw){
       const d = p[k];
       if(!d || typeof d !== 'object') continue;
       const cell = emptyCell();
-      let any = false, resting = false;
+      let any = false;
       for(const sl of SLOTS){
         cell[sl] = normSlot(d[sl]);
-        if(cell[sl].some(e => e.type === 'rest')) resting = true;
         if(cell[sl].length) any = true;
       }
-      // Rest owns the whole day. A hand-edited backup could put a session
-      // alongside it; the grid has no way to draw that, so rest wins.
-      if(resting) b.plan[i] = restCell();
-      else if(any) b.plan[i] = cell;
+      if(any) b.plan[i] = cell;
     }
   }
   return b;
@@ -1134,13 +1181,29 @@ function iso(d){
 }
 
 /* ------------------------------------------------------------ palette --- */
+// The palette is sticky, and shrinks to the chips alone once it is holding the
+// top of the window. The class is set from script rather than guessed in CSS
+// because there is no selector for "this sticky element is currently stuck".
+function stickPalette(){
+  const el = document.querySelector('.palette');
+  if(!el) return;
+  const check = ()=>{
+    const r = el.getBoundingClientRect();
+    // A hidden view measures zero and would read as stuck; it is not.
+    el.classList.toggle('stuck', r.height > 0 && r.top <= 0.5);
+  };
+  window.addEventListener('scroll', check, {passive:true});
+  window.addEventListener('resize', check);
+  document.querySelector('.mainnav').addEventListener('click', ()=>setTimeout(check, 0));
+  check();
+}
 function buildChips(){
   const box = document.getElementById('chips');
   box.innerHTML = '';
   for(const key in TYPES){
     const t = TYPES[key];
     const el = document.createElement('div');
-    el.className = 'chip';
+    el.className = 'chip' + (t.custom ? ' block' : '');
     el.style.setProperty('--c', t.c);
     el.draggable = true;
     el.tabIndex = 0;
@@ -1245,7 +1308,7 @@ function roomIn(day, slot, from){
   if(!b || SLOTS.indexOf(slot) < 0) return false;
   if(from && from.day === day && from.slot === slot) return true;
   const cell = planAt(b, day);
-  if(isRestCell(cell)) return true;          // the rest gives way to the first drop
+  if(hasRest(cell[slot])) return true;       // the rest gives way to what lands on it
   return cell[slot].length < MAX_PER_SLOT;
 }
 // Adds to a slot rather than taking it over, so a morning can be a private and
@@ -1254,22 +1317,19 @@ function place(day, slot, entry, from){
   const b = active();
   const e = normEntry(entry);
   if(!b || !e || SLOTS.indexOf(slot) < 0) return;
-  if(e.type === 'rest'){
-    b.plan[day] = restCell();
-  } else {
-    if(!roomIn(day, slot, from)) return;
-    // Clear the source first: moving a session within one day would otherwise
-    // renumber the slot we are about to write to.
-    if(from){
-      const src = planAt(b, from.day);
-      if(src[from.slot]) src[from.slot].splice(from.idx || 0, 1);
-      b.plan[from.day] = src;
-    }
-    const now = planAt(b, day);
-    if(isRestCell(now)) now.am = [];         // a drop ends the rest
-    now[slot] = sortSlot(now[slot].concat([e]));
-    b.plan[day] = now;
+  if(!roomIn(day, slot, from)) return;
+  // Clear the source first: moving a session within one day would otherwise
+  // renumber the slot we are about to write to.
+  if(from){
+    const src = planAt(b, from.day);
+    if(src[from.slot]) src[from.slot].splice(from.idx || 0, 1);
+    b.plan[from.day] = src;
   }
+  const now = planAt(b, day);
+  // Rest empties the slot it lands on, and anything landing on a rest ends it.
+  now[slot] = e.type === 'rest' ? [e]
+            : sortSlot(now[slot].filter(x => !isRest(x)).concat([e]));
+  b.plan[day] = now;
   render(); save();
 }
 // Editing one entry in place — the time changed, or what a blocked slot is.
@@ -1383,8 +1443,8 @@ function renderTraining(){
     const d = document.createElement('div');
     d.className = 'day';
     const cell = planAt(b, i);
-    const isRest = isRestCell(cell);
-    if(isRest) d.classList.add('rest');
+    const offDay = restDay(b, i);
+    if(offDay) d.classList.add('rest');
     if(i === b.days-1) d.classList.add('last');
 
     const tag = i === b.days-1 ? 'Last day' : `Day ${i+1}`;
@@ -1393,17 +1453,7 @@ function renderTraining(){
     const slots = document.createElement('div');
     slots.className = 'slots';
 
-    if(isRest){
-      const r = document.createElement('div');
-      r.className = 'rest-fill';
-      r.textContent = 'Rest';
-      r.title = 'Click to clear';
-      r.tabIndex = 0;
-      r.addEventListener('click', ()=>{ b.plan[i] = emptyCell(); render(); save(); });
-      wireDrop(r, i, 'am');
-      r.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();b.plan[i]=emptyCell();render();save();} });
-      slots.appendChild(r);
-    } else {
+    {
       SLOTS.forEach(s=>{
         const el = document.createElement('div');
         el.className = 'slot';
@@ -1414,24 +1464,28 @@ function renderTraining(){
         list.forEach((val, idx)=>{
           const inf = entryInfo(val);
           const p = document.createElement('div');
-          p.className = 'placed' + (inf.custom ? ' block' : '');
+          const resting = isRest(val);
+          p.className = 'placed' + (inf.custom ? ' block' : '') + (resting ? ' off' : '');
           p.style.setProperty('--c', inf.c);
           p.draggable = true;
           const when = timeLabel(val);
           // Name on top, then the time — which is also the button that changes
-          // it, so the whole schedule is editable in place.
-          p.innerHTML = `<span class="nm">${escapeHtml(inf.nm)}</span>
-                         <button class="tm${when ? '' : ' unset'}" title="Change the time">${
-                           when ? `<span class="rg">${escapeHtml(when)}</span> <span class="ln">${escapeHtml(inf.dur)}</span>`
-                                : 'set a time'
-                         }</button>
-                         <button class="x" aria-label="Remove">&times;</button>`;
+          // it, so the whole schedule is editable in place. Rest has no time to
+          // set, so it says what it is instead.
+          p.innerHTML = `<span class="nm">${escapeHtml(inf.nm)}</span>` +
+                        (resting
+                          ? `<span class="tm">nothing booked</span>`
+                          : `<button class="tm${when ? '' : ' unset'}" title="Change the time">${
+                              when ? `<span class="rg">${escapeHtml(when)}</span> <span class="ln">${escapeHtml(inf.dur)}</span>`
+                                   : 'set a time'
+                            }</button>`) +
+                        `<button class="x" aria-label="Remove">&times;</button>`;
           p.addEventListener('dragstart', e=>{
             e.dataTransfer.setData('text/plain', JSON.stringify({entry:val, from:{day:i, slot:s, idx}}));
             e.dataTransfer.effectAllowed = 'move';
           });
           p.querySelector('.x').addEventListener('click', ev=>{ ev.stopPropagation(); clearSlot(i,s,idx); });
-          p.querySelector('.tm').addEventListener('click', ev=>{ ev.stopPropagation(); editEntry(i,s,idx); });
+          if(!resting) p.querySelector('.tm').addEventListener('click', ev=>{ ev.stopPropagation(); editEntry(i,s,idx); });
           el.appendChild(p);
         });
         const drop = ()=>{ if(armed){ const a = armed; arm(a); startPlace(i, s, {type:a}); } };
@@ -2574,6 +2628,7 @@ document.getElementById('t-url').addEventListener('keydown', e=>{
 document.getElementById('t-url').addEventListener('paste', ()=>setTimeout(lookupLink, 0));
 
 buildChips();
+stickPalette();
 load();
 render();
 save();   // persist the default/migrated block immediately, not on first edit

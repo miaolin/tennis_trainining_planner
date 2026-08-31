@@ -113,6 +113,9 @@ group('cold boot — default block with the suggested plan');
   ok('week 2 = 9.0h', $$(d, '.wcap')[1].textContent.includes('9.0'), $$(d, '.wcap')[1].textContent);
   ok('load checks rendered', $$(d, '#notes .note').length > 0);
   ok('5 session chips', $$(d, '#chips .chip').length === 5);
+  ok('the non-training chip is marked as one, like its cards',
+     $$(d, '#chips .chip.block').map(c => c.dataset.type).join() === 'other',
+     $$(d, '#chips .chip.block').map(c => c.dataset.type).join());
   ok('state persisted under the v2 key', !!dom.window.localStorage.getItem(KEY));
 }
 
@@ -360,9 +363,21 @@ group('more than one thing in a slot');
   ok('and it is the one that was not removed', $(d, '#grid .placed .nm').textContent === 'Physical',
      $(d, '#grid .placed .nm').textContent);
 
-  // rest still takes the whole day, stack and all
+  // rest empties the slot it lands on, and only that slot
   tap(dom, 'rest', daySlots(d)[0]);
-  ok('rest clears a stacked day too', $(d, '#tot').textContent === '0.0', $(d, '#tot').textContent);
+  ok('rest clears the stack it lands on', daySlots(d)[0].querySelectorAll('.placed').length === 1,
+     daySlots(d)[0].querySelectorAll('.placed').length);
+  ok('and is the only thing in that slot', slot(dom, 0, 'am').type === 'rest',
+     JSON.stringify(saved(dom).blocks[0].plan[0].am));
+  ok('the afternoon is left alone', $(d, '#tot').textContent === '3.0', $(d, '#tot').textContent);
+  ok('so the day is not a rest day', $$(d, '#grid .day.rest').length === 0);
+
+  // and anything dropped on a resting slot ends the rest
+  tap(dom, 'p1', daySlots(d)[0], { time: '09:00' });
+  ok('a session ends the rest', slot(dom, 0, 'am').type === 'p1',
+     JSON.stringify(saved(dom).blocks[0].plan[0].am));
+  ok('without stacking on top of it', saved(dom).blocks[0].plan[0].am.length === 1,
+     saved(dom).blocks[0].plan[0].am.length);
 }
 
 /* ------------------------------------------------------------------ */
@@ -444,8 +459,10 @@ group('a session sets its own length');
   // rest has no length to set
   tap(dom, 'rest', daySlots(d)[2]);
   ok('rest never asks', $(d, '#modal').hidden);
-  ok('and carries no length', slot(dom, 0, 'am').hrs === undefined,
-     JSON.stringify(slot(dom, 0, 'am')));
+  ok('and carries no length', slot(dom, 0, 'eve').hrs === undefined,
+     JSON.stringify(slot(dom, 0, 'eve')));
+  ok('and shows no time to set', $$(d, '#grid .placed.off .tm')[0].textContent === 'nothing booked',
+     $$(d, '#grid .placed.off .tm')[0].textContent);
 }
 
 /* ------------------------------------------------------------------ */
@@ -611,7 +628,8 @@ group('v2.1 plans without times still load');
   });
   const d = dom.window.document;
   ok('the hours survive', $(d, '#tot').textContent === '3.0', $(d, '#tot').textContent);
-  ok('the sessions are still drawn', $$(d, '#grid .placed').length === 2, $$(d, '#grid .placed').length);
+  ok('the sessions are still drawn', $$(d, '#grid .placed:not(.off)').length === 2,
+     $$(d, '#grid .placed:not(.off)').length);
   ok('they simply have no time yet', $$(d, '#grid .placed .tm')[0].textContent.includes('set a time'),
      $$(d, '#grid .placed .tm')[0].textContent);
   ok('the rest day survives', $$(d, '#grid .day.rest').length === 1);
@@ -632,7 +650,7 @@ group('v2.1 plans without times still load');
      $(dom22.window.document, '#grid .placed .tm').textContent.includes('08:00–09:00'),
      $(dom22.window.document, '#grid .placed .tm').textContent);
 
-  // a rest day with a session smuggled alongside it collapses to rest
+  // rest beside a session used to collapse the day; it now owns its slot alone
   const dom2 = boot({
     [KEY]: JSON.stringify({
       version: 2,
@@ -641,9 +659,25 @@ group('v2.1 plans without times still load');
       activeBlockId: 'b1',
     }),
   });
-  ok('rest still owns the whole day',
-     $$(dom2.window.document, '#grid .day.rest').length === 1 &&
-     $(dom2.window.document, '#tot').textContent === '0.0');
+  const d2 = dom2.window.document;
+  ok('a rest morning no longer swallows the evening', $(d2, '#tot').textContent === '1.0',
+     $(d2, '#tot').textContent);
+  ok('and a day with something booked is not a rest day',
+     $$(d2, '#grid .day.rest').length === 0, $$(d2, '#grid .day.rest').length);
+  ok('the rest keeps its own slot', $$(d2, '#grid .placed.off').length === 1,
+     $$(d2, '#grid .placed.off').length);
+
+  // rest still cannot share a slot with a session
+  const dom3 = boot({
+    [KEY]: JSON.stringify({
+      version: 2,
+      blocks: [{ id: 'b1', name: 'X', start: '2026-11-21', days: 7,
+                 plan: { 0: { am: ['rest', { type: 'p1', at: '09:00' }] } } }],
+      activeBlockId: 'b1',
+    }),
+  });
+  ok('rest alone in the slot it is in', $(dom3.window.document, '#tot').textContent === '0.0',
+     $(dom3.window.document, '#tot').textContent);
 }
 
 /* ------------------------------------------------------------------ */
