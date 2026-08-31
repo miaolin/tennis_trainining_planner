@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.6.0** · [Changelog](CHANGELOG.md)
+**Version 2.6.1** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in three parts:
 
@@ -274,9 +274,18 @@ on the other, and from then on every change goes up and every load comes down.
    did. **Sync now** forces a check, **Stop syncing** disconnects this device and
    forgets the code.
 
+**Use a code** takes the whole link as readily as the sixteen characters, so
+whatever arrived from the other device can be pasted straight in.
+
 If both devices ended up with codes of their own, they are two separate plans.
 Pick the one you want to keep, and on the other device press **Use a different
 code** and enter the first device's.
+
+**Added to an iPhone or iPad Home Screen**, the planner runs as its own browser
+with its own storage — it cannot see what Safari on the same device saved, so it
+opens on the default plan and has to join like any other device. Scanning will
+not do it, because a scanned link opens Safari rather than the Home Screen app:
+copy the link on the other device and paste it into **Use a code**, once.
 
 **What the code is.** It is the whole of the security model, so treat it like a
 password: anyone with it — or with the QR code, or the link — can read and
