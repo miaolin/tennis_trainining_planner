@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 One plan on two devices, without an account to keep.
 
+Nothing leaves the browser until you turn sync on, and existing plans load
+exactly as before — they simply have no `updatedAt` yet and get one on the first
+edit. An older backup restores as it always did: it carries no stamp either, so
+restoring one makes it the newest copy, which is what then goes to the other
+device rather than the other way round.
+
 ### Added
 
 **Sync**
