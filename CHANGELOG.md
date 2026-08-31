@@ -5,6 +5,32 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] — 2026-08-31
+
+Nobody wants to type sixteen characters into a phone.
+
+### Added
+
+- **A QR code.** Turn sync on and the page draws one. Point the other device's
+  camera at it and the planner opens already joined — nothing typed, nothing
+  read out. Typing a code still works and is unchanged.
+- **Copy link**, for when the other device is not in the room: the same join in
+  a link you can send to yourself.
+- The code travels in the URL **fragment**, which browsers never send to a
+  server, and the page clears it from the address bar the moment it is read —
+  so it does not sit in history, survive a reload, or land in a bookmark.
+- The link still **asks before replacing** the plan on the device that follows
+  it, exactly as typing a code does.
+
+### Notes
+
+- The QR encoder is written into the page rather than pulled from a CDN: byte
+  mode, error correction L, versions 1 to 5. Those five all use a single
+  error-correction block, which is what keeps it to a screenful — a sync link
+  is about sixty characters and fits version 4 with room to spare.
+- It is verified by decoding: the tests read the page's own rendered code back
+  with a scanner and check the link that comes out.
+
 ## [2.5.0] — 2026-08-31
 
 Sync worked; joining it did not. Both of these came straight out of using it on
@@ -424,6 +450,7 @@ site that works on any host.
 - `place()` now ignores unknown session types rather than writing them into the
   plan.
 
+[2.6.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.6.0
 [2.5.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.5.0
 [2.4.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.4.0
 [2.3.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.3.0

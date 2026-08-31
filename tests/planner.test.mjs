@@ -11,6 +11,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JSDOM } from 'jsdom';
 import { webcrypto } from 'node:crypto';
+import jsQRmod from 'jsqr';
+const jsQR = jsQRmod.default || jsQRmod;
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const HTML = path.join(HERE, '..', 'vercel-deploy', 'index.html');
@@ -34,10 +36,10 @@ function group(name) { console.log('\n[' + name + ']'); }
 // seed must land BEFORE the inline script runs, or restore() never sees it.
 // `extra` gets the same window, for tests that need to stand something else up
 // before the page runs — a fake server, or the crypto jsdom does not ship.
-function bootRaw(seed, extra) {
+function bootRaw(seed, extra, url) {
   return new JSDOM(SRC, {
     runScripts: 'dangerously',
-    url: 'https://example.test/',
+    url: url || 'https://example.test/',
     pretendToBeVisual: true,
     beforeParse(window) {
       if (seed) for (const [k, v] of Object.entries(seed)) window.localStorage.setItem(k, v);
@@ -47,8 +49,8 @@ function bootRaw(seed, extra) {
 }
 // Calendar is the landing view, but most of these tests read the training
 // header, so switch to it on boot. Use bootRaw() to assert the real default.
-function boot(seed, extra) {
-  const dom = bootRaw(seed, extra);
+function boot(seed, extra, url) {
+  const dom = bootRaw(seed, extra, url);
   click(dom, dom.window.document.getElementById('nav-training'));
   return dom;
 }
@@ -750,8 +752,11 @@ function syncServer() {
   const only = () => [...kept.values()][0] || null;
   return { kept, calls, fetchImpl, only };
 }
-function bootSynced(server, seed) {
+// `answer` stubs window.confirm before the page runs — a scanned link asks
+// during boot, which is too early for the test to stub it afterwards.
+function bootSynced(server, seed, url, answer) {
   return boot(seed, window => {
+    if (answer !== undefined) window.confirm = () => answer;
     window.fetch = server.fetchImpl;
     // jsdom ships getRandomValues but neither subtle nor TextEncoder, and
     // hashing the code needs both. Any real browser has them.
@@ -759,11 +764,12 @@ function bootSynced(server, seed) {
       value: webcrypto.subtle, configurable: true,
     });
     window.TextEncoder = TextEncoder;
-  });
+  }, url);
 }
 const settle = (ms = 60) => new Promise(r => setTimeout(r, ms));
 const codeOf = d => (/([2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4})/
   .exec($(d, '#syncnote').textContent) || [])[1] || null;
+const fmt4 = c => c.replace(/(.{4})(?=.)/g, '$1-');
 
 group('turning sync on');
 {
@@ -970,6 +976,89 @@ group('a tab left open catches up');
   second.window.dispatchEvent(new second.window.Event('focus'));
   await settle(80);
   ok('but not on every single focus', server.calls.length === before, server.calls.length - before);
+}
+
+/* ------------------------------------------------------------------ */
+group('the code as something to scan');
+{
+  const server = syncServer();
+  const dom = bootSynced(server);
+  const d = dom.window.document;
+  await settle();
+  ok('no code shown before sync is on', $(d, '#syncqr').hidden);
+
+  click(dom, $(d, '#btn-sync-on'));
+  await settle();
+  const code = codeOf(d).replace(/-/g, '');
+  const svg = $(d, '#syncqr svg');
+  ok('turning sync on draws a QR code', !!svg);
+  ok('and the panel is shown', !$(d, '#syncqr').hidden);
+  ok('on a white ground, whatever the page theme',
+     /fill="#fff"/.test($(d, '#syncqr').innerHTML));
+
+  // read the page's own QR back the way a phone camera would
+  const box = svg.getAttribute('viewBox').split(' ').map(Number);
+  const dim = box[2], scale = 4;
+  const px = new Uint8ClampedArray(dim * scale * dim * scale * 4).fill(255);
+  // the path is a run of M<x> <y>h<w>v1h-<w>z per horizontal run of dark modules
+  const runs = [...$(d, '#syncqr svg path').getAttribute('d')
+    .matchAll(/M(\d+) (\d+)h(\d+)/g)].map(m => m.slice(1).map(Number));
+  for (const [x, y, w] of runs) {
+    for (let c = x; c < x + w; c++) for (let sy = 0; sy < scale; sy++) for (let sx = 0; sx < scale; sx++) {
+      const i = ((y * scale + sy) * dim * scale + (c * scale + sx)) * 4;
+      px[i] = px[i + 1] = px[i + 2] = 0;
+    }
+  }
+  const read = jsQR(px, dim * scale, dim * scale);
+  ok('a scanner can read it', !!read, 'no code found');
+  ok('and it carries a link to this page', !!read && read.data.startsWith('https://example.test/'),
+     read && read.data);
+  ok('with the sync code in the fragment', !!read && read.data.endsWith('#s=' + code),
+     read && read.data);
+  ok('the code never leaves the fragment, which servers never see',
+     !!read && read.data.indexOf(code) > read.data.indexOf('#'), read && read.data);
+}
+
+/* ------------------------------------------------------------------ */
+group('following a scanned link');
+{
+  const server = syncServer();
+  const first = bootSynced(server);
+  const d1 = first.window.document;
+  await settle();
+  click(first, $(d1, '#btn-sync-on'));
+  await settle();
+  click(first, $(d1, '#btn-clear'));
+  tap(first, 'g2', firstSlot(d1), { time: '09:00' });
+  await settle(1500);
+  const code = codeOf(d1).replace(/-/g, '');
+
+  // the other device opens the scanned link
+  const second = bootSynced(server, null, 'https://example.test/#s=' + code, true);
+  const d2 = second.window.document;
+  await settle(200);
+
+  ok('opening the link joins that plan', $(d2, '#tot').textContent === '2.0',
+     $(d2, '#tot').textContent);
+  ok('and it lands on the same code', codeOf(d2) === fmt4(code), codeOf(d2));
+  ok('the code is taken out of the address bar', !second.window.location.hash,
+     second.window.location.hash);
+  ok('so a reload does not re-ask', second.window.location.href === 'https://example.test/',
+     second.window.location.href);
+
+  // declining leaves the device where it was
+  const third = bootSynced(server, null, 'https://example.test/#s=' + code, false);
+  await settle(200);
+  ok('declining keeps this device plan', $(third.window.document, '#tot').textContent === '19.0',
+     $(third.window.document, '#tot').textContent);
+  ok('and still clears the fragment', !third.window.location.hash);
+
+  // a link with a broken code is refused, not acted on
+  const fourth = bootSynced(server, null, 'https://example.test/#s=NOPE');
+  await settle(120);
+  ok('a broken link does not turn sync on',
+     $(fourth.window.document, '#syncstat').textContent.includes('Off'),
+     $(fourth.window.document, '#syncstat').textContent);
 }
 
 group('a code that is not one');
