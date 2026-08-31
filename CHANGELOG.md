@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.3.0] — 2026-08-31
 
-Two things the grid was making you work around, now that a day can be full.
+Three things a full day made awkward: a palette you had already scrolled past,
+blocks that looked like the sessions they were meant to sit beside, and a rest
+that took the whole day whether you meant it to or not.
+
+Existing plans gain rather than lose. A rest day loads as a rest morning with
+the afternoon and evening open, and a plan that had a session beside a rest now
+keeps both instead of dropping the session on load.
 
 ### Added
 
