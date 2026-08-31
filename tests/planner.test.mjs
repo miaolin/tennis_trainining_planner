@@ -829,6 +829,17 @@ group('a second device joins with the code');
   click(second, $(d2, '#btn-sync-use'));
   ok('asking to use a code opens the box', !$(d2, '#syncjoin').hidden);
   input(second, $(d2, '#sync-code'), code);
+
+  // joining throws this device's plan away, so it has to be agreed to
+  second.window.confirm = () => false;
+  click(second, $(d2, '#btn-sync-join'));
+  await settle(60);
+  ok('backing out of the confirm changes nothing', $(d2, '#tot').textContent === '19.0',
+     $(d2, '#tot').textContent);
+  ok('and leaves sync off', $(d2, '#syncstat').textContent.includes('Off'),
+     $(d2, '#syncstat').textContent);
+
+  second.window.confirm = () => true;
   click(second, $(d2, '#btn-sync-join'));
   await settle(120);
 
@@ -873,6 +884,92 @@ group('when the server cannot be reached');
   tap(dom, 'p1', firstSlot(d), { time: '09:00' });
   ok('and the planner carries on regardless', $(d, '#tot').textContent === '1.0',
      $(d, '#tot').textContent);
+}
+
+group('the second device turned sync on instead of joining');
+{
+  // the mistake that is easy to make: both devices press "Turn on sync", so
+  // each starts its own plan and they never meet
+  const server = syncServer();
+  const first = bootSynced(server);
+  const d1 = first.window.document;
+  await settle();
+  click(first, $(d1, '#btn-sync-on'));
+  await settle();
+  click(first, $(d1, '#btn-clear'));
+  tap(first, 'g2', firstSlot(d1), { time: '09:00' });
+  await settle(1500);
+  const code = codeOf(d1);
+
+  const second = bootSynced(server);
+  const d2 = second.window.document;
+  await settle();
+  click(second, $(d2, '#btn-sync-on'));
+  await settle();
+  ok('the second device gets a code of its own', codeOf(d2) !== code, codeOf(d2));
+  ok('so there are now two plans up there', server.kept.size === 2, server.kept.size);
+
+  // it must be able to join the other one without working out that it has to
+  // stop syncing first
+  ok('the join button is still offered', !$(d2, '#btn-sync-use').hidden);
+  ok('and says what it now does', $(d2, '#btn-sync-use').textContent === 'Use a different code',
+     $(d2, '#btn-sync-use').textContent);
+  ok('the note names the button to press on the other device',
+     $(d1, '#syncnote').textContent.includes('Use a code'), $(d1, '#syncnote').textContent);
+
+  click(second, $(d2, '#btn-sync-use'));
+  input(second, $(d2, '#sync-code'), code);
+  second.window.confirm = () => true;
+  click(second, $(d2, '#btn-sync-join'));
+  await settle(120);
+  ok('switching codes takes the first device plan', $(d2, '#tot').textContent === '2.0',
+     $(d2, '#tot').textContent);
+  ok('and it is now on the same code', codeOf(d2) === code, codeOf(d2));
+}
+
+group('a tab left open catches up');
+{
+  const server = syncServer();
+  const first = bootSynced(server);
+  const d1 = first.window.document;
+  await settle();
+  click(first, $(d1, '#btn-sync-on'));
+  await settle();
+  const code = codeOf(d1);
+
+  const second = bootSynced(server);
+  const d2 = second.window.document;
+  await settle();
+  click(second, $(d2, '#btn-sync-use'));
+  input(second, $(d2, '#sync-code'), code);
+  second.window.confirm = () => true;
+  click(second, $(d2, '#btn-sync-join'));
+  await settle(120);
+  ok('both devices start level', $(d2, '#tot').textContent === $(d1, '#tot').textContent,
+     `${$(d1, '#tot').textContent} / ${$(d2, '#tot').textContent}`);
+
+  // the first device works on while the second sits open and untouched
+  click(first, $(d1, '#btn-clear'));
+  tap(first, 'p1', firstSlot(d1), { time: '09:00' });
+  await settle(1500);
+  ok('the open tab has not noticed yet', $(d2, '#tot').textContent !== '1.0',
+     $(d2, '#tot').textContent);
+
+  // coming back to it is when it checks
+  second.window.dispatchEvent(new second.window.Event('focus'));
+  await settle(150);
+  ok('coming back to the tab pulls the change', $(d2, '#tot').textContent === '1.0',
+     $(d2, '#tot').textContent);
+  ok('and it is the first device work that arrived',
+     $(d2, '#grid .placed .tm').textContent.includes('09:00–10:00'),
+     $(d2, '#grid .placed .tm').textContent);
+
+  // and it does not re-ask on every alt-tab
+  const before = server.calls.length;
+  second.window.dispatchEvent(new second.window.Event('focus'));
+  second.window.dispatchEvent(new second.window.Event('focus'));
+  await settle(80);
+  ok('but not on every single focus', server.calls.length === before, server.calls.length - before);
 }
 
 group('a code that is not one');

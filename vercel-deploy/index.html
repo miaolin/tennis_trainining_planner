@@ -2559,12 +2559,14 @@ const SYNC_API = '/api/plan';
 // No 0/O or 1/I/L: a code has to survive being read out over the phone.
 const CODE_CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 const PUSH_WAIT = 1200;          // ms of quiet before a change goes up
+const PULL_WAIT = 10000;         // ms before coming back to the tab checks again
 
 let syncCfg = null;              // {code, seen} while sync is on, else null
 let syncKeyHex = null;           // cached hash of the code
 let pushTimer = null;
 let syncBusy = false;
 let syncClash = null;            // the server's copy, when it refused ours
+let lastPull = 0;
 
 function canSync(){
   return !!(typeof crypto !== 'undefined' && crypto.subtle && crypto.subtle.digest);
@@ -2690,12 +2692,28 @@ async function runSync(job, arg){
   }
 }
 
+// A tab left open all afternoon never learns anything, and coming back to it is
+// exactly when someone expects to see what the other device did. So returning to
+// the page checks — not on every alt-tab, and never on top of work in progress.
+function refreshSync(){
+  if(!syncCfg || !canSync() || syncBusy || syncClash) return;
+  if(document.hidden) return;
+  if(Date.now() - lastPull < PULL_WAIT) return;
+  lastPull = Date.now();
+  runSync(async ()=>{
+    const doc = await pullPlan();
+    if(doc && Number(doc.updatedAt) > (state.updatedAt || 0)){ adoptPlan(doc); return 'pulled'; }
+    return 'same';
+  });
+}
+
 // On load, whoever is ahead wins. A device that has been off for a week pulls;
 // one holding an edit made on a plane pushes.
 async function syncBoot(){
   syncCfg = readSync();
   renderSync();
   if(!syncCfg || !canSync()) return;
+  lastPull = Date.now();
   await runSync(async ()=>{
     const doc = await pullPlan();
     if(!doc) return await pushPlan(true);         // first device to use this code
@@ -2715,16 +2733,25 @@ function startSync(){
   renderSync();
   runSync(()=>pushPlan(true));
 }
-// Joining an existing code always takes what is up there: that is the point of
-// typing it. The plan on this device is offered as a file first, so a wrong
-// code cannot cost anything.
+// Joining an existing code takes what is up there — that is the point of typing
+// it — which means the plan on this device is about to be replaced. Anything
+// worth keeping gets said out loud first, because there is no undo for it.
 function joinSync(raw){
   const code = normCode(raw);
   if(!code){ renderSync(null, 'That code does not look right — it is 16 letters and digits.'); return; }
   if(!canSync()){ renderSync(null, 'This browser will not sync — it needs a secure connection.'); return; }
+  const mine = state.blocks.length;
+  if(mine && !window.confirm(
+      `Take the plan stored under ${fmtCode(code)}?\n\n`
+      + `This replaces the ${mine} training block${mine === 1 ? '' : 's'} in this browser. `
+      + `Download a backup first if you want to keep them.`)){
+    renderSync(null, 'Nothing was joined — this device is unchanged.');
+    return;
+  }
   syncCfg = {code, seen: 0};
   syncKeyHex = null;
   writeSync();
+  document.getElementById('sync-code').value = '';
   runSync(async ()=>{
     const doc = await pullPlan();
     if(!doc) return await pushPlan(true);         // an unused code: this device starts it
@@ -2745,8 +2772,12 @@ function renderSync(note, bad){
   const stat = document.getElementById('syncstat');
   const line = document.getElementById('syncnote');
   const on = !!syncCfg;
-  ['btn-sync-on','btn-sync-use'].forEach(id => { document.getElementById(id).hidden = on; });
+  document.getElementById('btn-sync-on').hidden = on;
+  // "Use a code" stays available while sync is on: a device that started its own
+  // plan by mistake has to be able to join the other one without first working
+  // out that it needs to stop.
   ['btn-sync-now','btn-sync-off'].forEach(id => { document.getElementById(id).hidden = !on; });
+  document.getElementById('btn-sync-use').textContent = on ? 'Use a different code' : 'Use a code';
   document.getElementById('syncjoin').hidden = true;
   document.getElementById('syncclash').hidden = !syncClash;
 
@@ -2755,8 +2786,9 @@ function renderSync(note, bad){
     // the way to turning it on belongs in the line underneath.
     stat.textContent = 'Off — this browser only';
     line.className = 'hint' + (bad ? ' bad' : '');
-    line.textContent = bad || ('Turn on sync to get a code, then enter that code on your other '
-      + 'device. Everything stays in this browser until you do.');
+    line.textContent = bad || ('Two devices, one plan. Press “Turn on sync” on the device whose '
+      + 'plan you want to keep, then “Use a code” on the other one and type in the code the first '
+      + 'device shows. Everything stays in this browser until you do.');
     return;
   }
   stat.textContent = bad ? 'Sync problem' : (note || 'On');
@@ -2764,7 +2796,10 @@ function renderSync(note, bad){
   // The code is the one thing worth reading here, so it stays on screen even
   // when the server is unreachable — that is exactly when you want to write it
   // down rather than lose it.
-  const codeLine = `Code ${fmtCode(syncCfg.code)} — enter that on your other device. `
+  // Naming the button to press on the other device is the whole difference
+  // between sync working and two devices quietly holding separate plans.
+  const codeLine = `Code ${fmtCode(syncCfg.code)}. On your other device, open this page, `
+    + 'press “Use a code” — not “Turn on sync”, that starts a second plan — and type it in. '
     + 'Anyone with the code can read and change this plan, so treat it like a password.';
   if(syncClash){
     line.textContent = 'Your other device saved something newer. Take its copy, or keep what is on '
@@ -2903,6 +2938,9 @@ document.getElementById('t-url').addEventListener('keydown', e=>{
 });
 // Pasting a link is the whole point — do the lookup without a second click.
 document.getElementById('t-url').addEventListener('paste', ()=>setTimeout(lookupLink, 0));
+
+document.addEventListener('visibilitychange', refreshSync);
+window.addEventListener('focus', refreshSync);
 
 document.getElementById('btn-sync-on').addEventListener('click', startSync);
 document.getElementById('btn-sync-off').addEventListener('click', stopSync);

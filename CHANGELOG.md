@@ -5,6 +5,33 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] — 2026-08-31
+
+Sync worked; joining it did not. Both of these came straight out of using it on
+two real devices.
+
+### Fixed
+
+- **Pressing "Turn on sync" on the second device started a second plan.** The
+  two buttons sat side by side as equals and the note only said to "enter that
+  code on your other device" without saying where. Both devices ended up with a
+  code of their own, syncing happily to nothing. The note now names the button
+  to press — *press "Use a code", not "Turn on sync", that starts a second
+  plan* — and the off state explains the two halves before you pick one.
+- **A device that made that mistake could not undo it**, because "Use a code"
+  disappeared the moment sync was on: you had to work out that you must stop
+  syncing first. It now stays, reading **"Use a different code"**, so a device
+  can be pointed at the right plan directly.
+
+### Added
+
+- **A tab left open catches up.** Coming back to the page checks the server, so
+  the laptop that has been open since breakfast picks up what the phone did.
+  Not on every alt-tab — at most once every ten seconds — and never on top of a
+  conflict waiting to be answered.
+- **Joining asks first.** Taking a code replaces this device's plan, which has
+  no undo, so it now says how many blocks are about to go and suggests a backup.
+
 ## [2.4.0] — 2026-08-31
 
 One plan on two devices, without an account to keep.
@@ -397,6 +424,7 @@ site that works on any host.
 - `place()` now ignores unknown session types rather than writing them into the
   plan.
 
+[2.5.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.5.0
 [2.4.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.4.0
 [2.3.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.3.0
 [2.2.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.2.0

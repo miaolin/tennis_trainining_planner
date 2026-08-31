@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.4.0** · [Changelog](CHANGELOG.md)
+**Version 2.5.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in three parts:
 
@@ -261,11 +261,18 @@ on the other, and from then on every change goes up and every load comes down.
 
 1. **Turn on sync** on the device that has the plan you want to keep. Write the
    code down — the page shows it as `XXXX-XXXX-XXXX-XXXX`.
-2. On the other device, **Use a code**, type it, **Connect**. That device takes
-   whatever is stored under the code, so join *from* the device you are willing
-   to overwrite.
-3. After that it looks after itself. **Sync now** forces a check, **Stop
-   syncing** disconnects this device and forgets the code.
+2. On the other device, press **Use a code** — *not* Turn on sync, which starts
+   a second plan of its own — then type the code and **Connect**. That device
+   takes whatever is stored under the code, so join *from* the device you are
+   willing to overwrite. It asks before replacing anything.
+3. After that it looks after itself. Changes go up a moment after you make them,
+   and coming back to a tab you left open pulls down whatever the other device
+   did. **Sync now** forces a check, **Stop syncing** disconnects this device and
+   forgets the code.
+
+If both devices ended up with codes of their own, they are two separate plans.
+Pick the one you want to keep, and on the other device press **Use a different
+code** and enter the first device's.
 
 **What the code is.** It is the whole of the security model, so treat it like a
 password: anyone with it can read and change the plan. The server only ever sees
