@@ -7,6 +7,7 @@
     "test": "node planner.test.mjs && node api.test.mjs"
   },
   "devDependencies": {
-    "jsdom": "^24.0.0"
+    "jsdom": "^24.0.0",
+    "jsqr": "^1.4.0"
   }
 }

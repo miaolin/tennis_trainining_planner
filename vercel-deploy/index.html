@@ -369,6 +369,10 @@ input[type=number]#days{width:74px}
 #datanote.good{color:var(--ok)}
 #datanote.bad{color:var(--bad)}
 .hint.bad{color:var(--bad)}
+.syncqr{display:flex;align-items:center;gap:16px;margin:14px 0 0}
+.syncqr[hidden]{display:none}
+.syncqr svg{width:150px;height:150px;flex:0 0 auto;border-radius:4px;display:block}
+.syncqr p{margin:0;font-size:12.5px;color:var(--mute);max-width:34em}
 .syncrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:10px 0 0}
 /* A class that sets display beats the browser's own [hidden] rule, so a row
    with one has to say so itself or it never hides. */
@@ -639,7 +643,7 @@ input[type=number]#days{width:74px}
 }
 @media print{
   body{background:#fff;color:#000}
-  .palette,.bar,.blockbar,.hint,.mainnav,.modal-back,.syncrow{display:none}
+  .palette,.bar,.blockbar,.hint,.mainnav,.modal-back,.syncrow,.syncqr{display:none}
   .day{background:#f4f4f4;border:1px solid #999}
 }
 </style>
@@ -838,9 +842,11 @@ input[type=number]#days{width:74px}
   <div class="spacer"></div>
   <button id="btn-sync-on">Turn on sync</button>
   <button id="btn-sync-use">Use a code</button>
+  <button id="btn-sync-link" hidden>Copy link</button>
   <button id="btn-sync-now" hidden>Sync now</button>
   <button id="btn-sync-off" class="danger" hidden>Stop syncing</button>
 </footer>
+<div class="syncqr" id="syncqr" hidden></div>
 <div class="syncrow" id="syncjoin" hidden>
   <label class="lab" for="sync-code">Sync code</label>
   <input type="text" id="sync-code" maxlength="24" placeholder="XXXX-XXXX-XXXX-XXXX"
@@ -2544,6 +2550,263 @@ function render(){
 }
 
 
+/* ------------------------------------------------------------------ qr ---
+   A QR code so the other device can scan instead of type. Byte mode, error
+   correction L, versions 1 to 5 — those five all use a single error-correction
+   block, which is what keeps this short: no interleaving, no block splitting.
+   A sync link is about sixty characters, which fits version 4 with room spare.
+*/
+
+const QR_EC_L = 1;                                  // the 2-bit level code for L
+// [total qrCodewords, ec qrCodewords] per version at level L
+const QR_CAP = {1:[26,7], 2:[44,10], 3:[70,15], 4:[100,20], 5:[134,26]};
+const QR_ALIGN = {1:[], 2:[6,18], 3:[6,22], 4:[6,26], 5:[6,30]};
+
+/* ------------------------------------------------------------ GF(256) --- */
+const QR_EXP = new Uint8Array(512), QR_LOG = new Uint8Array(256);
+(() => {
+  let x = 1;
+  for (let i = 0; i < 255; i++) {
+    QR_EXP[i] = x; QR_LOG[x] = i;
+    x <<= 1;
+    if (x & 0x100) x ^= 0x11d;
+  }
+  for (let i = 255; i < 512; i++) QR_EXP[i] = QR_EXP[i - 255];
+})();
+const qrMul = (a, b) => (a && b) ? QR_EXP[QR_LOG[a] + QR_LOG[b]] : 0;
+
+function qrEcPoly(n) {
+  let poly = [1];
+  for (let i = 0; i < n; i++) {
+    const next = new Array(poly.length + 1).fill(0);
+    for (let j = 0; j < poly.length; j++) {
+      next[j] ^= poly[j];                        // the x term keeps its index
+      next[j + 1] ^= qrMul(poly[j], QR_EXP[i]);       // the constant term moves down one
+    }
+    poly = next;
+  }
+  return poly;
+}
+
+function qrEcBytes(data, n) {
+  const gen = qrEcPoly(n);
+  const res = new Array(data.length + n).fill(0);
+  for (let i = 0; i < data.length; i++) res[i] = data[i];
+  for (let i = 0; i < data.length; i++) {
+    const f = res[i];
+    if (!f) continue;
+    for (let j = 0; j < gen.length; j++) res[i + j] ^= qrMul(gen[j], f);
+  }
+  return res.slice(data.length);
+}
+
+/* --------------------------------------------------------- bitstream --- */
+function qrCodewords(text, version) {
+  const bytes = [...new TextEncoder().encode(text)];
+  const [total, ec] = QR_CAP[version];
+  const dataLen = total - ec;
+  const bits = [];
+  const push = (v, n) => { for (let i = n - 1; i >= 0; i--) bits.push((v >> i) & 1); };
+
+  push(0b0100, 4);                 // byte mode
+  push(bytes.length, 8);           // versions 1-9 use an 8-bit count in byte mode
+  bytes.forEach((b) => push(b, 8));
+  for (let i = 0; i < 4 && bits.length < dataLen * 8; i++) bits.push(0);   // terminator
+  while (bits.length % 8) bits.push(0);
+
+  const out = [];
+  for (let i = 0; i < bits.length; i += 8) {
+    let b = 0;
+    for (let j = 0; j < 8; j++) b = (b << 1) | bits[i + j];
+    out.push(b);
+  }
+  const PAD = [0xec, 0x11];
+  while (out.length < dataLen) out.push(PAD[(out.length - (bits.length / 8)) % 2]);
+  return out.concat(qrEcBytes(out, ec));
+}
+
+/* ------------------------------------------------------------- layout --- */
+// Returns the matrix with every function pattern drawn, plus a map of which
+// cells those are: masking and data placement must both leave them alone.
+function qrSkeleton(version) {
+  const size = version * 4 + 17;
+  const m = Array.from({ length: size }, () => new Array(size).fill(null));
+  const fixed = Array.from({ length: size }, () => new Array(size).fill(false));
+  const set = (r, c, v) => {
+    if (r >= 0 && c >= 0 && r < size && c < size) { m[r][c] = v; fixed[r][c] = true; }
+  };
+
+  const finder = (r, c) => {
+    for (let i = -1; i <= 7; i++) for (let j = -1; j <= 7; j++) {
+      const on = i >= 0 && i <= 6 && j >= 0 && j <= 6 &&
+                 (i === 0 || i === 6 || j === 0 || j === 6 || (i >= 2 && i <= 4 && j >= 2 && j <= 4));
+      set(r + i, c + j, on ? 1 : 0);
+    }
+  };
+  finder(0, 0); finder(0, size - 7); finder(size - 7, 0);
+
+  for (let i = 8; i < size - 8; i++) {          // timing
+    set(6, i, i % 2 === 0 ? 1 : 0);
+    set(i, 6, i % 2 === 0 ? 1 : 0);
+  }
+
+  const centres = QR_ALIGN[version];
+  for (const r of centres) for (const c of centres) {
+    if ((r <= 8 && c <= 8) || (r <= 8 && c >= size - 9) || (r >= size - 9 && c <= 8)) continue;
+    for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) {
+      set(r + i, c + j, (Math.abs(i) === 2 || Math.abs(j) === 2 || (i === 0 && j === 0)) ? 1 : 0);
+    }
+  }
+
+  set(size - 8, 8, 1);                           // the always-dark module
+
+  // reserve the format areas so data placement skips them
+  for (let i = 0; i < 9; i++) {
+    if (m[8][i] === null) set(8, i, 0);
+    if (m[i][8] === null) set(i, 8, 0);
+  }
+  for (let i = 0; i < 8; i++) {
+    if (m[8][size - 1 - i] === null) set(8, size - 1 - i, 0);
+    if (m[size - 1 - i][8] === null) set(size - 1 - i, 8, 0);
+  }
+  return { m, fixed };
+}
+
+const QR_MASKS = [
+  (r, c) => (r + c) % 2 === 0,
+  (r) => r % 2 === 0,
+  (r, c) => c % 3 === 0,
+  (r, c) => (r + c) % 3 === 0,
+  (r, c) => (Math.floor(r / 2) + Math.floor(c / 3)) % 2 === 0,
+  (r, c) => (r * c) % 2 + (r * c) % 3 === 0,
+  (r, c) => ((r * c) % 2 + (r * c) % 3) % 2 === 0,
+  (r, c) => ((r + c) % 2 + (r * c) % 3) % 2 === 0,
+];
+
+function qrPlaceData(m, fixed, bytes, size) {
+  const bits = [];
+  bytes.forEach((b) => { for (let i = 7; i >= 0; i--) bits.push((b >> i) & 1); });
+  let n = 0, up = true;
+  for (let right = size - 1; right > 0; right -= 2) {
+    if (right === 6) right = 5;                  // the vertical timing column is skipped
+    for (let v = 0; v < size; v++) {
+      const row = up ? size - 1 - v : v;
+      for (const col of [right, right - 1]) {
+        if (fixed[row][col]) continue;
+        m[row][col] = n < bits.length ? bits[n] : 0;
+        n++;
+      }
+    }
+    up = !up;
+  }
+}
+
+function qrFormatBits(mask) {
+  let v = (QR_EC_L << 3) | mask;
+  let rem = v << 10;
+  for (let i = 14; i >= 10; i--) if ((rem >> i) & 1) rem ^= 0b10100110111 << (i - 10);
+  return ((v << 10) | rem) ^ 0b101010000010010;
+}
+
+// The 15 format bits are written twice: down column 8 and along row 8 by the
+// top-left finder, and again split between the other two finders.
+function qrWriteFormat(m, mask, size) {
+  const f = qrFormatBits(mask);
+  const bit = (i) => (f >> i) & 1;
+  for (let i = 0; i <= 5; i++) m[i][8] = bit(i);
+  m[7][8] = bit(6); m[8][8] = bit(7); m[8][7] = bit(8);
+  for (let i = 9; i <= 14; i++) m[8][14 - i] = bit(i);
+  for (let i = 0; i <= 7; i++) m[8][size - 1 - i] = bit(i);
+  for (let i = 8; i <= 14; i++) m[size - 15 + i][8] = bit(i);
+  m[size - 8][8] = 1;
+}
+
+function qrPenalty(m, size) {
+  let p = 0;
+  const run = (get) => {
+    for (let a = 0; a < size; a++) {
+      let last = -1, len = 0;
+      for (let b = 0; b < size; b++) {
+        const v = get(a, b);
+        if (v === last) { len++; if (len === 5) p += 3; else if (len > 5) p += 1; }
+        else { last = v; len = 1; }
+      }
+    }
+  };
+  run((a, b) => m[a][b]);
+  run((a, b) => m[b][a]);
+
+  for (let r = 0; r < size - 1; r++) for (let c = 0; c < size - 1; c++) {
+    const v = m[r][c];
+    if (v === m[r][c + 1] && v === m[r + 1][c] && v === m[r + 1][c + 1]) p += 3;
+  }
+
+  const pat = [1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0];
+  const rpat = [0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1];
+  const hit = (get, a, b) => pat.every((x, i) => get(a, b + i) === x) ||
+                             rpat.every((x, i) => get(a, b + i) === x);
+  for (let a = 0; a < size; a++) for (let b = 0; b + 10 < size; b++) {
+    if (hit((x, y) => m[x][y], a, b)) p += 40;
+    if (hit((x, y) => m[y][x], a, b)) p += 40;
+  }
+
+  let dark = 0;
+  for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) dark += m[r][c];
+  const pct = (dark * 100) / (size * size);
+  p += Math.floor(Math.abs(pct - 50) / 5) * 10;
+  return p;
+}
+
+function qrCode(text) {
+  const len = new TextEncoder().encode(text).length;
+  let version = 0;
+  for (let v = 1; v <= 5; v++) {
+    const [total, ec] = QR_CAP[v];
+    if (len + 2 <= total - ec) { version = v; break; }
+  }
+  if (!version) return null;                     // too long to show as a code
+
+  const size = version * 4 + 17;
+  const data = qrCodewords(text, version);
+
+  let best = null;
+  for (let mask = 0; mask < 8; mask++) {
+    const { m, fixed } = qrSkeleton(version);
+    qrPlaceData(m, fixed, data, size);
+    // Only data modules are masked; the function patterns are read as drawn.
+    for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
+      if (!fixed[r][c] && QR_MASKS[mask](r, c)) m[r][c] ^= 1;
+    }
+    qrWriteFormat(m, mask, size);
+    const p = qrPenalty(m, size);
+    if (!best || p < best.p) best = { p, m, mask };
+  }
+  return { size, version, mask: best.mask, modules: best.m };
+}
+
+// Dark modules as one SVG path, with the four-module quiet zone a scanner
+// needs. Drawn on white whatever the page theme, because that is the contrast
+// a camera is looking for.
+function qrSvg(text){
+  const out = qrCode(text);
+  if(!out) return '';
+  const q = 4, dim = out.size + q * 2;
+  let d = '';
+  for(let r = 0; r < out.size; r++){
+    let c = 0;
+    while(c < out.size){
+      if(!out.modules[r][c]){ c++; continue; }
+      let run = 0;
+      while(c + run < out.size && out.modules[r][c + run]) run++;
+      d += `M${c + q} ${r + q}h${run}v1h-${run}z`;
+      c += run;
+    }
+  }
+  return `<svg viewBox="0 0 ${dim} ${dim}" role="img" aria-label="Sync code as a QR code">`
+       + `<rect width="${dim}" height="${dim}" fill="#fff"/>`
+       + `<path d="${d}" fill="#0E2334"/></svg>`;
+}
+
 /* ---------------------------------------------------------------- sync ---
    Two devices, one plan, and no account to manage. A device holds a random
    16-character sync code; the server holds the plan under the SHA-256 of that
@@ -2594,6 +2857,11 @@ async function codeKey(code){
   return hex;
 }
 
+// The code rides in the fragment, which browsers never send to a server: this
+// link is only ever read by the page it opens.
+function syncLink(code){
+  return location.origin + location.pathname + '#s=' + code;
+}
 function readSync(){
   const s = store();
   if(!s) return null;
@@ -2707,11 +2975,25 @@ function refreshSync(){
   });
 }
 
+// A scanned link arrives as #s=CODE. The fragment is cleared straight away,
+// before anything is asked: it should not sit in the address bar, survive a
+// reload, or end up in a bookmark.
+function codeFromUrl(){
+  const m = /[#&]s=([^&]+)/.exec(location.hash || '');
+  if(!m) return null;
+  history.replaceState(null, '', location.pathname + location.search);
+  return normCode(decodeURIComponent(m[1]));
+}
+
 // On load, whoever is ahead wins. A device that has been off for a week pulls;
 // one holding an edit made on a plane pushes.
 async function syncBoot(){
+  const scanned = codeFromUrl();
   syncCfg = readSync();
   renderSync();
+  // A link beats whatever this device was doing — following it is the whole
+  // point of scanning it — but it still asks before replacing the plan.
+  if(scanned && (!syncCfg || syncCfg.code !== scanned)){ joinSync(scanned); return; }
   if(!syncCfg || !canSync()) return;
   lastPull = Date.now();
   await runSync(async ()=>{
@@ -2781,14 +3063,16 @@ function renderSync(note, bad){
   document.getElementById('syncjoin').hidden = true;
   document.getElementById('syncclash').hidden = !syncClash;
 
+  document.getElementById('syncqr').hidden = !on;
+  document.getElementById('btn-sync-link').hidden = !on;
   if(!on){
     // Sync really is off, so the status says so; anything that went wrong on
     // the way to turning it on belongs in the line underneath.
     stat.textContent = 'Off — this browser only';
     line.className = 'hint' + (bad ? ' bad' : '');
     line.textContent = bad || ('Two devices, one plan. Press “Turn on sync” on the device whose '
-      + 'plan you want to keep, then “Use a code” on the other one and type in the code the first '
-      + 'device shows. Everything stays in this browser until you do.');
+      + 'plan you want to keep, then scan the code it shows with the other device. Everything stays '
+      + 'in this browser until you do.');
     return;
   }
   stat.textContent = bad ? 'Sync problem' : (note || 'On');
@@ -2798,9 +3082,15 @@ function renderSync(note, bad){
   // down rather than lose it.
   // Naming the button to press on the other device is the whole difference
   // between sync working and two devices quietly holding separate plans.
-  const codeLine = `Code ${fmtCode(syncCfg.code)}. On your other device, open this page, `
-    + 'press “Use a code” — not “Turn on sync”, that starts a second plan — and type it in. '
-    + 'Anyone with the code can read and change this plan, so treat it like a password.';
+  const codeLine = `Code ${fmtCode(syncCfg.code)}. Scan the square above with the other device, `
+    + 'or send it the link. To type it instead, open this page there and press “Use a code” — '
+    + 'not “Turn on sync”, which starts a second plan. Anyone with the code can read and change '
+    + 'this plan, so treat it like a password.';
+  const box = document.getElementById('syncqr');
+  box.hidden = !!syncClash;
+  if(!syncClash) box.innerHTML = qrSvg(syncLink(syncCfg.code))
+    + '<p>Scan this with the other device\u2019s camera. It opens the planner '
+    + 'and joins this plan \u2014 nothing to type.</p>';
   if(syncClash){
     line.textContent = 'Your other device saved something newer. Take its copy, or keep what is on '
       + 'this device and overwrite it.';
@@ -2942,6 +3232,17 @@ document.getElementById('t-url').addEventListener('paste', ()=>setTimeout(lookup
 document.addEventListener('visibilitychange', refreshSync);
 window.addEventListener('focus', refreshSync);
 
+document.getElementById('btn-sync-link').addEventListener('click', async ()=>{
+  if(!syncCfg) return;
+  const btn = document.getElementById('btn-sync-link');
+  try{
+    await navigator.clipboard.writeText(syncLink(syncCfg.code));
+    btn.textContent = 'Copied';
+  }catch(e){
+    btn.textContent = 'Copy failed';
+  }
+  setTimeout(()=>{ btn.textContent = 'Copy link'; }, 1600);
+});
 document.getElementById('btn-sync-on').addEventListener('click', startSync);
 document.getElementById('btn-sync-off').addEventListener('click', stopSync);
 document.getElementById('btn-sync-now').addEventListener('click', ()=>runSync(async ()=>{
