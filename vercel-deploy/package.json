@@ -1,0 +1,9 @@
+{
+  "name": "tennis-planner",
+  "private": true,
+  "type": "module",
+  "description": "The page itself is a single dependency-free file. This exists only for /api/plan, which needs a Redis client when the store is reached by connection string rather than by REST.",
+  "dependencies": {
+    "redis": "^6.2.1"
+  }
+}

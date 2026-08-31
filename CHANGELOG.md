@@ -24,11 +24,14 @@ One plan on two devices, without an account to keep.
   the other device saved while this one was holding a change, the push is
   refused and the server's copy comes back: *take their copy*, or *keep mine*
   and overwrite. Nothing is lost silently either way.
-- **`/api/plan`**, a dependency-free serverless function backed by any Redis
-  with a REST API. Without one configured it answers 503 and says so; the
-  planner carries on working locally, which is also what happens offline — the
-  code stays on screen, the plan stays in the browser, and the next change
-  retries.
+- **`/api/plan`**, a serverless function that takes a Redis store in whichever
+  shape Vercel hands it over: a `REDIS_URL` connection string, or a REST url and
+  token from a marketplace store. REST needs nothing but `fetch`; the connection
+  string pulls in the `redis` client, imported only on that path. Connecting a
+  store is the whole of the setup.
+- Without a store configured the function answers 503 and says so; the planner
+  carries on working locally, which is also what happens offline — the code
+  stays on screen, the plan stays in the browser, and the next change retries.
 
 ### Changed
 
@@ -37,6 +40,8 @@ One plan on two devices, without an account to keep.
   age.
 - The data note no longer says your plan cannot follow you to another device,
   because now it can.
+- `vercel-deploy/package.json` arrives with it, holding the one dependency in
+  the project. The page itself is still a single file that needs nothing.
 
 ## [2.3.0] — 2026-08-31
 

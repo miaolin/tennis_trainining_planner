@@ -2,9 +2,9 @@
   "name": "tennis-planner-tests",
   "private": true,
   "type": "module",
-  "description": "jsdom harness for vercel-deploy/index.html — dev only, never deployed",
+  "description": "jsdom harness for vercel-deploy/index.html plus the /api/plan endpoint — dev only, never deployed",
   "scripts": {
-    "test": "node planner.test.mjs"
+    "test": "node planner.test.mjs && node api.test.mjs"
   },
   "devDependencies": {
     "jsdom": "^24.0.0"

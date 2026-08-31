@@ -20,24 +20,73 @@ const KEY_RE = /^[a-f0-9]{64}$/;
 const MAX_BYTES = 512 * 1024;         // a plan is a couple of KB; this is generous
 const TTL_SECONDS = 400 * 24 * 60 * 60;
 
-// Vercel KV and Upstash-on-Vercel inject different names for the same REST API.
-function store() {
+/* ------------------------------------------------------------- storage ---
+   Vercel hands out Redis in two shapes and it is not worth caring which. A
+   marketplace Upstash store injects a REST URL and token, which needs nothing
+   but fetch. Vercel's own managed Redis injects a REDIS_URL connection string,
+   which needs the redis client — imported only on that path, so the REST setup
+   and the tests never have to have it installed. */
+
+function restConfig() {
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
   return url && token ? { url: url.replace(/\/+$/, ''), token } : null;
 }
 
-async function command(s, args) {
-  const r = await fetch(s.url, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${s.token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(args),
-  });
-  if (!r.ok) throw new Error(`store responded ${r.status}`);
-  const body = await r.json();
-  if (body.error) throw new Error(body.error);
-  return body.result;
+function restStore(cfg) {
+  const command = async (args) => {
+    const r = await fetch(cfg.url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${cfg.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(args),
+    });
+    if (!r.ok) throw new Error(`store responded ${r.status}`);
+    const body = await r.json();
+    if (body.error) throw new Error(body.error);
+    return body.result;
+  };
+  return {
+    get: (key) => command(['GET', key]),
+    set: (key, value) => command(['SET', key, value, 'EX', String(TTL_SECONDS)]),
+  };
 }
+
+// One client per warm instance. A serverless function is reused between
+// requests, so reconnecting on every one would cost more than the work does.
+let client = null;
+let connecting = null;
+async function redisClient(url) {
+  if (client && client.isOpen) return client;
+  if (!connecting) {
+    const { createClient } = await import('redis');
+    client = createClient({ url });
+    // An error event with no listener takes the whole process down, and a
+    // dropped idle connection is not worth dying over — the next request
+    // opens a new one.
+    client.on('error', () => {});
+    connecting = client.connect()
+      .catch((e) => { client = null; throw e; })
+      .finally(() => { connecting = null; });
+  }
+  await connecting;
+  return client;
+}
+
+function redisStore(url) {
+  return {
+    get: async (key) => (await redisClient(url)).get(key),
+    set: async (key, value) => (await redisClient(url)).set(key, value, { EX: TTL_SECONDS }),
+  };
+}
+
+export function store() {
+  const rest = restConfig();
+  if (rest) return restStore(rest);
+  const url = process.env.REDIS_URL || process.env.KV_URL;
+  return url ? redisStore(url) : null;
+}
+
+/* ----------------------------------------------------------------- api --- */
 
 function send(res, code, body) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -45,18 +94,18 @@ function send(res, code, body) {
   res.status(code).end(JSON.stringify(body));
 }
 
+function safeParse(v) {
+  try { return JSON.parse(v); } catch (e) { return null; }
+}
+
 // A stored document is only ever what this function wrote, but it is read back
 // from a store that could have been reached another way, so it is checked.
-function readDoc(raw) {
+export function readDoc(raw) {
   if (typeof raw !== 'string') return null;
-  try {
-    const doc = JSON.parse(raw);
-    if (!doc || typeof doc !== 'object') return null;
-    if (!Number.isFinite(doc.updatedAt) || !doc.state || typeof doc.state !== 'object') return null;
-    return doc;
-  } catch (e) {
-    return null;
-  }
+  const doc = safeParse(raw);
+  if (!doc || typeof doc !== 'object') return null;
+  if (!Number.isFinite(doc.updatedAt) || !doc.state || typeof doc.state !== 'object') return null;
+  return doc;
 }
 
 export default async function handler(req, res) {
@@ -69,37 +118,39 @@ export default async function handler(req, res) {
   if (!KEY_RE.test(k)) return send(res, 400, { error: 'Bad sync key.' });
   const key = `plan:${k}`;
 
-  if (req.method === 'GET') {
-    const doc = readDoc(await command(s, ['GET', key]));
-    return doc ? send(res, 200, doc) : send(res, 404, { error: 'Nothing stored for that code yet.' });
-  }
-
-  if (req.method === 'PUT') {
-    const body = typeof req.body === 'string' ? safeParse(req.body) : req.body;
-    if (!body || typeof body !== 'object') return send(res, 400, { error: 'Bad body.' });
-    if (!body.state || typeof body.state !== 'object') return send(res, 400, { error: 'No plan in the body.' });
-
-    const updatedAt = Number(body.updatedAt);
-    if (!Number.isFinite(updatedAt)) return send(res, 400, { error: 'Bad updatedAt.' });
-
-    const doc = JSON.stringify({ updatedAt, state: body.state });
-    if (doc.length > MAX_BYTES) return send(res, 413, { error: 'That plan is too large to sync.' });
-
-    // base:null forces the write; otherwise the stored copy must be the one
-    // this device last saw.
-    if (body.base !== null && body.base !== undefined) {
-      const have = readDoc(await command(s, ['GET', key]));
-      if (have && have.updatedAt > Number(body.base)) return send(res, 409, have);
+  try {
+    if (req.method === 'GET') {
+      const doc = readDoc(await s.get(key));
+      return doc ? send(res, 200, doc) : send(res, 404, { error: 'Nothing stored for that code yet.' });
     }
 
-    await command(s, ['SET', key, doc, 'EX', String(TTL_SECONDS)]);
-    return send(res, 200, { updatedAt });
+    if (req.method === 'PUT') {
+      const body = typeof req.body === 'string' ? safeParse(req.body) : req.body;
+      if (!body || typeof body !== 'object') return send(res, 400, { error: 'Bad body.' });
+      if (!body.state || typeof body.state !== 'object') return send(res, 400, { error: 'No plan in the body.' });
+
+      const updatedAt = Number(body.updatedAt);
+      if (!Number.isFinite(updatedAt)) return send(res, 400, { error: 'Bad updatedAt.' });
+
+      const doc = JSON.stringify({ updatedAt, state: body.state });
+      if (doc.length > MAX_BYTES) return send(res, 413, { error: 'That plan is too large to sync.' });
+
+      // base:null forces the write; otherwise the stored copy must be the one
+      // this device last saw.
+      if (body.base !== null && body.base !== undefined) {
+        const have = readDoc(await s.get(key));
+        if (have && have.updatedAt > Number(body.base)) return send(res, 409, have);
+      }
+
+      await s.set(key, doc);
+      return send(res, 200, { updatedAt });
+    }
+  } catch (e) {
+    // The store being unreachable is not the caller's fault, and the message
+    // stays vague on purpose — it can carry connection details.
+    return send(res, 502, { error: 'The sync store could not be reached.' });
   }
 
   res.setHeader('Allow', 'GET, PUT');
   return send(res, 405, { error: 'Use GET or PUT.' });
-}
-
-function safeParse(v) {
-  try { return JSON.parse(v); } catch (e) { return null; }
 }
