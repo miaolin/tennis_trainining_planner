@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JSDOM } from 'jsdom';
+import { webcrypto } from 'node:crypto';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const HTML = path.join(HERE, '..', 'vercel-deploy', 'index.html');
@@ -30,21 +31,24 @@ function ok(name, cond, extra) {
 }
 function group(name) { console.log('\n[' + name + ']'); }
 
-// seed must land BEFORE the inline script runs, or restore() never sees it
-function bootRaw(seed) {
+// seed must land BEFORE the inline script runs, or restore() never sees it.
+// `extra` gets the same window, for tests that need to stand something else up
+// before the page runs — a fake server, or the crypto jsdom does not ship.
+function bootRaw(seed, extra) {
   return new JSDOM(SRC, {
     runScripts: 'dangerously',
     url: 'https://example.test/',
     pretendToBeVisual: true,
     beforeParse(window) {
       if (seed) for (const [k, v] of Object.entries(seed)) window.localStorage.setItem(k, v);
+      if (extra) extra(window);
     },
   });
 }
 // Calendar is the landing view, but most of these tests read the training
 // header, so switch to it on boot. Use bootRaw() to assert the real default.
-function boot(seed) {
-  const dom = bootRaw(seed);
+function boot(seed, extra) {
+  const dom = bootRaw(seed, extra);
   click(dom, dom.window.document.getElementById('nav-training'));
   return dom;
 }
@@ -711,6 +715,290 @@ group('times reach the text and the backup');
      JSON.stringify(back.blocks[0].plan[0].pm));
 }
 
+
+/* ------------------------------------------------------------------ */
+/* Sync. The page talks to /api/plan; these stand a fake one up in front of it
+   that keeps the same contract — 404 for an unused code, 409 when the stored
+   copy has moved past the base a device is writing against. */
+const SYNC_KEY = 'tennis-sync-v1';
+function syncServer() {
+  const kept = new Map();
+  const calls = [];
+  const reply = (status, body) => ({ ok: status < 400, status, json: async () => body });
+  const fetchImpl = async (url, opts = {}) => {
+    const u = String(url);
+    if (!u.startsWith('/api/plan')) return reply(404, {});      // the data files
+    const method = opts.method || 'GET';
+    const k = new URLSearchParams(u.split('?')[1] || '').get('k') || '';
+    calls.push([method, k]);
+    if (!/^[a-f0-9]{64}$/.test(k)) return reply(400, { error: 'Bad sync key.' });
+    if (method === 'GET') {
+      const doc = kept.get(k);
+      return doc ? reply(200, doc) : reply(404, { error: 'Nothing stored for that code yet.' });
+    }
+    if (method === 'PUT') {
+      const body = JSON.parse(opts.body);
+      const have = kept.get(k);
+      if (body.base !== null && body.base !== undefined &&
+          have && have.updatedAt > Number(body.base)) return reply(409, have);
+      kept.set(k, { updatedAt: body.updatedAt, state: body.state });
+      return reply(200, { updatedAt: body.updatedAt });
+    }
+    return reply(405, { error: 'Use GET or PUT.' });
+  };
+  // only one code is ever in play in these tests
+  const only = () => [...kept.values()][0] || null;
+  return { kept, calls, fetchImpl, only };
+}
+function bootSynced(server, seed) {
+  return boot(seed, window => {
+    window.fetch = server.fetchImpl;
+    // jsdom ships getRandomValues but neither subtle nor TextEncoder, and
+    // hashing the code needs both. Any real browser has them.
+    Object.defineProperty(window.crypto, 'subtle', {
+      value: webcrypto.subtle, configurable: true,
+    });
+    window.TextEncoder = TextEncoder;
+  });
+}
+const settle = (ms = 60) => new Promise(r => setTimeout(r, ms));
+const codeOf = d => (/([2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4})/
+  .exec($(d, '#syncnote').textContent) || [])[1] || null;
+
+group('turning sync on');
+{
+  const server = syncServer();
+  const dom = bootSynced(server);
+  const d = dom.window.document;
+  await settle();
+
+  ok('sync starts off', $(d, '#syncstat').textContent.includes('Off'), $(d, '#syncstat').textContent);
+  ok('and nothing has been sent', server.calls.length === 0, JSON.stringify(server.calls));
+
+  click(dom, $(d, '#btn-sync-on'));
+  await settle();
+  const code = codeOf(d);
+  ok('turning it on shows a code', !!code, $(d, '#syncnote').textContent);
+  ok('the code is grouped into fours', /^\w{4}-\w{4}-\w{4}-\w{4}$/.test(code || ''), code);
+  ok('the plan is now on the server', !!server.only(), JSON.stringify(server.calls));
+  ok('the server got the hash, never the code',
+     server.calls.every(([, k]) => /^[a-f0-9]{64}$/.test(k) && !k.includes(code.slice(0, 4))),
+     JSON.stringify(server.calls));
+  ok('and the buttons swap over',
+     $(d, '#btn-sync-on').hidden && !$(d, '#btn-sync-now').hidden);
+  ok('the code is kept for next time',
+     JSON.parse(dom.window.localStorage.getItem(SYNC_KEY)).code === code.replace(/-/g, ''),
+     dom.window.localStorage.getItem(SYNC_KEY));
+
+  // an edit goes up on its own, after the page goes quiet
+  const before = server.only().updatedAt;
+  click(dom, $(d, '#btn-clear'));
+  tap(dom, 'g2', firstSlot(d), { time: '09:00' });
+  await settle(1500);
+  ok('an edit pushes itself', server.only().updatedAt > before,
+     `${before} -> ${server.only().updatedAt}`);
+  ok('and it is the edited plan that went up',
+     server.only().state.blocks[0].plan[0].am[0].type === 'g2',
+     JSON.stringify(server.only().state.blocks[0].plan[0]));
+
+  click(dom, $(d, '#btn-sync-off'));
+  ok('stopping puts it back to off', $(d, '#syncstat').textContent.includes('Off'));
+  ok('and forgets the code', !dom.window.localStorage.getItem(SYNC_KEY));
+}
+
+group('a second device joins with the code');
+{
+  const server = syncServer();
+  const first = bootSynced(server);
+  const d1 = first.window.document;
+  await settle();
+  click(first, $(d1, '#btn-sync-on'));
+  await settle();
+  click(first, $(d1, '#btn-clear'));
+  tap(first, 'g2', firstSlot(d1), { time: '09:00' });
+  await settle(1500);
+  const code = codeOf(d1);
+
+  // a different browser, its own plan, no shared storage
+  const second = bootSynced(server);
+  const d2 = second.window.document;
+  await settle();
+  ok('the second device starts on its own plan', $(d2, '#tot').textContent === '19.0',
+     $(d2, '#tot').textContent);
+
+  click(second, $(d2, '#btn-sync-use'));
+  ok('asking to use a code opens the box', !$(d2, '#syncjoin').hidden);
+  input(second, $(d2, '#sync-code'), code);
+  click(second, $(d2, '#btn-sync-join'));
+  await settle(120);
+
+  ok('joining takes the plan that is up there', $(d2, '#tot').textContent === '2.0',
+     $(d2, '#tot').textContent);
+  ok('and the grid is redrawn from it', $(d2, '#grid .placed .nm').textContent === 'Group',
+     $(d2, '#grid .placed .nm').textContent);
+  ok('the second device is now synced too', !$(d2, '#btn-sync-now').hidden);
+
+  // and it keeps the plan across a reload of that same browser
+  const back = bootSynced(server, {
+    [KEY]: second.window.localStorage.getItem(KEY),
+    [SYNC_KEY]: second.window.localStorage.getItem(SYNC_KEY),
+  });
+  await settle(120);
+  ok('a reload comes back synced', $(back.window.document, '#tot').textContent === '2.0',
+     $(back.window.document, '#tot').textContent);
+}
+
+group('when the server cannot be reached');
+{
+  // no fake server at all: every call fails the way an offline page does
+  const dom = boot(null, window => {
+    window.fetch = () => Promise.reject(new Error('offline'));
+    Object.defineProperty(window.crypto, 'subtle', { value: webcrypto.subtle, configurable: true });
+    window.TextEncoder = TextEncoder;
+  });
+  const d = dom.window.document;
+  await settle();
+  click(dom, $(d, '#btn-sync-on'));
+  await settle(120);
+
+  ok('the trouble is reported', $(d, '#syncstat').textContent.includes('problem'),
+     $(d, '#syncstat').textContent);
+  ok('but the code is still on screen', !!codeOf(d), $(d, '#syncnote').textContent);
+  ok('and it says the plan is not at risk', $(d, '#syncnote').textContent.includes('safe in this browser'),
+     $(d, '#syncnote').textContent);
+  ok('sync stays on so the next change retries', !$(d, '#btn-sync-now').hidden);
+
+  // the plan still works, unsynced
+  click(dom, $(d, '#btn-clear'));
+  tap(dom, 'p1', firstSlot(d), { time: '09:00' });
+  ok('and the planner carries on regardless', $(d, '#tot').textContent === '1.0',
+     $(d, '#tot').textContent);
+}
+
+group('a code that is not one');
+{
+  const server = syncServer();
+  const dom = bootSynced(server);
+  const d = dom.window.document;
+  await settle();
+  click(dom, $(d, '#btn-sync-use'));
+  input(dom, $(d, '#sync-code'), 'nope');
+  click(dom, $(d, '#btn-sync-join'));
+  await settle();
+  ok('a short code is refused', $(d, '#syncnote').textContent.includes('does not look right'),
+     $(d, '#syncnote').textContent);
+  ok('and sync stays off', $(d, '#syncstat').textContent.includes('Off'),
+     $(d, '#syncstat').textContent);
+  ok('nothing was sent', server.calls.length === 0, JSON.stringify(server.calls));
+}
+
+group('the other device got there first');
+{
+  const server = syncServer();
+  const dom = bootSynced(server);
+  const d = dom.window.document;
+  await settle();
+  click(dom, $(d, '#btn-sync-on'));
+  await settle();
+  const k = server.calls[server.calls.length - 1][1];
+
+  // the other device saves something newer while this one is holding a change
+  click(dom, $(d, '#btn-clear'));
+  tap(dom, 'p1', firstSlot(d), { time: '09:00' });
+  const theirs = JSON.parse(JSON.stringify(server.only().state));
+  theirs.blocks[0].plan = { 0: { am: [{ type: 'g2', at: '11:00', hrs: 2 }], pm: [], eve: [] } };
+  server.kept.set(k, { updatedAt: Date.now() + 60000, state: theirs });
+
+  await settle(1500);
+  ok('the push is refused rather than overwriting', !$(d, '#syncclash').hidden);
+  ok('and says so plainly', $(d, '#syncnote').textContent.includes('newer'),
+     $(d, '#syncnote').textContent);
+  ok('this device still has its own work', $(d, '#tot').textContent === '1.0',
+     $(d, '#tot').textContent);
+
+  click(dom, $(d, '#btn-clash-theirs'));
+  await settle();
+  ok('taking their copy replaces the plan', $(d, '#tot').textContent === '2.0',
+     $(d, '#tot').textContent);
+  ok('and the warning clears', $(d, '#syncclash').hidden);
+}
+
+group('keeping this device instead');
+{
+  const server = syncServer();
+  const dom = bootSynced(server);
+  const d = dom.window.document;
+  await settle();
+  click(dom, $(d, '#btn-sync-on'));
+  await settle();
+  const k = server.calls[server.calls.length - 1][1];
+
+  click(dom, $(d, '#btn-clear'));
+  tap(dom, 'p1', firstSlot(d), { time: '09:00' });
+  const theirs = JSON.parse(JSON.stringify(server.only().state));
+  server.kept.set(k, { updatedAt: Date.now() + 60000, state: theirs });
+  await settle(1500);
+  ok('the clash is raised', !$(d, '#syncclash').hidden);
+
+  click(dom, $(d, '#btn-clash-mine'));
+  await settle(120);
+  ok('keeping mine overwrites the server',
+     server.only().state.blocks[0].plan[0].am[0].type === 'p1',
+     JSON.stringify(server.only().state.blocks[0].plan[0]));
+  ok('and the warning clears', $(d, '#syncclash').hidden);
+}
+
+group('booting behind the other device');
+{
+  const server = syncServer();
+  const dom = bootSynced(server);
+  const d = dom.window.document;
+  await settle();
+  click(dom, $(d, '#btn-sync-on'));
+  await settle();
+  click(dom, $(d, '#btn-clear'));
+  tap(dom, 'g2', firstSlot(d), { time: '09:00' });
+  await settle(1500);
+
+  // this browser comes back later, with its own stale copy in storage
+  const stale = JSON.parse(dom.window.localStorage.getItem(KEY));
+  stale.updatedAt = 1;
+  stale.blocks[0].plan = {};
+  const back = bootSynced(server, {
+    [KEY]: JSON.stringify(stale),
+    [SYNC_KEY]: dom.window.localStorage.getItem(SYNC_KEY),
+  });
+  await settle(120);
+  ok('a stale device pulls on load', $(back.window.document, '#tot').textContent === '2.0',
+     $(back.window.document, '#tot').textContent);
+
+  // and one that is ahead pushes instead
+  const ahead = JSON.parse(dom.window.localStorage.getItem(KEY));
+  ahead.updatedAt = Date.now() + 120000;
+  ahead.blocks[0].plan = { 0: { am: [{ type: 'phys', at: '08:00', hrs: 1 }], pm: [], eve: [] } };
+  bootSynced(server, {
+    [KEY]: JSON.stringify(ahead),
+    [SYNC_KEY]: dom.window.localStorage.getItem(SYNC_KEY),
+  });
+  await settle(120);
+  ok('a device that is ahead pushes on load',
+     server.only().state.blocks[0].plan[0].am[0].type === 'phys',
+     JSON.stringify(server.only().state.blocks[0].plan[0]));
+}
+
+group('sync is off until it is turned on');
+{
+  const server = syncServer();
+  const dom = bootSynced(server);
+  const d = dom.window.document;
+  await settle();
+  click(dom, $(d, '#btn-clear'));
+  tap(dom, 'p1', firstSlot(d), { time: '09:00' });
+  await settle(1500);
+  ok('an edit with sync off goes nowhere', server.calls.length === 0, JSON.stringify(server.calls));
+  ok('and the plan is still local', $(d, '#tot').textContent === '1.0', $(d, '#tot').textContent);
+}
+
 /* ------------------------------------------------------------------ */
 group('suggested plan respects a short block');
 {
@@ -782,6 +1070,12 @@ group('deploy hygiene');
   ok('no calendar date sliced out of toISOString()',
      !/\.toISOString\s*\(\s*\)\s*\.slice/.test(SRC));
   ok('local iso() helper present', /function iso\(/.test(SRC));
+  // A class that sets `display` outranks the browser's own [hidden] rule, so
+  // every such class needs its own [hidden] escape or the attribute does
+  // nothing. jsdom applies no CSS, so only the source can be checked.
+  ok('rows that set display still honour hidden', /\.syncrow\[hidden\]\{display:none\}/.test(SRC));
+  ok('the sync code is hashed before it is sent', /crypto\.subtle\.digest\('SHA-256'/.test(SRC));
+  ok('and the raw code never goes in the URL', !/[?&]c(ode)?=\$\{/.test(SRC));
   ok('backup filename uses the local date helper', /iso\(new Date\(\)\)/.test(SRC));
   ok('has favicon', SRC.includes('rel="icon"'));
   ok('has meta description', SRC.includes('name="description"'));
@@ -1480,7 +1774,7 @@ group('backup export / import');
     ok('data bar counts what is stored', /1 training block · 0 kids/.test($(d, '#dstat').textContent),
        $(d, '#dstat').textContent);
     ok('the note warns that storage is per-browser',
-       $(d, '#datanote').textContent.includes('this browser only'));
+       $(d, '#datanote').textContent.includes('stored in this browser'));
     ok('and warns about Safari eviction', $(d, '#datanote').textContent.includes('Safari'));
 
     // build something worth backing up

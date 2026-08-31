@@ -368,6 +368,15 @@ input[type=number]#days{width:74px}
 #file-import{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 #datanote.good{color:var(--ok)}
 #datanote.bad{color:var(--bad)}
+.hint.bad{color:var(--bad)}
+.syncrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:10px 0 0}
+/* A class that sets display beats the browser's own [hidden] rule, so a row
+   with one has to say so itself or it never hides. */
+.syncrow[hidden]{display:none}
+#sync-code{
+  font-family:'Barlow Condensed',sans-serif;font-size:16px;
+  letter-spacing:.14em;text-transform:uppercase;min-width:220px;
+}
 
 .noscript{
   border:1px solid var(--bad);border-radius:4px;
@@ -630,7 +639,7 @@ input[type=number]#days{width:74px}
 }
 @media print{
   body{background:#fff;color:#000}
-  .palette,.bar,.blockbar,.hint,.mainnav,.modal-back{display:none}
+  .palette,.bar,.blockbar,.hint,.mainnav,.modal-back,.syncrow{display:none}
   .day{background:#f4f4f4;border:1px solid #999}
 }
 </style>
@@ -817,9 +826,32 @@ input[type=number]#days{width:74px}
   </div>
 </div>
 
-<p class="hint" id="datanote">Everything you enter is stored in this browser only, so it does
-  not follow you to another device — and Safari deletes it after about a week without a visit.
-  Download a backup to keep it safe or move it across.</p>
+<p class="hint" id="datanote">Everything you enter is stored in this browser, and Safari deletes it
+  after about a week without a visit. Download a backup to keep it safe, or turn on sync below to
+  keep two devices on the same plan.</p>
+
+<footer class="databar">
+  <div>
+    <h2>Sync</h2>
+    <span class="dstat" id="syncstat"></span>
+  </div>
+  <div class="spacer"></div>
+  <button id="btn-sync-on">Turn on sync</button>
+  <button id="btn-sync-use">Use a code</button>
+  <button id="btn-sync-now" hidden>Sync now</button>
+  <button id="btn-sync-off" class="danger" hidden>Stop syncing</button>
+</footer>
+<div class="syncrow" id="syncjoin" hidden>
+  <label class="lab" for="sync-code">Sync code</label>
+  <input type="text" id="sync-code" maxlength="24" placeholder="XXXX-XXXX-XXXX-XXXX"
+         autocomplete="off" autocapitalize="characters" spellcheck="false">
+  <button id="btn-sync-join" class="go">Connect</button>
+</div>
+<div class="syncrow" id="syncclash" hidden>
+  <button id="btn-clash-theirs">Take their copy</button>
+  <button id="btn-clash-mine" class="danger">Keep mine</button>
+</div>
+<p class="hint" id="syncnote"></p>
 
 </div>
 
@@ -879,7 +911,9 @@ let armed = null;
 function uid(){ return 'b' + Math.floor(performance.now() * 1000).toString(36) + Math.floor(Math.random()*1e6).toString(36); }
 
 function emptyState(){
-  return {version:2, blocks:[], activeBlockId:null,
+  // updatedAt is what decides which device is ahead, so it travels with the
+  // state — into localStorage, into a backup file, and up to the server.
+  return {version:2, updatedAt:0, blocks:[], activeBlockId:null,
           players:[], entries:[], trips:[], manualMatches:[]};
 }
 function newBlock(name, start, days){
@@ -1028,8 +1062,16 @@ function normSlot(v){
 function store(){
   try{ return window.localStorage; }catch(e){ return null; }   // blocked in some privacy modes
 }
-function save(){
+// Every save is a real edit unless told otherwise: it stamps the state and
+// sends it on. `save(false)` is for writes that only mirror what is already
+// true — the first boot, or a plan just pulled from the other device — which
+// must not look like a change and must not be pushed straight back.
+function save(touch){
   const s = store();
+  if(touch !== false){
+    state.updatedAt = Date.now();
+    queuePush();
+  }
   if(!s) return;
   try{ s.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
 }
@@ -1098,6 +1140,7 @@ function sanitiseState(raw, allowEmptyBlocks){
   }
 
   if(Array.isArray(raw.trips)) st.trips = raw.trips;
+  if(Number.isFinite(raw.updatedAt) && raw.updatedAt > 0) st.updatedAt = raw.updatedAt;
   return st;
 }
 
@@ -1133,7 +1176,7 @@ function load(){
       }catch(e){}
     }
     const migrated = migrateLegacy();
-    if(migrated){ state = migrated; save(); return; }
+    if(migrated){ state = migrated; save(false); return; }
   }
   state = emptyState();
   const b = newBlock('Camp plan', DEFAULT_START, DEFAULT_DAYS);
@@ -2500,6 +2543,240 @@ function render(){
   renderDataBar();
 }
 
+
+/* ---------------------------------------------------------------- sync ---
+   Two devices, one plan, and no account to manage. A device holds a random
+   16-character sync code; the server holds the plan under the SHA-256 of that
+   code, so the code itself never leaves the browser. Whoever has the code has
+   the plan — that is the whole of it, and 80 bits is well past guessing.
+
+   Which copy is newer is decided by state.updatedAt, and a push carries the
+   updatedAt this device last saw. If the stored copy has moved on since, the
+   server refuses and hands back what it has, so a plan edited on the phone is
+   never quietly flattened by a laptop that had the page open. */
+const SYNC_KEY = 'tennis-sync-v1';
+const SYNC_API = '/api/plan';
+// No 0/O or 1/I/L: a code has to survive being read out over the phone.
+const CODE_CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+const PUSH_WAIT = 1200;          // ms of quiet before a change goes up
+
+let syncCfg = null;              // {code, seen} while sync is on, else null
+let syncKeyHex = null;           // cached hash of the code
+let pushTimer = null;
+let syncBusy = false;
+let syncClash = null;            // the server's copy, when it refused ours
+
+function canSync(){
+  return !!(typeof crypto !== 'undefined' && crypto.subtle && crypto.subtle.digest);
+}
+function normCode(v){
+  if(typeof v !== 'string') return null;
+  const c = v.toUpperCase().split('').filter(ch => CODE_CHARS.indexOf(ch) >= 0).join('');
+  return c.length === 16 ? c : null;
+}
+function fmtCode(c){ return c.replace(/(.{4})(?=.)/g, '$1-'); }
+function makeCode(){
+  const a = new Uint8Array(16);
+  if(typeof crypto !== 'undefined' && crypto.getRandomValues) crypto.getRandomValues(a);
+  else for(let i=0;i<a.length;i++) a[i] = Math.floor(Math.random()*256);
+  let out = '';
+  for(let i=0;i<a.length;i++) out += CODE_CHARS[a[i] % CODE_CHARS.length];
+  return out;
+}
+async function codeKey(code){
+  const bytes = new TextEncoder().encode('tennis-plan:' + code);
+  const d = await crypto.subtle.digest('SHA-256', bytes);
+  const b = new Uint8Array(d);
+  let hex = '';
+  for(let i=0;i<b.length;i++) hex += b[i].toString(16).padStart(2, '0');
+  return hex;
+}
+
+function readSync(){
+  const s = store();
+  if(!s) return null;
+  try{
+    const raw = s.getItem(SYNC_KEY);
+    if(!raw) return null;
+    const o = JSON.parse(raw);
+    const code = normCode(o && o.code);
+    return code ? {code, seen: Number(o.seen) || 0} : null;
+  }catch(e){ return null; }
+}
+function writeSync(){
+  const s = store();
+  if(!s) return;
+  try{
+    if(syncCfg) s.setItem(SYNC_KEY, JSON.stringify(syncCfg));
+    else s.removeItem(SYNC_KEY);
+  }catch(e){}
+}
+
+async function syncKey(){
+  if(!syncCfg) return null;
+  if(!syncKeyHex) syncKeyHex = await codeKey(syncCfg.code);
+  return syncKeyHex;
+}
+// Every reply is JSON, including the errors, so one reader handles them all.
+async function syncCall(method, body){
+  const k = await syncKey();
+  if(!k) throw new Error('Sync is off.');
+  const r = await fetch(`${SYNC_API}?k=${k}`, {
+    method,
+    cache: 'no-store',
+    headers: body ? {'Content-Type':'application/json'} : undefined,
+    body: body ? JSON.stringify(body) : undefined
+  });
+  let doc = null;
+  try{ doc = await r.json(); }catch(e){}
+  return {status: r.status, doc: doc || {}};
+}
+
+// Take the server's copy. It goes through the same sanitiser a restored backup
+// does — this arrived over the wire and is not trusted any further for it.
+function adoptPlan(doc){
+  const st = sanitiseState(doc.state, true);
+  if(!st) return false;
+  st.updatedAt = Number(doc.updatedAt) || Date.now();
+  state = st;
+  syncCfg.seen = st.updatedAt;
+  writeSync();
+  save(false);
+  render();
+  return true;
+}
+
+async function pullPlan(){
+  const {status, doc} = await syncCall('GET');
+  if(status === 200) return doc;
+  if(status === 404) return null;                 // nothing stored under this code yet
+  throw new Error(doc.error || `The server said ${status}.`);
+}
+async function pushPlan(force){
+  const {status, doc} = await syncCall('PUT', {
+    updatedAt: state.updatedAt,
+    base: force ? null : syncCfg.seen,
+    state
+  });
+  if(status === 200){
+    syncClash = null;
+    syncCfg.seen = state.updatedAt;
+    writeSync();
+    return 'sent';
+  }
+  if(status === 409){ syncClash = doc; return 'clash'; }
+  throw new Error(doc.error || `The server said ${status}.`);
+}
+
+function queuePush(){
+  if(!syncCfg || !canSync()) return;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(()=>{ runSync(pushPlan); }, PUSH_WAIT);
+}
+
+// One place to run any sync job, so the status line and the busy flag cannot
+// drift apart from what is actually happening.
+async function runSync(job, arg){
+  if(!syncCfg || syncBusy) return;
+  syncBusy = true;
+  renderSync('Syncing…');
+  try{
+    const out = await job(arg);
+    syncBusy = false;
+    renderSync(out === 'clash' ? null : 'Up to date.');
+  }catch(e){
+    syncBusy = false;
+    renderSync(null, e.message);
+  }
+}
+
+// On load, whoever is ahead wins. A device that has been off for a week pulls;
+// one holding an edit made on a plane pushes.
+async function syncBoot(){
+  syncCfg = readSync();
+  renderSync();
+  if(!syncCfg || !canSync()) return;
+  await runSync(async ()=>{
+    const doc = await pullPlan();
+    if(!doc) return await pushPlan(true);         // first device to use this code
+    if(Number(doc.updatedAt) > (state.updatedAt || 0)){ adoptPlan(doc); return 'pulled'; }
+    if((state.updatedAt || 0) > Number(doc.updatedAt)) return await pushPlan(true);
+    syncCfg.seen = Number(doc.updatedAt) || 0;
+    writeSync();
+    return 'same';
+  });
+}
+
+function startSync(){
+  if(!canSync()){ renderSync(null, 'This browser will not sync — it needs a secure connection.'); return; }
+  syncCfg = {code: makeCode(), seen: 0};
+  syncKeyHex = null;
+  writeSync();
+  renderSync();
+  runSync(()=>pushPlan(true));
+}
+// Joining an existing code always takes what is up there: that is the point of
+// typing it. The plan on this device is offered as a file first, so a wrong
+// code cannot cost anything.
+function joinSync(raw){
+  const code = normCode(raw);
+  if(!code){ renderSync(null, 'That code does not look right — it is 16 letters and digits.'); return; }
+  if(!canSync()){ renderSync(null, 'This browser will not sync — it needs a secure connection.'); return; }
+  syncCfg = {code, seen: 0};
+  syncKeyHex = null;
+  writeSync();
+  runSync(async ()=>{
+    const doc = await pullPlan();
+    if(!doc) return await pushPlan(true);         // an unused code: this device starts it
+    adoptPlan(doc);
+    return 'pulled';
+  });
+}
+function stopSync(){
+  clearTimeout(pushTimer);
+  syncCfg = null;
+  syncKeyHex = null;
+  syncClash = null;
+  writeSync();
+  renderSync();
+}
+
+function renderSync(note, bad){
+  const stat = document.getElementById('syncstat');
+  const line = document.getElementById('syncnote');
+  const on = !!syncCfg;
+  ['btn-sync-on','btn-sync-use'].forEach(id => { document.getElementById(id).hidden = on; });
+  ['btn-sync-now','btn-sync-off'].forEach(id => { document.getElementById(id).hidden = !on; });
+  document.getElementById('syncjoin').hidden = true;
+  document.getElementById('syncclash').hidden = !syncClash;
+
+  if(!on){
+    // Sync really is off, so the status says so; anything that went wrong on
+    // the way to turning it on belongs in the line underneath.
+    stat.textContent = 'Off — this browser only';
+    line.className = 'hint' + (bad ? ' bad' : '');
+    line.textContent = bad || ('Turn on sync to get a code, then enter that code on your other '
+      + 'device. Everything stays in this browser until you do.');
+    return;
+  }
+  stat.textContent = bad ? 'Sync problem' : (note || 'On');
+  line.className = 'hint' + (bad ? ' bad' : '');
+  // The code is the one thing worth reading here, so it stays on screen even
+  // when the server is unreachable — that is exactly when you want to write it
+  // down rather than lose it.
+  const codeLine = `Code ${fmtCode(syncCfg.code)} — enter that on your other device. `
+    + 'Anyone with the code can read and change this plan, so treat it like a password.';
+  if(syncClash){
+    line.textContent = 'Your other device saved something newer. Take its copy, or keep what is on '
+      + 'this device and overwrite it.';
+  } else if(bad){
+    line.textContent = `${bad} Your plan is safe in this browser and the next change will try `
+      + `again. ${codeLine}`;
+  } else {
+    line.textContent = codeLine;
+  }
+}
+
 /* ------------------------------------------------------------ export --- */
 function asText(){
   const b = active();
@@ -2627,11 +2904,41 @@ document.getElementById('t-url').addEventListener('keydown', e=>{
 // Pasting a link is the whole point — do the lookup without a second click.
 document.getElementById('t-url').addEventListener('paste', ()=>setTimeout(lookupLink, 0));
 
+document.getElementById('btn-sync-on').addEventListener('click', startSync);
+document.getElementById('btn-sync-off').addEventListener('click', stopSync);
+document.getElementById('btn-sync-now').addEventListener('click', ()=>runSync(async ()=>{
+  const doc = await pullPlan();
+  if(doc && Number(doc.updatedAt) > (state.updatedAt || 0)){ adoptPlan(doc); return 'pulled'; }
+  return await pushPlan(false);
+}));
+document.getElementById('btn-sync-use').addEventListener('click', ()=>{
+  const row = document.getElementById('syncjoin');
+  row.hidden = false;
+  document.getElementById('sync-code').focus();
+});
+document.getElementById('btn-sync-join').addEventListener('click', ()=>{
+  joinSync(document.getElementById('sync-code').value);
+});
+document.getElementById('sync-code').addEventListener('keydown', e=>{
+  if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('btn-sync-join').click(); }
+});
+document.getElementById('btn-clash-theirs').addEventListener('click', ()=>{
+  const doc = syncClash;
+  syncClash = null;
+  if(doc) adoptPlan(doc);
+  renderSync('Up to date.');
+});
+document.getElementById('btn-clash-mine').addEventListener('click', ()=>{
+  syncClash = null;
+  runSync(()=>pushPlan(true));
+});
+
 buildChips();
 stickPalette();
 load();
 render();
-save();   // persist the default/migrated block immediately, not on first edit
+save(false);   // persist the default/migrated block immediately, not as an edit
+syncBoot();
 
 // Both data files are optional and arrive late; re-render once they land.
 Promise.all([loadFeed(), loadHolidays()]).then(render);

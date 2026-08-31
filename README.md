@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.3.0** · [Changelog](CHANGELOG.md)
+**Version 2.4.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in three parts:
 
@@ -196,7 +196,9 @@ Space arms and places.
 
 ## Run locally
 
-Open `vercel-deploy/index.html` in a browser, or serve the folder:
+Open `vercel-deploy/index.html` in a browser, or serve the folder. Everything
+works except sync, which needs the serverless function and so only runs on a
+real deployment:
 
 ```sh
 cd vercel-deploy && python3 -m http.server 8000   # then open http://localhost:8000
@@ -246,18 +248,66 @@ Changing the shape of saved state? Bump `STORE_KEY` so existing saves are
 ignored rather than half-read, and leave the old key in place so a rollback to
 the previous deploy still finds its data.
 
+## Syncing across devices
+
+Turn on sync and the laptop and the phone hold the same plan. There is no
+account: one device generates a random 16-character **sync code**, you type it
+on the other, and from then on every change goes up and every load comes down.
+
+**On the deployed site**, at the foot of the page:
+
+1. **Turn on sync** on the device that has the plan you want to keep. Write the
+   code down — the page shows it as `XXXX-XXXX-XXXX-XXXX`.
+2. On the other device, **Use a code**, type it, **Connect**. That device takes
+   whatever is stored under the code, so join *from* the device you are willing
+   to overwrite.
+3. After that it looks after itself. **Sync now** forces a check, **Stop
+   syncing** disconnects this device and forgets the code.
+
+**What the code is.** It is the whole of the security model, so treat it like a
+password: anyone with it can read and change the plan. The server only ever sees
+its SHA-256, so the code itself never leaves your browser and nothing on the
+server can be turned back into one. Losing every device that has it means losing
+the plan — the server cannot help you, because it does not know who you are.
+
+**When two devices disagree**, the newer plan wins, and the page says so rather
+than deciding quietly. If the other device saved something while this one was
+holding a change, the push is refused and you are asked: *take their copy*, or
+*keep mine* and overwrite. Nothing is lost without you choosing it.
+
+### Setting it up on your own deployment
+
+The page talks to `/api/plan`, a serverless function in `vercel-deploy/api/`.
+It needs somewhere to put a few kilobytes:
+
+1. In the Vercel project → **Storage** → add a **Redis** store (Upstash's free
+   tier is far more than this needs) and connect it to the project.
+2. Redeploy. The store injects `KV_REST_API_URL` and `KV_REST_API_TOKEN` (or the
+   `UPSTASH_REDIS_REST_*` pair); the function reads either, and needs no other
+   configuration.
+
+Until a store is connected the function answers `503` and the page says sync is
+not set up — the planner itself carries on working, locally, exactly as before.
+Sync also does nothing when you open `index.html` from disk or serve the folder
+statically, since there is no function to answer.
+
+A plan is stored under the hash of its code and expires 400 days after its last
+write, so an abandoned code does not sit there forever.
+
 ## Backing up your data
 
-Everything you enter lives in that browser's `localStorage` — it does not follow
-you to another device, and **Safari deletes script-writable storage after about
-a week without a visit**, so a plan left unopened can disappear.
+Sync keeps two devices level; a backup is what saves you from both of them.
+Everything you enter also lives in that browser's `localStorage`, and **Safari
+deletes script-writable storage after about a week without a visit**, so a plan
+left unopened can disappear.
 
 Use **Download backup** at the foot of the page. It writes one dated JSON file
 with every training block, child, tournament and entry status. **Restore backup**
 reads it back, after confirming, and refuses anything that is not a valid backup
 without touching what you already have.
 
-That file is also how you move a plan from laptop to phone.
+That file is also how you move a plan from laptop to phone without turning sync
+on at all.
 
 ## Tests
 

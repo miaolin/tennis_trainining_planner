@@ -5,6 +5,39 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] — 2026-08-31
+
+One plan on two devices, without an account to keep.
+
+### Added
+
+**Sync**
+
+- **A sync code instead of a login.** One device generates a random
+  16-character code; you type it on the other; from then on every change goes up
+  and every load comes down. No email, no password, no third party.
+- **The server never sees the code.** It stores the plan under the SHA-256 of
+  it, so what leaves the browser cannot be turned back into a code. That also
+  means nobody can recover a plan for you — the code is the only key, and the
+  page says so where you first see it.
+- **A newer plan wins, and a conflict is asked about rather than resolved.** If
+  the other device saved while this one was holding a change, the push is
+  refused and the server's copy comes back: *take their copy*, or *keep mine*
+  and overwrite. Nothing is lost silently either way.
+- **`/api/plan`**, a dependency-free serverless function backed by any Redis
+  with a REST API. Without one configured it answers 503 and says so; the
+  planner carries on working locally, which is also what happens offline — the
+  code stays on screen, the plan stays in the browser, and the next change
+  retries.
+
+### Changed
+
+- The state now carries **`updatedAt`**, which is what decides which device is
+  ahead. It travels into a backup file too, so a restored backup knows its own
+  age.
+- The data note no longer says your plan cannot follow you to another device,
+  because now it can.
+
 ## [2.3.0] — 2026-08-31
 
 Three things a full day made awkward: a palette you had already scrolled past,
@@ -351,6 +384,7 @@ site that works on any host.
 - `place()` now ignores unknown session types rather than writing them into the
   plan.
 
+[2.4.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.4.0
 [2.3.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.3.0
 [2.2.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.2.0
 [2.1.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.1.0
