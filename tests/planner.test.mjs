@@ -113,6 +113,9 @@ group('cold boot — default block with the suggested plan');
   ok('week 2 = 9.0h', $$(d, '.wcap')[1].textContent.includes('9.0'), $$(d, '.wcap')[1].textContent);
   ok('load checks rendered', $$(d, '#notes .note').length > 0);
   ok('5 session chips', $$(d, '#chips .chip').length === 5);
+  ok('the non-training chip is marked as one, like its cards',
+     $$(d, '#chips .chip.block').map(c => c.dataset.type).join() === 'other',
+     $$(d, '#chips .chip.block').map(c => c.dataset.type).join());
   ok('state persisted under the v2 key', !!dom.window.localStorage.getItem(KEY));
 }
 

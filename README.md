@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.2.0** · [Changelog](CHANGELOG.md)
+**Version 2.3.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in three parts:
 
@@ -55,7 +55,10 @@ tests/                          jsdom harness — dev only, never deployed
 - **Study / other** blocks out a slot that is not training: give it your own
   label and length (study, school, a piano lesson). It holds the slot and shows
   its hours, but never counts towards the daily or weekly load, so blocking an
-  afternoon does not make the week look heavier than it is.
+  afternoon does not make the week look heavier than it is. It is drawn in teal
+  on a hatched card, so training and everything else are told apart at a glance.
+- **The palette stays with you**, pinned to the top of the window and shrunk to
+  the chips once you scroll past it, so a session is always there to drag.
 - **Running totals** per day, per 7-day week, and across the block, with a
   per-day load bar that turns amber at 3h and red past the daily cap.
 - **Load checks** that re-evaluate on every edit: days over the cap, long runs

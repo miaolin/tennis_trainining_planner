@@ -5,6 +5,26 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] — 2026-08-31
+
+Two things the grid was making you work around, now that a day can be full.
+
+### Added
+
+- **The palette follows you down the page.** It pins itself to the top of the
+  window and shrinks to the chips alone, so a session is always in reach — you
+  could not drag one onto the second week without scrolling back up for it, and
+  on a phone you could not see which chip was armed. On a narrow screen the
+  pinned row scrolls sideways rather than stacking three rows deep.
+
+### Changed
+
+- **Non-training blocks no longer have to be read to be told apart.** A Study /
+  other block is now teal, on a hatched surface, with its name in a quieter
+  colour — against the flat cards and solid accents of a real session. The
+  palette chip is drawn the same way, so what you pick is what you get. The
+  difference used to be a dashed left edge you had to look for.
+
 ## [2.2.0] — 2026-08-30
 
 The training grid now says *when*, not only *what*. A day is three slots; each
@@ -317,6 +337,7 @@ site that works on any host.
 - `place()` now ignores unknown session types rather than writing them into the
   plan.
 
+[2.3.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.3.0
 [2.2.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.2.0
 [2.1.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.1.0
 [2.0.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.0.0

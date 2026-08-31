@@ -121,13 +121,27 @@ input[type=number]#days{width:74px}
 .spacer{flex:1}
 
 /* ---------- palette ---------- */
+/* The grid runs well past one screen, and a session you cannot see is a session
+   you cannot drag — so the palette holds the top of the window. */
 .palette{
+  position:sticky;top:0;z-index:30;
   background:var(--court-deep);
   border:1px solid var(--hair);
   border-radius:4px;
   padding:16px 18px;
   margin-bottom:22px;
+  transition:padding .12s;
 }
+/* Once it is holding the top it drops to the chips alone, so it costs the grid
+   as little height as possible. */
+.palette.stuck{
+  padding:9px 18px;
+  border-top-color:transparent;
+  border-radius:0 0 4px 4px;
+  box-shadow:0 10px 22px rgba(8,24,38,.55);
+}
+.palette.stuck h2,.palette.stuck .hint{display:none}
+.palette.stuck .chip{padding:6px 12px 6px 10px}
 .palette h2{
   font-family:'Barlow Condensed',sans-serif;font-weight:500;
   font-size:13px;letter-spacing:.16em;text-transform:uppercase;
@@ -238,8 +252,23 @@ input[type=number]#days{width:74px}
 .placed .tm .rg{white-space:nowrap}
 .placed .tm .ln{white-space:nowrap;opacity:.72}
 .placed .tm.unset{font-style:italic}
-/* A blocked slot is not training: dashed edge, no fill weight. */
-.placed.block{background:rgba(255,255,255,.045);border-left-style:dashed}
+/* A blocked slot is not training, and should not have to be read to be told
+   apart from one: its own colour, a hatched surface, and a quieter name. */
+.placed.block,.chip.block{
+  background:
+    repeating-linear-gradient(135deg,
+      rgba(79,179,166,.13) 0 5px, transparent 5px 11px),
+    rgba(79,179,166,.07);
+  border-left-style:dashed;
+}
+.placed.block .nm{color:#A9C6C1;font-weight:600}
+.chip.block:hover{
+  background:
+    repeating-linear-gradient(135deg,
+      rgba(79,179,166,.2) 0 5px, transparent 5px 11px),
+    rgba(79,179,166,.12);
+}
+.chip.block.armed{background:var(--ball)}
 .placed .x{
   position:absolute;top:2px;right:2px;
   width:19px;height:19px;line-height:17px;text-align:center;
@@ -588,6 +617,10 @@ input[type=number]#days{width:74px}
   .day.blank{display:none}
   .slots{flex-direction:row}
   .slot{flex:1}
+  /* On a phone the chips would wrap to three rows and eat the screen, so the
+     pinned palette keeps them on one line and scrolls sideways instead. */
+  .palette.stuck .chips{flex-wrap:nowrap;overflow-x:auto;gap:7px}
+  .palette.stuck .chip{flex:0 0 auto}
 }
 @media print{
   body{background:#fff;color:#000}
@@ -795,7 +828,7 @@ const TYPES = {
   // piano lesson. It carries its own label and length and never counts towards
   // the training load, so blocking out an afternoon does not make the week
   // look heavier than it is.
-  other:{nm:'Study / other', dur:"", hrs:0,   c:'#6E8AA6', tennis:false, custom:true},
+  other:{nm:'Study / other', dur:"", hrs:0,   c:'#4FB3A6', tennis:false, custom:true},
   rest: {nm:'Rest',     dur:"—",    hrs:0,   c:'#B85C3C', tennis:false}
 };
 
@@ -1134,13 +1167,29 @@ function iso(d){
 }
 
 /* ------------------------------------------------------------ palette --- */
+// The palette is sticky, and shrinks to the chips alone once it is holding the
+// top of the window. The class is set from script rather than guessed in CSS
+// because there is no selector for "this sticky element is currently stuck".
+function stickPalette(){
+  const el = document.querySelector('.palette');
+  if(!el) return;
+  const check = ()=>{
+    const r = el.getBoundingClientRect();
+    // A hidden view measures zero and would read as stuck; it is not.
+    el.classList.toggle('stuck', r.height > 0 && r.top <= 0.5);
+  };
+  window.addEventListener('scroll', check, {passive:true});
+  window.addEventListener('resize', check);
+  document.querySelector('.mainnav').addEventListener('click', ()=>setTimeout(check, 0));
+  check();
+}
 function buildChips(){
   const box = document.getElementById('chips');
   box.innerHTML = '';
   for(const key in TYPES){
     const t = TYPES[key];
     const el = document.createElement('div');
-    el.className = 'chip';
+    el.className = 'chip' + (t.custom ? ' block' : '');
     el.style.setProperty('--c', t.c);
     el.draggable = true;
     el.tabIndex = 0;
@@ -2574,6 +2623,7 @@ document.getElementById('t-url').addEventListener('keydown', e=>{
 document.getElementById('t-url').addEventListener('paste', ()=>setTimeout(lookupLink, 0));
 
 buildChips();
+stickPalette();
 load();
 render();
 save();   // persist the default/migrated block immediately, not on first edit
