@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.6.1** · [Changelog](CHANGELOG.md)
+**Version 2.7.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in three parts:
 
@@ -89,11 +89,42 @@ tests/                          jsdom harness + api tests — dev only, never de
   by month. Past ones dim.
 - **Who's going** — one button per child per tournament, cycling
   planned → entered → confirmed → skipping → not going.
+- **Rewards** — what a tournament pays, and what each child actually earned
+  there. See below.
 - **Season checks** — an entry deadline inside 21 days that nobody has committed
   to, the same child booked into two overlapping tournaments, provisional dates,
-  and the longest clear gap between tournaments as the window to book travel.
+  the longest clear gap between tournaments as the window to book travel, a
+  finished tournament whose result nobody has entered, and the season's running
+  reward total.
 - A tournament falling inside a training block shows that block's name, so
   build-up blocks are visible from the list.
+
+### Rewards
+
+Every tournament can carry a reward scheme — press **Rewards** on its row. Four
+lines, any of which can be left blank:
+
+| Line | Pays |
+| --- | --- |
+| Per win | that much for every match won |
+| 1st / 2nd / 3rd place | that much for finishing there |
+| Beat last | that much for winning more matches than last time |
+| Format | free text, e.g. *Red ball, played in group* — shown, never paid |
+
+Once a scheme is set, each child who is **entered** or **confirmed** gets a
+**Wins** and **Place** box under the tournament, and the page adds the payout up
+in front of them: *$55 · 4 wins $20 · 2nd $30 · beat 3 $5*. The sum is always
+shown in full, so a child can see how the number was reached.
+
+"Beat last" measures against that child's most recent *earlier* tournament with
+a win count recorded — not simply the previous tournament, which they may not
+have played. With nothing earlier on file there is nothing to beat, so the bonus
+does not pay. This is the reason results are stored at all.
+
+Nought wins is a real result and is kept as one; an empty box means *not yet
+entered*, which is what the season check chases after a tournament has finished.
+A scheme belongs to the tournament, so it works on an imported STA event too,
+which is read-only in every other respect.
 
 ### Importing the STA calendar
 
@@ -144,8 +175,10 @@ Two places, merged:
 
   Each entry needs at least `id`, `name` and an ISO `start`; `end`, `venue`,
   `categories`, `entryDeadline`, `url`, `source` (`sta` / `jttl` / `manual`),
-  `provisional` and `note` are optional. A `provisional: true` entry is badged
-  as an estimate, and its `note` explains why.
+  `provisional`, `note` and `rewards` are optional. A `provisional: true` entry
+  is badged as an estimate, and its `note` explains why. A `rewards` object
+  (`perWin`, `places`, `improve`, `note`) is a *suggestion*: whatever the user
+  sets in the browser wins, including clearing it.
 
 See `findings.md` for the full trace of what each source does and does not
 expose.
@@ -361,12 +394,12 @@ Two suites. `api.test.mjs` drives `api/plan.js` directly with a stubbed store �
 backend choice, key validation, the 409 refusal and the forced write, bodies
 that are not plans, junk in the store, and an unreachable one.
 
-The rest is 430 assertions driving the real page under jsdom: cold boot, the v1.0.0
+The rest is 502 assertions driving the real page under jsdom: cold boot, the v1.0.0
 migration, state round-trips, thirteen kinds of corrupt saved state, block
 create/rename/switch/delete, variable length and its clamps, calendar alignment
 for different start weekdays, the load checks, a timezone regression, view
-switching, kids, tournament add/delete, the entry-status cycle, and the season
-checks.
+switching, kids, tournament add/delete, the entry-status cycle, the reward
+schemes and the payout arithmetic behind them, and the season checks.
 
 Sync is covered by a fake server that honours the same contract as the real
 endpoint — joining, the debounced push, both sides of a conflict, and being

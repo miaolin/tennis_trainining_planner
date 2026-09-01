@@ -2312,5 +2312,218 @@ group('year calendar');
   }
 }
 
+group('tournament rewards');
+{
+  const Y = new Date().getFullYear();
+  const PAST = Y - 1;                       // definitely finished, whenever this runs
+  const rowNamed = (d, t) => $$(d, '.tourn').find(r => r.textContent.includes(t));
+  const rewLine = (d, t) => {
+    const el = rowNamed(d, t).querySelector('.trew');
+    return el ? el.textContent : '';
+  };
+  const openRew = (dom, d, t) => click(dom, rowNamed(d, t).querySelector('.trewbtn'));
+  const saveRew = (dom, d, o = {}) => {
+    for (const [id, v] of Object.entries({
+      'r-win': o.win, 'r-p1': o.p1, 'r-p2': o.p2,
+      'r-p3': o.p3, 'r-imp': o.imp, 'r-note': o.note,
+    })) input(dom, $(d, '#' + id), v ?? '');
+    click(dom, $(d, '#r-ok'));
+  };
+  const resRow = (d, t, kid) =>
+    [...rowNamed(d, t).querySelectorAll('.res')].find(r => r.textContent.trim().startsWith(kid));
+  const setRes = (dom, d, t, kid, field, v) =>
+    change(dom, resRow(d, t, kid).querySelector(field === 'wins' ? '.rwin' : '.rpl'), v);
+  const paid = (d, t, kid) => {
+    const el = resRow(d, t, kid).querySelector('.rpay');
+    return el ? el.textContent : null;
+  };
+  const why = (d, t, kid) => {
+    const el = resRow(d, t, kid).querySelector('.rwhy');
+    return el ? el.textContent : '';
+  };
+  // Two red ball events, the same scheme on each: $5 a win, 1st $50, 2nd $30,
+  // and $5 for beating the previous count.
+  const setup = () => {
+    const dom = boot();
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    addKid(dom, d, 'Ian', Y - 9);
+    addTourn(dom, d, { name: 'U10 Red Ball Series One', start: `${PAST}-03-01` });
+    addTourn(dom, d, { name: 'U10 Red Ball Series Two', start: `${PAST}-06-01` });
+    return { dom, d };
+  };
+  const enter = (dom, d, t) => {
+    click(dom, rowNamed(d, t).querySelector('.join'));   // planned
+    click(dom, rowNamed(d, t).querySelector('.join'));   // entered
+  };
+
+  {
+    const { dom, d } = setup();
+    ok('a tournament with no scheme offers to add one',
+       rowNamed(d, 'Series One').querySelector('.trewbtn').textContent.includes('+ Rewards'),
+       rowNamed(d, 'Series One').querySelector('.trewbtn').textContent);
+    ok('and shows no rewards line', rewLine(d, 'Series One') === '');
+    ok('and no result boxes', !rowNamed(d, 'Series One').querySelector('.results'));
+
+    openRew(dom, d, 'Series One');
+    ok('the dialog names the tournament',
+       $(d, '#r-title').textContent === 'Rewards — U10 Red Ball Series One',
+       $(d, '#r-title').textContent);
+    saveRew(dom, d, { win: 5, p1: 50, p2: 30, imp: 5, note: 'Red ball, played in group' });
+
+    ok('the rewards line reads the whole scheme',
+       rewLine(d, 'Series One') ===
+         '$5 a win · 1st $50 · 2nd $30 · $5 for beating last count · Red ball, played in group',
+       rewLine(d, 'Series One'));
+    ok('the button now says the scheme is set',
+       rowNamed(d, 'Series One').querySelector('.trewbtn').classList.contains('set'));
+    ok('the scheme is saved under the match id',
+       saved(dom).rewards[saved(dom).manualMatches.find(m => m.name.includes('One')).id].perWin === 5,
+       JSON.stringify(saved(dom).rewards));
+    ok('a scheme on one tournament does not leak onto the other',
+       rewLine(d, 'Series Two') === '', rewLine(d, 'Series Two'));
+
+    // result boxes only once a kid is actually in it
+    ok('a paying tournament nobody entered has no result boxes',
+       !rowNamed(d, 'Series One').querySelector('.results'));
+    enter(dom, d, 'Series One');
+    ok('entering the kid opens a result box', !!resRow(d, 'Series One', 'Ian'));
+    ok('and it says there is no result yet',
+       !!resRow(d, 'Series One', 'Ian').querySelector('.rtodo'));
+
+    setRes(dom, d, 'Series One', 'Ian', 'wins', '3');
+    setRes(dom, d, 'Series One', 'Ian', 'place', '4');
+    ok('three wins at $5, and 4th pays nothing', paid(d, 'Series One', 'Ian') === '$15',
+       paid(d, 'Series One', 'Ian'));
+    ok('the sum is shown in full', why(d, 'Series One', 'Ian') === '3 wins $15',
+       why(d, 'Series One', 'Ian'));
+    ok('no bonus with nothing earlier to beat',
+       !why(d, 'Series One', 'Ian').includes('beat'), why(d, 'Series One', 'Ian'));
+    ok('the result rides on the entry',
+       saved(dom).entries[0].wins === 3 && saved(dom).entries[0].place === 4,
+       JSON.stringify(saved(dom).entries[0]));
+
+    // the second event: more wins than last time earns the bonus
+    openRew(dom, d, 'Series Two');
+    saveRew(dom, d, { win: 5, p1: 50, p2: 30, imp: 5 });
+    enter(dom, d, 'Series Two');
+    setRes(dom, d, 'Series Two', 'Ian', 'wins', '4');
+    setRes(dom, d, 'Series Two', 'Ian', 'place', '2');
+    ok('four wins, 2nd place and one more win than last time pays $55',
+       paid(d, 'Series Two', 'Ian') === '$55', paid(d, 'Series Two', 'Ian'));
+    ok('and says which count was beaten',
+       why(d, 'Series Two', 'Ian') === '4 wins $20 · 2nd $30 · beat 3 $5',
+       why(d, 'Series Two', 'Ian'));
+
+    setRes(dom, d, 'Series Two', 'Ian', 'wins', '3');
+    ok('matching the last count is not beating it',
+       paid(d, 'Series Two', 'Ian') === '$45', paid(d, 'Series Two', 'Ian'));
+    setRes(dom, d, 'Series Two', 'Ian', 'place', '1');
+    ok('first place pays the top prize', paid(d, 'Series Two', 'Ian') === '$65',
+       paid(d, 'Series Two', 'Ian'));
+
+    // zero is a result, not a blank
+    setRes(dom, d, 'Series Two', 'Ian', 'wins', '0');
+    setRes(dom, d, 'Series Two', 'Ian', 'place', '');
+    ok('nought wins still counts as a result', paid(d, 'Series Two', 'Ian') === '$0',
+       paid(d, 'Series Two', 'Ian'));
+    ok('and a blank place is stored as absent, not as zero',
+       !('place' in saved(dom).entries.find(e => e.wins === 0)),
+       JSON.stringify(saved(dom).entries));
+
+    // the season checks
+    setRes(dom, d, 'Series Two', 'Ian', 'wins', '4');
+    setRes(dom, d, 'Series Two', 'Ian', 'place', '2');
+    ok('the season check totals what was earned',
+       $(d, '#mnotes').textContent.includes('$70 across 2 results'), $(d, '#mnotes').textContent);
+  }
+
+  {
+    // a finished paying tournament with nobody's result on it
+    const { dom, d } = setup();
+    openRew(dom, d, 'Series One');
+    saveRew(dom, d, { win: 5 });
+    enter(dom, d, 'Series One');
+    ok('a finished tournament with no result is chased',
+       $(d, '#mnotes').textContent.includes('Results not in') &&
+       $(d, '#mnotes').textContent.includes('Ian at U10 Red Ball Series One'),
+       $(d, '#mnotes').textContent);
+    setRes(dom, d, 'Series One', 'Ian', 'wins', '2');
+    ok('and stops once the result is in',
+       !$(d, '#mnotes').textContent.includes('Results not in'), $(d, '#mnotes').textContent);
+  }
+
+  {
+    // clearing, deleting, and what survives a reload
+    const { dom, d } = setup();
+    openRew(dom, d, 'Series One');
+    saveRew(dom, d, { win: 5, p1: 50 });
+    openRew(dom, d, 'Series One');
+    ok('the dialog opens on what was saved',
+       $(d, '#r-win').value === '5' && $(d, '#r-p1').value === '50' && $(d, '#r-p2').value === '',
+       [$(d, '#r-win').value, $(d, '#r-p1').value, $(d, '#r-p2').value].join(','));
+    click(dom, $(d, '#r-cancel'));
+    ok('cancel changes nothing', rewLine(d, 'Series One') === '$5 a win · 1st $50',
+       rewLine(d, 'Series One'));
+
+    openRew(dom, d, 'Series One');
+    click(dom, $(d, '#r-clear'));
+    ok('clear drops the line', rewLine(d, 'Series One') === '');
+    ok('and the button offers to add one again',
+       rowNamed(d, 'Series One').querySelector('.trewbtn').textContent.includes('+ Rewards'));
+
+    openRew(dom, d, 'Series Two');
+    saveRew(dom, d, { win: 5 });
+    const two = saved(dom).manualMatches.find(m => m.name.includes('Two')).id;
+    dom.window.confirm = () => true;
+    click(dom, rowNamed(d, 'Series Two').querySelector('.tdel'));
+    ok('deleting a tournament takes its scheme with it', !(two in saved(dom).rewards),
+       JSON.stringify(saved(dom).rewards));
+  }
+
+  {
+    // a scheme and a result survive a reload
+    const { dom, d } = setup();
+    openRew(dom, d, 'Series One');
+    saveRew(dom, d, { win: 5, p2: 30, note: 'Group stage' });
+    enter(dom, d, 'Series One');
+    setRes(dom, d, 'Series One', 'Ian', 'wins', '6');
+    const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
+    const d2 = dom2.window.document;
+    click(dom2, $(d2, '#nav-matches'));
+    ok('the scheme comes back', rewLine(d2, 'Series One') === '$5 a win · 2nd $30 · Group stage',
+       rewLine(d2, 'Series One'));
+    ok('and so does the result', paid(d2, 'Series One', 'Ian') === '$30',
+       paid(d2, 'Series One', 'Ian'));
+  }
+
+  {
+    // rubbish in the stored state must not reach the page
+    const { dom } = setup();
+    const seed = saved(dom);
+    const one = seed.manualMatches.find(m => m.name.includes('One')).id;
+    seed.rewards = { [one]: { perWin: -5, places: ['x', 1e9, 30], improve: 'lots', note: 42 } };
+    seed.entries = [{ matchId: one, playerId: seed.players[0].id, status: 'entered',
+                      wins: 900, place: 0 }];
+    const dom2 = boot({ [KEY]: JSON.stringify(seed) });
+    const d2 = dom2.window.document;
+    click(dom2, $(d2, '#nav-matches'));
+    ok('impossible money is dropped', rewLine(d2, 'Series One') === '3rd $30',
+       rewLine(d2, 'Series One'));
+    ok('an out-of-range result is dropped',
+       !!resRow(d2, 'Series One', 'Ian').querySelector('.rtodo'),
+       resRow(d2, 'Series One', 'Ian').textContent);
+
+    // and a note is text, never markup
+    const dom3 = boot({ [KEY]: JSON.stringify({ ...seed,
+      rewards: { [one]: { perWin: 5, note: '<img src=x onerror=alert(1)>' } } }) });
+    const d3 = dom3.window.document;
+    click(dom3, $(d3, '#nav-matches'));
+    ok('a note is escaped, not rendered',
+       !rowNamed(d3, 'Series One').querySelector('img') &&
+       rewLine(d3, 'Series One').includes('<img'), rewLine(d3, 'Series One'));
+  }
+}
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('failed: ' + failures.join(' | ')); process.exit(1); }

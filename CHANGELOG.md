@@ -5,6 +5,39 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] — 2026-09-01
+
+A win should be worth something.
+
+### Added
+
+- **Rewards on a tournament.** Press **Rewards** on any row and say what it
+  pays: so much a win, so much for 1st, 2nd or 3rd, and a bonus for beating the
+  last count. A free-text line carries the format — *red ball, played in group*
+  — which is shown but never paid. The scheme hangs off the tournament, so it
+  works on an imported STA event too, which is read-only in every other respect.
+  `data/matches.json` can suggest one; anything set in the browser wins.
+- **Results, and the arithmetic behind them.** Each child who is entered or
+  confirmed gets a **Wins** and **Place** box under the tournament, and the
+  payout adds itself up in front of them — *$55 · 4 wins $20 · 2nd $30 · beat 3
+  $5*. The sum is always shown in full, because a child should be able to see
+  how the number was reached.
+- **"Beat last" knows what last was.** The bonus measures against that child's
+  most recent *earlier* tournament with a win count on it, not simply the
+  previous tournament, which they may not have played. Nothing earlier on file
+  means nothing to beat, and no bonus. This is the reason results are stored at
+  all.
+- **Two more season checks.** A finished tournament nobody has entered a result
+  for is chased, and the season's reward total is reported.
+
+### Notes
+
+- Nought wins is a real result and is kept as one. An empty box means *not yet
+  entered* — the two are stored differently, so a bad afternoon is never
+  mistaken for a missing one.
+- Schemes and results travel with the plan: they are in the backup file and go
+  over sync like everything else.
+
 ## [2.6.1] — 2026-08-31
 
 ### Fixed
