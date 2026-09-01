@@ -101,7 +101,8 @@ h1 em{font-style:normal;color:var(--ball)}
   display:flex;flex-wrap:wrap;gap:12px;align-items:center;
   margin-bottom:20px;
 }
-button, input[type=date], input[type=time], input[type=text], input[type=number]{
+button, input[type=date], input[type=time], input[type=text], input[type=number],
+input[type=url]{
   font-family:'Karla',sans-serif;font-size:13px;
   background:transparent;color:var(--court-line);
   border:1px solid var(--hair);border-radius:3px;
@@ -114,7 +115,15 @@ button.danger:hover{background:rgba(217,96,63,.2);border-color:var(--bad)}
 button:focus-visible,input:focus-visible,.chip:focus-visible,.add:focus-visible,.btab:focus-visible{
   outline:2px solid var(--ball);outline-offset:2px;
 }
-input[type=date],input[type=time]{color-scheme:dark}
+input[type=date],input[type=time]{
+  color-scheme:dark;
+  /* Safari on iOS sizes a date field from the native control, so it ignores the
+     column it was given and stands shorter than the text fields beside it. */
+  -webkit-appearance:none;appearance:none;
+  min-width:0;min-height:34px;line-height:1.1;
+}
+input[type=date]::-webkit-date-and-time-value{text-align:left}
+input[type=date]::-webkit-calendar-picker-indicator{opacity:.7}
 input[type=text]#blockname{min-width:190px}
 input[type=number]#days{width:74px}
 .lab{font-size:13px;color:var(--mute)}
@@ -463,11 +472,13 @@ input[type=number]#days{width:74px}
   display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
   gap:10px;align-items:end;
 }
-.fld{display:flex;flex-direction:column;gap:5px}
+.addrow{margin-top:12px}
+.addrow button{padding:9px 20px}
+.fld{display:flex;flex-direction:column;gap:5px;min-width:0}
 .fld label{
   font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--mute);
 }
-.fld input{width:100%}
+.fld input{width:100%;min-width:0;max-width:100%}
 .agerow{display:flex;flex-wrap:wrap;gap:9px}
 .chk{
   display:flex;align-items:center;gap:8px;
@@ -482,7 +493,8 @@ input[type=number]#days{width:74px}
 #impnote.busy{color:var(--ball)}
 #impnote.bad{color:var(--bad)}
 #impnote.good{color:var(--ok)}
-.linkrow{display:flex;gap:10px;align-items:end;margin-bottom:6px}
+.linkrow{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:6px}
+.linkrow .fld{min-width:min(100%,220px)}
 .linkrow button{white-space:nowrap}
 #lookupnote.busy{color:var(--ball)}
 #lookupnote.bad{color:var(--bad)}
@@ -645,6 +657,14 @@ input[type=number]#days{width:74px}
   padding:26px 18px;text-align:center;color:var(--mute);font-size:14px;
 }
 
+/* Six fields against a tablet's width leave a ragged 5 + 1, so below the
+   desktop layout they settle into even rows instead. */
+@media (max-width:1100px){
+  .formgrid{grid-template-columns:repeat(3,1fr)}
+}
+@media (max-width:600px){
+  .formgrid{grid-template-columns:repeat(2,1fr)}
+}
 @media (max-width:820px){
   h1{font-size:28px}
   .tourn{grid-template-columns:1fr;gap:9px}
@@ -782,8 +802,8 @@ input[type=number]#days{width:74px}
       <div class="fld"><label for="t-venue">Venue</label><input type="text" id="t-venue" maxlength="60" placeholder="Kallang"></div>
       <div class="fld"><label for="t-cat">Categories</label><input type="text" id="t-cat" maxlength="60" placeholder="12U Girls"></div>
       <div class="fld"><label for="t-deadline">Entry deadline</label><input type="date" id="t-deadline"></div>
-      <div class="fld"><label for="t-add">&nbsp;</label><button id="t-add">Add tournament</button></div>
     </div>
+    <div class="addrow"><button id="t-add">Add tournament</button></div>
     <p class="hint" id="feednote"></p>
   </div>
 
