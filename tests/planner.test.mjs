@@ -2319,9 +2319,18 @@ group('tournament rewards');
   const rowNamed = (d, t) => $$(d, '.tourn').find(r => r.textContent.includes(t));
   const rewLine = (d, t) => {
     const el = rowNamed(d, t).querySelector('.trew');
+    return el ? el.textContent.replace('Only here', '') : '';
+  };
+  const isException = (d, t) => rowNamed(d, t).querySelector('.trewbtn').classList.contains('set');
+  const openRew = (dom, d, t) => click(dom, rowNamed(d, t).querySelector('.trewbtn'));
+  // the standard scheme, up in its own box
+  const kidRow = (d, kid) =>
+    [...$$(d, '.rewkid')].find(r => r.textContent.trim().startsWith(kid));
+  const kidLine = (d, kid) => {
+    const el = kidRow(d, kid).querySelector('.rkline');
     return el ? el.textContent : '';
   };
-  const openRew = (dom, d, t) => click(dom, rowNamed(d, t).querySelector('.trewbtn'));
+  const openKidRew = (dom, d, kid) => click(dom, kidRow(d, kid).querySelector('button'));
   const saveRew = (dom, d, o = {}) => {
     for (const [id, v] of Object.entries({
       'r-win': o.win, 'r-p1': o.p1, 'r-p2': o.p2,
@@ -2359,15 +2368,14 @@ group('tournament rewards');
 
   {
     const { dom, d } = setup();
-    ok('a tournament with no scheme offers to add one',
-       rowNamed(d, 'Series One').querySelector('.trewbtn').textContent.includes('+ Rewards'),
-       rowNamed(d, 'Series One').querySelector('.trewbtn').textContent);
+    ok('a tournament with no scheme of its own is not marked as an exception',
+       !isException(d, 'Series One'));
     ok('and shows no rewards line', rewLine(d, 'Series One') === '');
     ok('and no result boxes', !rowNamed(d, 'Series One').querySelector('.results'));
 
     openRew(dom, d, 'Series One');
-    ok('the dialog names the tournament',
-       $(d, '#r-title').textContent === 'Rewards — U10 Red Ball Series One',
+    ok('the dialog says it is for this tournament alone',
+       $(d, '#r-title').textContent === 'Rewards, only here — U10 Red Ball Series One',
        $(d, '#r-title').textContent);
     saveRew(dom, d, { win: 5, p1: 50, p2: 30, imp: 5, note: 'Red ball, played in group' });
 
@@ -2375,8 +2383,7 @@ group('tournament rewards');
        rewLine(d, 'Series One') ===
          '$5 a win · 1st $50 · 2nd $30 · $5 for beating last count · Red ball, played in group',
        rewLine(d, 'Series One'));
-    ok('the button now says the scheme is set',
-       rowNamed(d, 'Series One').querySelector('.trewbtn').classList.contains('set'));
+    ok('the row is now marked as an exception', isException(d, 'Series One'));
     ok('the scheme is saved under the match id',
        saved(dom).rewards[saved(dom).manualMatches.find(m => m.name.includes('One')).id].perWin === 5,
        JSON.stringify(saved(dom).rewards));
@@ -2469,8 +2476,7 @@ group('tournament rewards');
     openRew(dom, d, 'Series One');
     click(dom, $(d, '#r-clear'));
     ok('clear drops the line', rewLine(d, 'Series One') === '');
-    ok('and the button offers to add one again',
-       rowNamed(d, 'Series One').querySelector('.trewbtn').textContent.includes('+ Rewards'));
+    ok('and the row is no longer an exception', !isException(d, 'Series One'));
 
     openRew(dom, d, 'Series Two');
     saveRew(dom, d, { win: 5 });
@@ -2522,6 +2528,186 @@ group('tournament rewards');
     ok('a note is escaped, not rendered',
        !rowNamed(d3, 'Series One').querySelector('img') &&
        rewLine(d3, 'Series One').includes('<img'), rewLine(d3, 'Series One'));
+  }
+}
+
+group('rewards belong to the child');
+{
+  const Y = new Date().getFullYear();
+  const PAST = Y - 1;
+  const rowNamed = (d, t) => $$(d, '.tourn').find(r => r.textContent.includes(t));
+  const rewLine = (d, t) => {
+    const el = rowNamed(d, t).querySelector('.trew');
+    return el ? el.textContent.replace('Only here', '') : '';
+  };
+  const isException = (d, t) => rowNamed(d, t).querySelector('.trewbtn').classList.contains('set');
+  const kidRow = (d, kid) => $$(d, '.rewkid').find(r => r.textContent.trim().startsWith(kid));
+  const kidLine = (d, kid) => {
+    const el = kidRow(d, kid).querySelector('.rkline');
+    return el ? el.textContent : '';
+  };
+  const fillRew = (dom, d, o) => {
+    for (const [id, v] of Object.entries({
+      'r-win': o.win, 'r-p1': o.p1, 'r-p2': o.p2,
+      'r-p3': o.p3, 'r-imp': o.imp, 'r-note': o.note,
+    })) input(dom, $(d, '#' + id), v ?? '');
+    click(dom, $(d, '#r-ok'));
+  };
+  const setKidRew = (dom, d, kid, o) => {
+    click(dom, kidRow(d, kid).querySelector('button'));
+    fillRew(dom, d, o);
+  };
+  const setMatchRew = (dom, d, t, o) => {
+    click(dom, rowNamed(d, t).querySelector('.trewbtn'));
+    fillRew(dom, d, o);
+  };
+  const resRow = (d, t, kid) => {
+    const box = rowNamed(d, t).querySelector('.results');
+    return box ? [...box.querySelectorAll('.res')].find(r => r.textContent.trim().startsWith(kid)) : null;
+  };
+  const setRes = (dom, d, t, kid, field, v) =>
+    change(dom, resRow(d, t, kid).querySelector(field === 'wins' ? '.rwin' : '.rpl'), v);
+  const paid = (d, t, kid) => {
+    const r = resRow(d, t, kid);
+    const el = r && r.querySelector('.rpay');
+    return el ? el.textContent : null;
+  };
+  const enter = (dom, d, t, i) => {
+    click(dom, [...rowNamed(d, t).querySelectorAll('.join')][i]);
+    click(dom, [...rowNamed(d, t).querySelectorAll('.join')][i]);
+  };
+  const setup = () => {
+    const dom = boot();
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    addKid(dom, d, 'Ian', Y - 9);
+    addKid(dom, d, 'Olivia', Y - 9);
+    addTourn(dom, d, { name: 'U10 Red Ball Series One', start: `${PAST}-11-14` });
+    addTourn(dom, d, { name: 'U10 Red Ball Series Two', start: `${Y}-03-07` });
+    return { dom, d };
+  };
+
+  {
+    const { dom, d } = setup();
+    ok('every child gets a line in the rewards box', $$(d, '.rewkid').length === 2);
+    ok('and starts with nothing set',
+       kidRow(d, 'Ian').textContent.includes('nothing set'), kidRow(d, 'Ian').textContent);
+
+    setKidRew(dom, d, 'Ian',
+      { win: 5, p1: 50, p2: 30, imp: 5, note: 'Red ball, played in group' });
+    ok('the standard is listed once, up in the box',
+       kidLine(d, 'Ian') ===
+         '$5 a win · 1st $50 · 2nd $30 · $5 for beating last count · Red ball, played in group',
+       kidLine(d, 'Ian'));
+    ok('and is stored on the child, not on any tournament',
+       saved(dom).players[0].rewards.perWin === 5 &&
+       Object.keys(saved(dom).rewards).length === 0,
+       JSON.stringify(saved(dom).rewards));
+    ok('no tournament repeats it',
+       rewLine(d, 'Series One') === '' && rewLine(d, 'Series Two') === '');
+    ok('and none is marked an exception',
+       !isException(d, 'Series One') && !isException(d, 'Series Two'));
+    ok('one child having a scheme does not give the other one',
+       kidRow(d, 'Olivia').textContent.includes('nothing set'), kidRow(d, 'Olivia').textContent);
+
+    // the standard is what pays
+    enter(dom, d, 'Series One', 0);          // Ian
+    enter(dom, d, 'Series One', 1);          // Olivia
+    ok('the child with a standard gets result boxes', !!resRow(d, 'Series One', 'Ian'));
+    ok('the child without one does not', !resRow(d, 'Series One', 'Olivia'));
+    setRes(dom, d, 'Series One', 'Ian', 'wins', '3');
+    ok('and the standard is what pays out', paid(d, 'Series One', 'Ian') === '$15',
+       paid(d, 'Series One', 'Ian'));
+  }
+
+  {
+    // one tournament paying differently
+    const { dom, d } = setup();
+    setKidRew(dom, d, 'Ian', { win: 5, imp: 5 });
+    enter(dom, d, 'Series One', 0);
+    setRes(dom, d, 'Series One', 'Ian', 'wins', '3');
+    enter(dom, d, 'Series Two', 0);
+
+    setMatchRew(dom, d, 'Series Two', { win: 10 });
+    ok('an exception shows on its row only', rewLine(d, 'Series Two') === '$10 a win',
+       rewLine(d, 'Series Two'));
+    ok('and is badged as such', isException(d, 'Series Two'));
+    ok('the other tournament is untouched', rewLine(d, 'Series One') === '');
+    ok('the standard line is unchanged', kidLine(d, 'Ian') === '$5 a win · $5 for beating last count',
+       kidLine(d, 'Ian'));
+    setRes(dom, d, 'Series Two', 'Ian', 'wins', '4');
+    ok('the exception is what pays, bonus and all',
+       paid(d, 'Series Two', 'Ian') === '$40', paid(d, 'Series Two', 'Ian'));
+
+    // and back to the standard
+    click(dom, rowNamed(d, 'Series Two').querySelector('.trewbtn'));
+    ok('the button offers the standard back',
+       $(d, '#r-clear').textContent === 'Use standard', $(d, '#r-clear').textContent);
+    ok('and the dialog says it is for this tournament alone',
+       $(d, '#r-title').textContent.startsWith('Rewards, only here'), $(d, '#r-title').textContent);
+    click(dom, $(d, '#r-clear'));
+    ok('the exception goes', rewLine(d, 'Series Two') === '' && !isException(d, 'Series Two'));
+    ok('and the standard pays again, bonus included',
+       paid(d, 'Series Two', 'Ian') === '$25', paid(d, 'Series Two', 'Ian'));
+
+    // an empty exception means this one pays nothing
+    setMatchRew(dom, d, 'Series Two', {});
+    ok('an emptied tournament pays nothing at all', !resRow(d, 'Series Two', 'Ian'));
+    ok('and the standard still pays everywhere else',
+       paid(d, 'Series One', 'Ian') === '$15', paid(d, 'Series One', 'Ian'));
+  }
+
+  {
+    // clearing the standard, and what survives a reload
+    const { dom, d } = setup();
+    setKidRew(dom, d, 'Ian', { win: 5, p2: 30, note: 'Group stage' });
+    enter(dom, d, 'Series One', 0);
+    setRes(dom, d, 'Series One', 'Ian', 'wins', '6');
+
+    const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
+    const d2 = dom2.window.document;
+    click(dom2, $(d2, '#nav-matches'));
+    ok('the standard comes back', kidLine(d2, 'Ian') === '$5 a win · 2nd $30 · Group stage',
+       kidLine(d2, 'Ian'));
+    ok('and still pays', paid(d2, 'Series One', 'Ian') === '$30',
+       paid(d2, 'Series One', 'Ian'));
+
+    click(dom2, kidRow(d2, 'Ian').querySelector('button'));
+    ok('a child’s own dialog offers a plain clear',
+       $(d2, '#r-clear').textContent === 'Clear', $(d2, '#r-clear').textContent);
+    click(dom2, $(d2, '#r-clear'));
+    ok('clearing the standard stops everything paying',
+       kidRow(d2, 'Ian').textContent.includes('nothing set') && !resRow(d2, 'Series One', 'Ian'),
+       kidRow(d2, 'Ian').textContent);
+  }
+
+  {
+    // two children, two bargains, on the same draw
+    const { dom, d } = setup();
+    setKidRew(dom, d, 'Ian', { win: 5 });
+    setKidRew(dom, d, 'Olivia', { win: 2, p1: 20 });
+    enter(dom, d, 'Series One', 0);
+    enter(dom, d, 'Series One', 1);
+    setRes(dom, d, 'Series One', 'Ian', 'wins', '4');
+    setRes(dom, d, 'Series One', 'Olivia', 'wins', '4');
+    setRes(dom, d, 'Series One', 'Olivia', 'place', '1');
+    ok('each child is paid their own way',
+       paid(d, 'Series One', 'Ian') === '$20' && paid(d, 'Series One', 'Olivia') === '$28',
+       [paid(d, 'Series One', 'Ian'), paid(d, 'Series One', 'Olivia')].join(' / '));
+    ok('and the season total adds both up',
+       $(d, '#mnotes').textContent.includes('$48 across 2 results'), $(d, '#mnotes').textContent);
+  }
+
+  {
+    // rubbish on a child must not reach the page
+    const { dom } = setup();
+    const seed = saved(dom);
+    seed.players[0].rewards = { perWin: 'five', places: 'nope', improve: -1, note: {} };
+    const dom2 = boot({ [KEY]: JSON.stringify(seed) });
+    const d2 = dom2.window.document;
+    click(dom2, $(d2, '#nav-matches'));
+    ok('a broken standard reads as nothing set',
+       kidRow(d2, 'Ian').textContent.includes('nothing set'), kidRow(d2, 'Ian').textContent);
   }
 }
 

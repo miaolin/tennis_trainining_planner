@@ -5,6 +5,25 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] — 2026-09-01
+
+### Changed
+
+- **Rewards belong to the child now, not to each tournament.** Setting the same
+  five figures on every event was the whole scheme repeated down the page, and
+  the page was mostly a list of the same sentence. It is set once, per child, in
+  a **Rewards** box at the top of the tournaments view, and no row repeats it.
+- **A row only says something when it pays something different**, badged **Only
+  here**. Press Rewards on a row to make one an exception, Use standard to drop
+  it again, and save an exception with every line blank to say that one pays
+  nothing. Schemes resolve most specific first: tournament exception, then the
+  child's standard, then a `data/matches.json` suggestion.
+- **Two children on the same draw are each paid their own way**, which the old
+  per-tournament scheme could not express at all.
+
+Schemes already set on a tournament keep working — they are read as exceptions,
+so nothing needs moving by hand.
+
 ## [2.7.1] — 2026-09-01
 
 ### Fixed
