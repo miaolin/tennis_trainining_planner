@@ -547,6 +547,27 @@ input[type=number]#days{width:74px}
   font-size:15px;padding:3px 7px;border-radius:3px;cursor:pointer;
 }
 .tdel:hover{background:rgba(217,96,63,.25);color:#fff}
+/* ---------- rewards ---------- */
+.tourn .trew{font-size:12px;color:var(--ball);margin-top:4px}
+.trewbtn{
+  border:1px solid var(--hair);border-radius:3px;background:transparent;
+  color:var(--mute);font-size:12px;padding:5px 9px;cursor:pointer;
+}
+.trewbtn.set{border-color:var(--ball);color:var(--ball)}
+.trewbtn:hover{background:rgba(214,230,75,.14)}
+/* The result strip is a full-width row under the three-column tournament head:
+   a kid's wins and place belong to the whole row, not to any one column. */
+.results{
+  grid-column:1/-1;display:flex;flex-wrap:wrap;gap:9px 22px;
+  margin-top:10px;padding-top:9px;border-top:1px solid var(--hair);
+}
+.res{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;color:var(--mute)}
+.res .rnm{font-weight:700;color:var(--court-line);border-left:3px solid var(--c);padding-left:7px}
+.res label{display:flex;align-items:center;gap:5px}
+.res input{width:58px;font-size:12px;padding:3px 6px}
+.res .rpay{color:var(--ball);font-weight:700}
+.res .rtodo{color:var(--warn)}
+#rmodal .mrow .lab{min-width:82px}
 /* ---------- year calendar ---------- */
 .months{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
@@ -830,6 +851,31 @@ input[type=number]#days{width:74px}
   </div>
 </div>
 
+<div class="modal-back" id="rmodal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="r-title">
+    <h3 id="r-title">Rewards</h3>
+    <div class="mrow"><label class="lab" for="r-win">Per win</label>
+      <input type="number" id="r-win" min="0" max="10000" step="1" placeholder="5"></div>
+    <div class="mrow"><label class="lab" for="r-p1">1st place</label>
+      <input type="number" id="r-p1" min="0" max="10000" step="1" placeholder="50"></div>
+    <div class="mrow"><label class="lab" for="r-p2">2nd place</label>
+      <input type="number" id="r-p2" min="0" max="10000" step="1" placeholder="30"></div>
+    <div class="mrow"><label class="lab" for="r-p3">3rd place</label>
+      <input type="number" id="r-p3" min="0" max="10000" step="1"></div>
+    <div class="mrow"><label class="lab" for="r-imp">Beat last</label>
+      <input type="number" id="r-imp" min="0" max="10000" step="1" placeholder="5"></div>
+    <div class="mrow"><label class="lab" for="r-note">Format</label>
+      <input type="text" id="r-note" maxlength="80" placeholder="Red ball, played in group"></div>
+    <p class="hint" id="r-hint">Leave a line blank to drop it. &ldquo;Beat last&rdquo; pays out when the
+      child wins more matches here than at their previous tournament.</p>
+    <div class="mfoot">
+      <button type="button" id="r-clear">Clear</button>
+      <button type="button" id="r-cancel">Cancel</button>
+      <button type="button" id="r-ok" class="go">Save</button>
+    </div>
+  </div>
+</div>
+
 <p class="hint" id="datanote">Everything you enter is stored in this browser, and Safari deletes it
   after about a week without a visit. Download a backup to keep it safe, or turn on sync below to
   keep two devices on the same plan.</p>
@@ -920,7 +966,7 @@ function emptyState(){
   // updatedAt is what decides which device is ahead, so it travels with the
   // state — into localStorage, into a backup file, and up to the server.
   return {version:2, updatedAt:0, blocks:[], activeBlockId:null,
-          players:[], entries:[], trips:[], manualMatches:[]};
+          players:[], entries:[], trips:[], manualMatches:[], rewards:{}};
 }
 function newBlock(name, start, days){
   return {id:uid(), name:name || 'Training block', start:start || DEFAULT_START,
@@ -1142,7 +1188,26 @@ function sanitiseState(raw, allowEmptyBlocks){
     const kids = new Set(st.players.map(p=>p.id));
     st.entries = raw.entries.filter(e =>
       e && typeof e.matchId === 'string' && typeof e.playerId === 'string' &&
-      STATUSES.includes(e.status) && kids.has(e.playerId));
+      STATUSES.includes(e.status) && kids.has(e.playerId))
+      // A result rides on the entry it belongs to. Absent is not the same as
+      // zero — zero wins is a real afternoon, so the keys are left off rather
+      // than defaulted.
+      .map(e => {
+        const out = {matchId:e.matchId, playerId:e.playerId, status:e.status};
+        if(Number.isInteger(e.wins) && e.wins >= 0 && e.wins <= MAX_WINS) out.wins = e.wins;
+        if(Number.isInteger(e.place) && e.place >= 1 && e.place <= MAX_PLACE) out.place = e.place;
+        return out;
+      });
+  }
+
+  // Keyed by match id so a scheme survives on an imported tournament, which is
+  // read-only in every other respect. Schemes for matches we cannot see are
+  // kept: the feed may simply be missing on this load.
+  if(raw.rewards && typeof raw.rewards === 'object' && !Array.isArray(raw.rewards)){
+    for(const k in raw.rewards){
+      const r = normRewards(raw.rewards[k]);
+      if(r) st.rewards[k] = r;
+    }
   }
 
   if(Array.isArray(raw.trips)) st.trips = raw.trips;
@@ -1314,6 +1379,49 @@ function commitDialog(){
   const e = normEntry(out);
   closeDialog();
   if(e && done) done(e);
+}
+
+/* The rewards dialog. Its own modal rather than a mode of the placement one:
+   they share nothing but a backdrop. */
+let rewardTarget = null;   // match id being edited; null when the dialog is shut
+
+function openRewards(id){
+  const m = allMatches().find(x => x.id === id);
+  if(!m) return;
+  rewardTarget = id;
+  const r = rewardsFor(m) || {perWin:0, places:[], improve:0, note:''};
+  document.getElementById('r-title').textContent = 'Rewards — ' + m.name;
+  const put = (el, v) => { document.getElementById(el).value = v ? v : ''; };
+  put('r-win', r.perWin);
+  put('r-p1', r.places[0]);
+  put('r-p2', r.places[1]);
+  put('r-p3', r.places[2]);
+  put('r-imp', r.improve);
+  document.getElementById('r-note').value = r.note || '';
+  document.getElementById('rmodal').hidden = false;
+  document.getElementById('r-win').focus();
+}
+function closeRewards(){
+  document.getElementById('rmodal').hidden = true;
+  rewardTarget = null;
+}
+function commitRewards(){
+  if(!rewardTarget) return;
+  const v = id => document.getElementById(id).value;
+  state.rewards[rewardTarget] = normRewards({
+    perWin: v('r-win'),
+    places: [v('r-p1'), v('r-p2'), v('r-p3')],
+    improve: v('r-imp'),
+    note: v('r-note')
+  });
+  closeRewards(); render(); save();
+}
+// Clearing stores an empty scheme rather than removing the key, so a scheme
+// the feed suggests does not spring back the moment it is cleared.
+function clearRewards(){
+  if(!rewardTarget) return;
+  state.rewards[rewardTarget] = normRewards({});
+  closeRewards(); render(); save();
 }
 
 function slotTitle(day, slot){
@@ -1674,6 +1782,10 @@ const STATUSES = ['planned','entered','confirmed','skipped'];
 const STATUS_LABEL = {planned:'Planned', entered:'Entered', confirmed:'Confirmed', skipped:'Skipping'};
 const KID_COLOURS = ['#5B9BD5','#D6E64B','#9B87D4','#4FA97C','#E8A33D','#D9603F'];
 const DEADLINE_WARN_DAYS = 21;
+// Rewards. A junior draw is a handful of matches, so the ceilings are only
+// there to stop a mistyped figure becoming a five-digit promise.
+const MAX_WINS = 99, MAX_PLACE = 64, MAX_MONEY = 10000, MAX_PLACES = 3;
+const ORDINAL = ['1st','2nd','3rd','4th','5th','6th','7th','8th'];
 
 let feed = [];            // from data/matches.json, read-only
 let feedNote = '';
@@ -1707,7 +1819,10 @@ function normaliseMatch(m){
     // Why a date is an estimate, e.g. "Draw not yet published; weekend spacing
     // taken from 2025 Season Two." Worth showing — a provisional badge alone
     // does not say how much to trust it.
-    note: typeof m.note === 'string' ? m.note : ''
+    note: typeof m.note === 'string' ? m.note : '',
+    // A scheme the feed can suggest. What the user sets in the browser lives in
+    // state.rewards and wins — see rewardsFor().
+    rewards: normRewards(m.rewards)
   };
 }
 function allMatches(){
@@ -2056,6 +2171,110 @@ function cycleEntry(matchId, playerId){
   render(); save();
 }
 
+/* ---- rewards ----
+   What a tournament pays, and what a child actually earned there. The scheme
+   hangs off the tournament; the result — wins, and where they finished — rides
+   on that child's entry, because a result only exists once they have played.
+   The bonus rule is the reason results are stored at all: "more wins than last
+   time" cannot be answered without last time's number. */
+function normMoney(v){
+  const x = Math.round(parseFloat(v) * 100) / 100;
+  return (Number.isFinite(x) && x > 0 && x <= MAX_MONEY) ? x : 0;
+}
+// Whole dollars are the normal case and $5.00 reads as fussy, so cents show
+// only when there are cents.
+function money(x){
+  const c = Math.round(x * 100);
+  return '$' + (c % 100 === 0 ? String(c / 100) : (c / 100).toFixed(2));
+}
+function normRewards(r){
+  if(!r || typeof r !== 'object') return null;
+  const places = (Array.isArray(r.places) ? r.places : []).slice(0, MAX_PLACES).map(normMoney);
+  while(places.length && !places[places.length - 1]) places.pop();   // no trailing empties
+  return {
+    perWin: normMoney(r.perWin),
+    places,
+    improve: normMoney(r.improve),
+    note: typeof r.note === 'string' ? r.note.trim().slice(0, 80) : ''
+  };
+}
+function hasRewards(r){
+  return !!r && (r.perWin > 0 || r.improve > 0 || r.places.some(v => v > 0) || !!r.note);
+}
+// An empty scheme set by hand is not the same as no scheme: it is the user
+// saying "nothing here", and it has to beat whatever the feed suggested.
+function rewardsFor(m){
+  const own = state.rewards || {};
+  if(Object.prototype.hasOwnProperty.call(own, m.id)) return own[m.id];
+  return m.rewards || null;
+}
+function rewardsLine(r){
+  const bits = [];
+  if(r.perWin) bits.push(`${money(r.perWin)} a win`);
+  r.places.forEach((v, i) => { if(v) bits.push(`${ORDINAL[i]} ${money(v)}`); });
+  if(r.improve) bits.push(`${money(r.improve)} for beating last count`);
+  if(r.note) bits.push(r.note);
+  return bits.join(' · ');
+}
+
+function resultOf(matchId, playerId){
+  const e = (state.entries || []).find(x => x.matchId === matchId && x.playerId === playerId);
+  if(!e) return null;
+  return {wins: Number.isInteger(e.wins) ? e.wins : null,
+          place: Number.isInteger(e.place) ? e.place : null};
+}
+// Typing a result is itself the claim that they played, so it stands an entry
+// up if there is not one. A blank or silly number clears the field rather than
+// being coerced — better an empty box than a wrong figure.
+function setResult(matchId, playerId, field, raw){
+  let e = state.entries.find(x => x.matchId === matchId && x.playerId === playerId);
+  if(!e){ e = {matchId, playerId, status:'confirmed'}; state.entries.push(e); }
+  const v = parseInt(raw, 10);
+  const lo = field === 'wins' ? 0 : 1;
+  const hi = field === 'wins' ? MAX_WINS : MAX_PLACE;
+  if(Number.isInteger(v) && v >= lo && v <= hi) e[field] = v;
+  else delete e[field];
+  render(); save();
+}
+// "The last one" is that child's most recent earlier tournament with a win
+// count on it — not simply the previous tournament, which they may not have
+// played. Nothing earlier means nothing to beat, so no bonus.
+function prevWins(m, playerId){
+  const earlier = allMatches().filter(x => x.start < m.start);
+  for(let i = earlier.length - 1; i >= 0; i--){
+    const r = resultOf(earlier[i].id, playerId);
+    if(r && r.wins !== null) return {wins:r.wins, name:earlier[i].name};
+  }
+  return null;
+}
+// null when there is nothing to work from; otherwise a total and the sum shown
+// in full, because a child should be able to see how the number was reached.
+function payout(m, p){
+  const r = rewardsFor(m);
+  const res = resultOf(m.id, p.id);
+  if(!hasRewards(r) || !res || (res.wins === null && res.place === null)) return null;
+  const parts = [];
+  let total = 0;
+  if(res.wins !== null && r.perWin){
+    const v = r.perWin * res.wins;
+    total += v;
+    parts.push(`${res.wins} win${res.wins === 1 ? '' : 's'} ${money(v)}`);
+  }
+  if(res.place !== null && r.places[res.place - 1]){
+    const v = r.places[res.place - 1];
+    total += v;
+    parts.push(`${ORDINAL[res.place - 1]} ${money(v)}`);
+  }
+  if(r.improve && res.wins !== null){
+    const prev = prevWins(m, p.id);
+    if(prev && res.wins > prev.wins){
+      total += r.improve;
+      parts.push(`beat ${prev.wins} ${money(r.improve)}`);
+    }
+  }
+  return {total, parts};
+}
+
 /* ---- manual tournaments ---- */
 function addTournament(){
   const g = id => document.getElementById(id).value.trim();
@@ -2082,6 +2301,7 @@ function removeTournament(id){
   if(m && !window.confirm(`Delete “${m.name}”?`)) return;
   state.manualMatches = state.manualMatches.filter(x=>x.id !== id);
   state.entries = state.entries.filter(e=>e.matchId !== id);
+  delete state.rewards[id];
   render(); save();
 }
 
@@ -2169,6 +2389,30 @@ function renderMatches(){
     if(m.url) meta.push(`<a class="tlink" href="${escapeHtml(m.url)}" target="_blank" rel="noopener noreferrer">Tournament page</a>`);
     if(m.note) meta.push(`<span class="tnote">${escapeHtml(m.note)}</span>`);
 
+    const rw = rewardsFor(m);
+    const paying = hasRewards(rw);
+
+    // Only kids who are in it get a result box: a tournament nobody entered has
+    // no result to record, and every kid the age filter allows would be noise.
+    const played = paying
+      ? state.players.filter(p => ['entered','confirmed'].includes(statusOf(m.id, p.id)))
+      : [];
+    const results = played.map(p=>{
+      const res = resultOf(m.id, p.id) || {wins:null, place:null};
+      const pay = payout(m, p);
+      const box = (cls, field, val, lo, hi, lab) =>
+        `<label>${lab} <input type="number" class="${cls}" min="${lo}" max="${hi}" step="1"` +
+        ` data-m="${m.id}" data-p="${p.id}" value="${val === null ? '' : val}"` +
+        ` aria-label="${escapeHtml(p.name)} ${field} at ${escapeHtml(m.name)}"></label>`;
+      const sum = pay
+        ? `<span class="rpay">${money(pay.total)}</span>` +
+          (pay.parts.length ? `<span class="rwhy">${escapeHtml(pay.parts.join(' · '))}</span>` : '')
+        : '<span class="rtodo">No result yet</span>';
+      return `<div class="res" style="--c:${p.colour}"><span class="rnm">${escapeHtml(p.name)}</span>` +
+             box('rwin', 'wins', res.wins, 0, MAX_WINS, 'Wins') +
+             box('rpl', 'final place', res.place, 1, MAX_PLACE, 'Place') + sum + '</div>';
+    }).join('');
+
     const mYear = Number(m.start.slice(0,4));
     const joins = state.players.filter(p => kidOnMatch(p, m, mYear)).map(p=>{
       const st = statusOf(m.id, p.id);
@@ -2179,9 +2423,12 @@ function renderMatches(){
     html += `<div class="tourn${soon?' soon':''}${past?' past':''}">
       <div class="tdate">${spanLabel(m)}<small>${DOW[d.getDay()]}</small></div>
       <div><div class="tnm">${bits.join('')}${escapeHtml(m.name)}</div>
-        ${meta.length ? `<div class="tmeta">${meta.join(' · ')}</div>` : ''}</div>
-      <div class="joins">${joins}${editable.has(m.id)
+        ${meta.length ? `<div class="tmeta">${meta.join(' · ')}</div>` : ''}
+        ${paying ? `<div class="trew">${escapeHtml(rewardsLine(rw))}</div>` : ''}</div>
+      <div class="joins">${joins}<button class="trewbtn${paying?' set':''}" data-rew="${m.id}"
+        >${paying ? 'Rewards' : '+ Rewards'}</button>${editable.has(m.id)
         ? `<button class="tdel" data-del="${m.id}" aria-label="Delete">&times;</button>` : ''}</div>
+      ${results ? `<div class="results">${results}</div>` : ''}
     </div>`;
   });
   list.innerHTML = html;
@@ -2190,6 +2437,12 @@ function renderMatches(){
     btn.addEventListener('click', ()=>cycleEntry(btn.dataset.m, btn.dataset.p)));
   list.querySelectorAll('.tdel').forEach(btn=>
     btn.addEventListener('click', ()=>removeTournament(btn.dataset.del)));
+  list.querySelectorAll('.trewbtn').forEach(btn=>
+    btn.addEventListener('click', ()=>openRewards(btn.dataset.rew)));
+  list.querySelectorAll('.rwin').forEach(inp=>
+    inp.addEventListener('change', ()=>setResult(inp.dataset.m, inp.dataset.p, 'wins', inp.value)));
+  list.querySelectorAll('.rpl').forEach(inp=>
+    inp.addEventListener('change', ()=>setResult(inp.dataset.m, inp.dataset.p, 'place', inp.value)));
 
   runSeasonChecks(ms);
 }
@@ -2244,6 +2497,27 @@ function runSeasonChecks(ms){
     if(best >= 10) out.push(['ok','Travel window',
       `${best} clear days between “${from}” and “${to}”. That is the gap to book a trip into.`]);
   }
+
+  // A finished tournament that pays and has no result on it is money nobody
+  // has worked out yet, and the bonus rule needs the number for next time.
+  const owed = [];
+  ms.filter(m => m.end < today && hasRewards(rewardsFor(m))).forEach(m=>{
+    state.players.forEach(p=>{
+      if(!['entered','confirmed'].includes(statusOf(m.id, p.id))) return;
+      const r = resultOf(m.id, p.id);
+      if(!r || r.wins === null) owed.push(`${p.name} at ${m.name}`);
+    });
+  });
+  if(owed.length) out.push(['warn','Results not in',
+    owed.join('; ') + '. Add the wins and the final place to settle what is owed.']);
+
+  let earned = 0, counted = 0;
+  ms.forEach(m => state.players.forEach(p=>{
+    const pay = payout(m, p);
+    if(pay){ earned += pay.total; counted++; }
+  }));
+  if(counted) out.push(['ok','Rewards earned',
+    `${money(earned)} across ${counted} result${counted===1?'':'s'}.`]);
 
   if(!out.length && ms.length) out.push(['ok','Season looks clear',
     `${upcoming.length} tournament${upcoming.length===1?'':'s'} ahead, no deadline or clash problems.`]);
@@ -3194,6 +3468,17 @@ document.getElementById('modal').addEventListener('click', e=>{
 document.getElementById('modal').addEventListener('keydown', e=>{
   if(e.key === 'Enter'){ e.preventDefault(); commitDialog(); }
   else if(e.key === 'Escape'){ e.preventDefault(); closeDialog(); }
+});
+
+document.getElementById('r-ok').addEventListener('click', commitRewards);
+document.getElementById('r-cancel').addEventListener('click', closeRewards);
+document.getElementById('r-clear').addEventListener('click', clearRewards);
+document.getElementById('rmodal').addEventListener('click', e=>{
+  if(e.target.id === 'rmodal') closeRewards();
+});
+document.getElementById('rmodal').addEventListener('keydown', e=>{
+  if(e.key === 'Enter'){ e.preventDefault(); commitRewards(); }
+  else if(e.key === 'Escape'){ e.preventDefault(); closeRewards(); }
 });
 
 document.getElementById('blockname').addEventListener('input', e=>{
