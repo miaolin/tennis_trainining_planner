@@ -933,6 +933,64 @@ group('the second device turned sync on instead of joining');
   ok('and it is now on the same code', codeOf(d2) === code, codeOf(d2));
 }
 
+group('a Home Screen app says why it starts empty');
+{
+  const server = syncServer();
+  const dom = bootSynced(server, null, undefined, undefined);
+  const d = dom.window.document;
+  await settle();
+  ok('an ordinary tab is told to scan', $(d, '#syncnote').textContent.includes('scan the code'),
+     $(d, '#syncnote').textContent);
+
+  Object.defineProperty(dom.window.navigator, 'standalone', { value: true, configurable: true });
+  dom.window.renderSync();
+  const note = $(d, '#syncnote').textContent;
+  ok('a Home Screen copy explains its own storage', note.includes('its own storage'), note);
+  ok('and says nothing was lost', note.includes('Nothing is lost'), note);
+  ok('and points at the one thing that works there', note.includes('paste the link'), note);
+  ok('without telling it to scan, which opens the browser instead',
+     !note.includes('scan the code'), note);
+}
+
+group('pasting the link instead of the code');
+{
+  const server = syncServer();
+  const first = bootSynced(server);
+  const d1 = first.window.document;
+  await settle();
+  click(first, $(d1, '#btn-sync-on'));
+  await settle();
+  click(first, $(d1, '#btn-clear'));
+  tap(first, 'g2', firstSlot(d1), { time: '09:00' });
+  await settle(1500);
+  const code = codeOf(d1).replace(/-/g, '');
+
+  const second = bootSynced(server);
+  const d2 = second.window.document;
+  await settle();
+  click(second, $(d2, '#btn-sync-use'));
+  // what "Copy link" puts on the clipboard, pasted whole
+  input(second, $(d2, '#sync-code'), 'https://example.test/#s=' + code);
+  second.window.confirm = () => true;
+  click(second, $(d2, '#btn-sync-join'));
+  await settle(120);
+  ok('a pasted link joins the plan', $(d2, '#tot').textContent === '2.0', $(d2, '#tot').textContent);
+  ok('and lands on the code inside it', codeOf(d2) === fmt4(code), codeOf(d2));
+
+  // the letters in a link must not be mistaken for a code
+  const third = bootSynced(server);
+  const d3 = third.window.document;
+  await settle();
+  click(third, $(d3, '#btn-sync-use'));
+  input(third, $(d3, '#sync-code'), 'https://example.test/no-code-here');
+  click(third, $(d3, '#btn-sync-join'));
+  await settle();
+  ok('a link with no code in it is refused',
+     $(d3, '#syncnote').textContent.includes('does not look like a code'),
+     $(d3, '#syncnote').textContent);
+  ok('and sync stays off', $(d3, '#syncstat').textContent.includes('Off'));
+}
+
 group('a tab left open catches up');
 {
   const server = syncServer();
@@ -1071,7 +1129,7 @@ group('a code that is not one');
   input(dom, $(d, '#sync-code'), 'nope');
   click(dom, $(d, '#btn-sync-join'));
   await settle();
-  ok('a short code is refused', $(d, '#syncnote').textContent.includes('does not look right'),
+  ok('a short code is refused', $(d, '#syncnote').textContent.includes('does not look like a code'),
      $(d, '#syncnote').textContent);
   ok('and sync stays off', $(d, '#syncstat').textContent.includes('Off'),
      $(d, '#syncstat').textContent);

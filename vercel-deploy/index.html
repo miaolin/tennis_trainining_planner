@@ -848,8 +848,8 @@ input[type=number]#days{width:74px}
 </footer>
 <div class="syncqr" id="syncqr" hidden></div>
 <div class="syncrow" id="syncjoin" hidden>
-  <label class="lab" for="sync-code">Sync code</label>
-  <input type="text" id="sync-code" maxlength="24" placeholder="XXXX-XXXX-XXXX-XXXX"
+  <label class="lab" for="sync-code">Code or link</label>
+  <input type="text" id="sync-code" maxlength="200" placeholder="XXXX-XXXX-XXXX-XXXX, or paste the link"
          autocomplete="off" autocapitalize="characters" spellcheck="false">
   <button id="btn-sync-join" class="go">Connect</button>
 </div>
@@ -2834,9 +2834,17 @@ let lastPull = 0;
 function canSync(){
   return !!(typeof crypto !== 'undefined' && crypto.subtle && crypto.subtle.digest);
 }
+// Takes a code, or the link that carries one. Pasting the whole link is what
+// someone will actually do — it is what "Copy link" put on the clipboard, and
+// on an iPad the link is the only thing that arrives from the other device.
 function normCode(v){
   if(typeof v !== 'string') return null;
-  const c = v.toUpperCase().split('').filter(ch => CODE_CHARS.indexOf(ch) >= 0).join('');
+  const link = /[#&?]s=([^&\s]+)/.exec(v);
+  let raw = v;
+  if(link){
+    try{ raw = decodeURIComponent(link[1]); }catch(e){ raw = link[1]; }
+  }
+  const c = raw.toUpperCase().split('').filter(ch => CODE_CHARS.indexOf(ch) >= 0).join('');
   return c.length === 16 ? c : null;
 }
 function fmtCode(c){ return c.replace(/(.{4})(?=.)/g, '$1-'); }
@@ -3020,7 +3028,11 @@ function startSync(){
 // worth keeping gets said out loud first, because there is no undo for it.
 function joinSync(raw){
   const code = normCode(raw);
-  if(!code){ renderSync(null, 'That code does not look right — it is 16 letters and digits.'); return; }
+  if(!code){
+    renderSync(null, 'That does not look like a code — it is 16 letters and digits, '
+                   + 'or the whole link from the other device.');
+    return;
+  }
   if(!canSync()){ renderSync(null, 'This browser will not sync — it needs a secure connection.'); return; }
   const mine = state.blocks.length;
   if(mine && !window.confirm(
@@ -3050,6 +3062,14 @@ function stopSync(){
   renderSync();
 }
 
+// An iOS app added to the Home Screen runs in its own storage container, with
+// no sight of what Safari saved. It is not broken and nothing was lost — it is
+// simply a separate browser, and it has to join the plan like any other.
+function standalone(){
+  return !!(navigator.standalone ||
+            (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches));
+}
+
 function renderSync(note, bad){
   const stat = document.getElementById('syncstat');
   const line = document.getElementById('syncnote');
@@ -3070,9 +3090,16 @@ function renderSync(note, bad){
     // the way to turning it on belongs in the line underneath.
     stat.textContent = 'Off — this browser only';
     line.className = 'hint' + (bad ? ' bad' : '');
-    line.textContent = bad || ('Two devices, one plan. Press “Turn on sync” on the device whose '
-      + 'plan you want to keep, then scan the code it shows with the other device. Everything stays '
-      + 'in this browser until you do.');
+    // Scanning opens the browser, not this app, so a Home Screen copy is told
+    // the one thing that does work here: paste the link.
+    line.textContent = bad || (standalone()
+      ? 'Added to the Home Screen, this runs as its own browser with its own storage, so it starts '
+        + 'empty even where Safari on this device is already synced. Nothing is lost. Press '
+        + '“Use a code” and paste the link from the other device — once only; it stays joined '
+        + 'after that.'
+      : 'Two devices, one plan. Press “Turn on sync” on the device whose plan you want to keep, '
+        + 'then scan the code it shows with the other device. Everything stays in this browser '
+        + 'until you do.');
     return;
   }
   stat.textContent = bad ? 'Sync problem' : (note || 'On');

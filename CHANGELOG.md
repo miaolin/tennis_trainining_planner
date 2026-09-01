@@ -5,6 +5,22 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.1] — 2026-08-31
+
+### Fixed
+
+- **A Home Screen app looked like it had lost the plan.** Add the planner to an
+  iPad's Home Screen and it runs as its own browser with its own storage, seeing
+  nothing of what Safari saved — so it opened on the default plan even though
+  Safari on the same device was synced. Nothing was lost, but nothing said so.
+  It now explains itself, and says the one thing that works there: paste the
+  link. Scanning cannot help, because a scanned link opens the browser rather
+  than the Home Screen app.
+- **The code box now takes the whole link**, not just the sixteen characters.
+  That is what "Copy link" puts on the clipboard, and on a second device the
+  link is usually the only thing that arrives. A link with no code in it is
+  still refused rather than half-read.
+
 ## [2.6.0] — 2026-08-31
 
 Nobody wants to type sixteen characters into a phone.
@@ -450,6 +466,7 @@ site that works on any host.
 - `place()` now ignores unknown session types rather than writing them into the
   plan.
 
+[2.6.1]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.6.1
 [2.6.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.6.0
 [2.5.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.5.0
 [2.4.0]: https://github.com/miaolin/tennis_trainining_planner/releases/tag/v2.4.0
