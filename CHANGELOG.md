@@ -5,6 +5,27 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.1] — 2026-09-01
+
+### Fixed
+
+- **"Add a tournament" came apart on an iPad.** The tournament link drew itself
+  as the browser's own dark box — it is a `url` field, and the rule that styles
+  every control named `date`, `time`, `text` and `number` but never `url`, so it
+  was the one field left to Safari's taste. It now matches the fields around it.
+- **The date fields sized themselves.** iOS measures a date field from its
+  native control rather than the space it was given, so Starts, Ends and Entry
+  deadline stood off the line their neighbours kept. They are held to the same
+  height and the same edges as every other field now.
+- **A field could push past the card it sits in.** A field in a row is at least
+  as wide as its contents unless something says otherwise, and nothing did — so
+  on a narrow screen the row ran off the side rather than folding. It folds.
+- **The six fields no longer land five and one.** A tablet's width fitted five
+  across and left Entry deadline alone on the next row. Below the desktop layout
+  they settle into even rows: three across on a tablet, two on a phone.
+- **Add tournament had been a field with no label**, stretched to a column's
+  width and left on a row of its own. It is a button on its own line now.
+
 ## [2.7.0] — 2026-09-01
 
 A win should be worth something.
