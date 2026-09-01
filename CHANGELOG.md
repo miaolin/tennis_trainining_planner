@@ -16,8 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A row only says something when it pays something different**, badged **Only
   here**. Press Rewards on a row to make one an exception, Use standard to drop
   it again, and save an exception with every line blank to say that one pays
-  nothing. Schemes resolve most specific first: tournament exception, then the
-  child's standard, then a `data/matches.json` suggestion.
+  nothing. Schemes resolve in one order: a tournament exception, then the
+  child's standard, then a `data/matches.json` suggestion. A file committed
+  alongside the site is the weakest thing there — it stands in only where a
+  child has no standard of their own, and never outbids one that is set.
 - **Two children on the same draw are each paid their own way**, which the old
   per-tournament scheme could not express at all.
 

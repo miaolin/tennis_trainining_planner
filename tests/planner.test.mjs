@@ -2711,5 +2711,93 @@ group('rewards belong to the child');
   }
 }
 
+group('a suggested scheme is the weakest one');
+{
+  const Y = new Date().getFullYear();
+  const KID = { id: 'p1', name: 'Ian', birthYear: Y - 9, colour: '#5B9BD5' };
+  // The feed is a file in the repo. It must never quietly outbid a figure the
+  // parent set on the child, and a stray empty object must not silence one.
+  const feedOf = rewards => ({ matches: [{
+    id: 'f1', source: 'jttl', name: 'U10 Red Ball Feed Event',
+    start: `${Y - 1}-05-05`, end: `${Y - 1}-05-05`, venue: '', categories: [],
+    entryDeadline: null, url: '', provisional: false, rewards }] });
+  const seedOf = kidRewards => JSON.stringify({
+    version: 2, updatedAt: Date.now(),
+    blocks: [{ id: 'b1', name: 'B', start: `${Y}-08-01`, days: 14, plan: {} }],
+    activeBlockId: 'b1',
+    players: [{ ...KID, rewards: kidRewards }],
+    manualMatches: [], trips: [], rewards: {},
+    entries: [{ matchId: 'f1', playerId: 'p1', status: 'confirmed', wins: 4 }],
+  });
+  const bootBoth = (kidRewards, feedRewards) => new JSDOM(SRC, {
+    runScripts: 'dangerously', url: 'https://example.test/', pretendToBeVisual: true,
+    beforeParse(window) {
+      window.localStorage.setItem(KEY, seedOf(kidRewards));
+      window.fetch = url => String(url).includes('matches.json')
+        ? Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(feedOf(feedRewards)) })
+        : Promise.resolve({ ok: false, status: 404 });
+    },
+  });
+  const settle = () => new Promise(r => setTimeout(r, 40));
+  const STANDARD = { perWin: 5, places: [], improve: 0, note: '' };
+  const paidOn = async (kidRewards, feedRewards) => {
+    const dom = bootBoth(kidRewards, feedRewards);
+    const d = dom.window.document;
+    await settle();
+    click(dom, $(d, '#nav-matches'));
+    const row = $$(d, '.tourn')[0];
+    const el = row && row.querySelector('.rpay');
+    return { paid: el ? el.textContent : null, row, d, dom };
+  };
+
+  {
+    const { paid } = await paidOn(STANDARD, { perWin: 1 });
+    ok('the child’s standard outranks what the feed suggests', paid === '$20', paid);
+  }
+  {
+    const { paid } = await paidOn(null, { perWin: 1 });
+    ok('but the suggestion still pays where the child has no standard',
+       paid === '$4', paid);
+  }
+  {
+    // the bug: any object at all used to count as a scheme and swallow the rest
+    const { paid } = await paidOn(STANDARD, { note: '' });
+    ok('an empty suggestion does not stop the standard paying', paid === '$20', paid);
+  }
+  {
+    const { paid, row } = await paidOn(STANDARD, undefined);
+    ok('no suggestion at all is the same story', paid === '$20', paid);
+    ok('and a feed row is never badged as an exception',
+       !row.querySelector('.trewbtn').classList.contains('set'));
+  }
+  {
+    // an exception set here still beats both
+    const dom = bootBoth(STANDARD, { perWin: 1 });
+    const d = dom.window.document;
+    await settle();
+    click(dom, $(d, '#nav-matches'));
+    click(dom, $$(d, '.tourn')[0].querySelector('.trewbtn'));
+    ok('the dialog opens on the suggestion, ready to accept',
+       $(d, '#r-win').value === '1', $(d, '#r-win').value);
+    input(dom, $(d, '#r-win'), '9');
+    click(dom, $(d, '#r-ok'));
+    ok('an exception set here beats the standard and the suggestion both',
+       $$(d, '.tourn')[0].querySelector('.rpay').textContent === '$36',
+       $$(d, '.tourn')[0].querySelector('.rpay').textContent);
+    ok('and only then is the row badged',
+       $$(d, '.tourn')[0].querySelector('.trewbtn').classList.contains('set'));
+  }
+  {
+    // the new buttons name what they act on
+    const { d } = await paidOn(STANDARD, undefined);
+    ok('the standard’s button names the child',
+       $(d, '[data-rewkid]').getAttribute('aria-label') === 'Edit Ian rewards',
+       $(d, '[data-rewkid]').getAttribute('aria-label'));
+    ok('and a row’s button names the tournament',
+       $(d, '.trewbtn').getAttribute('aria-label') === 'Rewards for U10 Red Ball Feed Event',
+       $(d, '.trewbtn').getAttribute('aria-label'));
+  }
+}
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('failed: ' + failures.join(' | ')); process.exit(1); }

@@ -406,13 +406,13 @@ Two suites. `api.test.mjs` drives `api/plan.js` directly with a stubbed store �
 backend choice, key validation, the 409 refusal and the forced write, bodies
 that are not plans, junk in the store, and an unreachable one.
 
-The rest is 530 assertions driving the real page under jsdom: cold boot, the v1.0.0
+The rest is 540 assertions driving the real page under jsdom: cold boot, the v1.0.0
 migration, state round-trips, thirteen kinds of corrupt saved state, block
 create/rename/switch/delete, variable length and its clamps, calendar alignment
 for different start weekdays, the load checks, a timezone regression, view
 switching, kids, tournament add/delete, the entry-status cycle, the reward
-schemes — per child, per tournament, and the order they resolve in — the payout
-arithmetic behind them, and the season checks.
+schemes — per child, per tournament, a feed's suggestion, and the order the
+three resolve in — the payout arithmetic behind them, and the season checks.
 
 Sync is covered by a fake server that honours the same contract as the real
 endpoint — joining, the debounced push, both sides of a conflict, and being
