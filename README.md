@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.7.0** · [Changelog](CHANGELOG.md)
+**Version 2.8.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in three parts:
 
@@ -84,13 +84,21 @@ tests/                          jsdom harness + api tests — dev only, never de
   but not into every event they are technically old enough for. A child with a
   status recorded is always shown regardless, and a child with no birth year is
   shown everywhere.
-- **Show filter** — Everyone, or one child — appears once you have two kids.
+- **A tab per child** at the top of the view, plus **Everyone**, once you have
+  two kids. A child's tab scopes the whole view to them: their tournaments,
+  their rewards, their money, their checks. The row still shows who else is
+  playing, because that is a fact about the event.
+- **Everyone changes nothing.** It is the whole season, read only — no adding a
+  child or a tournament, no importing, no rewards, no entry clicks, no results.
+  Every edit belongs to whichever child it is about, so it is made on that
+  child's tab. With one child there is no strip and nothing is taken away.
 - **Tournaments** — name, dates, venue, categories and entry deadline, grouped
   by month. Past ones dim.
 - **Who's going** — one button per child per tournament, cycling
   planned → entered → confirmed → skipping → not going.
-- **Rewards** — what a tournament pays, and what each child actually earned
-  there. See below.
+- **Rewards** — what each child plays for, and what they actually earned, kept
+  per child rather than pooled. Set once per child; a single tournament can pay
+  differently. See below.
 - **Season checks** — an entry deadline inside 21 days that nobody has committed
   to, the same child booked into two overlapping tournaments, provisional dates,
   the longest clear gap between tournaments as the window to book travel, a
@@ -101,8 +109,9 @@ tests/                          jsdom harness + api tests — dev only, never de
 
 ### Rewards
 
-Every tournament can carry a reward scheme — press **Rewards** on its row. Four
-lines, any of which can be left blank:
+The bargain is with the child, not with any one draw, so it is set once per
+child in the **Rewards** box at the top of the tournaments view. Five lines, any
+of which can be left blank:
 
 | Line | Pays |
 | --- | --- |
@@ -111,10 +120,21 @@ lines, any of which can be left blank:
 | Beat last | that much for winning more matches than last time |
 | Format | free text, e.g. *Red ball, played in group* — shown, never paid |
 
-Once a scheme is set, each child who is **entered** or **confirmed** gets a
-**Wins** and **Place** box under the tournament, and the page adds the payout up
-in front of them: *$55 · 4 wins $20 · 2nd $30 · beat 3 $5*. The sum is always
-shown in full, so a child can see how the number was reached.
+That standard then applies everywhere, and **no tournament repeats it**. A row
+shows a rewards line only when that event pays something different, badged
+**Only here**. Press **Rewards** on a row to make one an exception; press **Use
+standard** in that dialog to drop the exception again. Saving an exception with
+every line blank is how you say *this one pays nothing*.
+
+Schemes resolve in one order, most specific first:
+
+    tournament exception  →  the child's standard  →  a data/matches.json suggestion
+
+Each child who is **entered** or **confirmed** on a paying tournament gets a
+**Wins** and **Place** box under it, and the page adds the payout up in front of
+them: *$55 · 4 wins $20 · 2nd $30 · beat 3 $5*. The sum is always shown in full,
+so a child can see how the number was reached. Two children on the same draw are
+each paid their own way.
 
 "Beat last" measures against that child's most recent *earlier* tournament with
 a win count recorded — not simply the previous tournament, which they may not
@@ -122,9 +142,8 @@ have played. With nothing earlier on file there is nothing to beat, so the bonus
 does not pay. This is the reason results are stored at all.
 
 Nought wins is a real result and is kept as one; an empty box means *not yet
-entered*, which is what the season check chases after a tournament has finished.
-A scheme belongs to the tournament, so it works on an imported STA event too,
-which is read-only in every other respect.
+entered*, which is what the season check chases after a tournament has
+finished.
 
 ### Importing the STA calendar
 
@@ -177,8 +196,9 @@ Two places, merged:
   `categories`, `entryDeadline`, `url`, `source` (`sta` / `jttl` / `manual`),
   `provisional`, `note` and `rewards` are optional. A `provisional: true` entry
   is badged as an estimate, and its `note` explains why. A `rewards` object
-  (`perWin`, `places`, `improve`, `note`) is a *suggestion*: whatever the user
-  sets in the browser wins, including clearing it.
+  (`perWin`, `places`, `improve`, `note`) is the weakest suggestion there is: a
+  tournament exception set in the browser beats it, and so does the child's own
+  standard.
 
 See `findings.md` for the full trace of what each source does and does not
 expose.
@@ -394,12 +414,13 @@ Two suites. `api.test.mjs` drives `api/plan.js` directly with a stubbed store �
 backend choice, key validation, the 409 refusal and the forced write, bodies
 that are not plans, junk in the store, and an unreachable one.
 
-The rest is 502 assertions driving the real page under jsdom: cold boot, the v1.0.0
+The rest is 589 assertions driving the real page under jsdom: cold boot, the v1.0.0
 migration, state round-trips, thirteen kinds of corrupt saved state, block
 create/rename/switch/delete, variable length and its clamps, calendar alignment
 for different start weekdays, the load checks, a timezone regression, view
 switching, kids, tournament add/delete, the entry-status cycle, the reward
-schemes and the payout arithmetic behind them, and the season checks.
+schemes — per child, per tournament, a feed's suggestion, and the order the
+three resolve in — the payout arithmetic behind them, and the season checks.
 
 Sync is covered by a fake server that honours the same contract as the real
 endpoint — joining, the debounced push, both sides of a conflict, and being

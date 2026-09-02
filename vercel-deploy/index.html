@@ -28,6 +28,9 @@
   --bad:#D9603F;
 }
 *{box-sizing:border-box}
+/* The attribute must win. A class with its own `display` beats bare [hidden],
+   which left the add-kid row on screen while it was marked hidden. */
+[hidden]{display:none !important}
 html,body{margin:0;padding:0}
 body{
   background:var(--court);
@@ -421,6 +424,29 @@ input[type=number]#days{width:74px}
   color:var(--mute);margin-left:9px;letter-spacing:.04em;vertical-align:3px;
 }
 .navbtn.on .ct{color:var(--ball)}
+/* A tab per child, under the tournaments tab. Smaller than the view tabs above
+   them so the hierarchy reads: which view, then whose season. */
+.whotabs{
+  display:flex;flex-wrap:wrap;gap:2px;align-items:flex-end;
+  border-bottom:1px solid var(--hair);margin-bottom:20px;
+}
+.whotab{
+  font-family:'Barlow Condensed',sans-serif;font-weight:500;
+  font-size:16px;letter-spacing:.09em;text-transform:uppercase;
+  background:transparent;color:var(--mute);
+  border:none;border-bottom:3px solid transparent;border-radius:3px 3px 0 0;
+  padding:8px 16px;margin-bottom:-1px;cursor:pointer;
+  display:flex;align-items:center;gap:7px;
+  transition:color .15s,border-color .15s,background .15s;
+}
+.whotab:hover{background:rgba(255,255,255,.06);color:var(--court-line)}
+.whotab.on{color:var(--court-line);border-bottom-color:var(--c,var(--ball));background:rgba(255,255,255,.05)}
+.whotab .whodot{width:8px;height:8px;border-radius:50%;background:var(--c);display:block;opacity:.55}
+.whotab.on .whodot{opacity:1}
+.whotab .ct{
+  font-family:'Karla',sans-serif;font-size:11.5px;font-weight:700;
+  color:var(--mute);letter-spacing:.04em;
+}
 .view{display:none}
 .view.on{display:block}
 
@@ -554,13 +580,32 @@ input[type=number]#days{width:74px}
 .join.s-confirmed{border-color:var(--ok);background:rgba(79,169,124,.18);color:#9BD7B7}
 .join.s-confirmed .pip{opacity:1;background:var(--ok)}
 .join.s-skipped{opacity:.45;text-decoration:line-through}
+/* Locked, not unavailable: the status still has to read at a glance. */
+.join:disabled{cursor:default;opacity:1}
+.join.s-skipped:disabled{opacity:.45}
 .tdel{
   border:none;background:transparent;color:var(--mute);
   font-size:15px;padding:3px 7px;border-radius:3px;cursor:pointer;
 }
 .tdel:hover{background:rgba(217,96,63,.25);color:#fff}
 /* ---------- rewards ---------- */
+/* The standard scheme is a list, not chips: the line is long enough that a row
+   each reads better than a wrapping strip. */
+.rewrow{display:flex;flex-direction:column;gap:9px}
+.rewkid{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+  border-left:4px solid var(--c);padding:4px 0 4px 12px;
+}
+.rewkid .rknm{font-weight:700;font-size:13px;min-width:82px}
+.rewkid .rkline{font-size:12px;color:var(--ball)}
+.rewkid .rknone{font-size:12px;color:var(--mute);font-style:italic}
+.rewkid button{margin-left:auto;font-size:12px;padding:4px 9px}
 .tourn .trew{font-size:12px;color:var(--ball);margin-top:4px}
+.tourn .trew .only{
+  font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+  border:1px solid var(--hair);border-radius:2px;padding:1px 5px;margin-right:7px;
+  color:var(--mute);vertical-align:1px;
+}
 .trewbtn{
   border:1px solid var(--hair);border-radius:3px;background:transparent;
   color:var(--mute);font-size:12px;padding:5px 9px;cursor:pointer;
@@ -578,6 +623,13 @@ input[type=number]#days{width:74px}
 .res label{display:flex;align-items:center;gap:5px}
 .res input{width:58px;font-size:12px;padding:3px 6px}
 .res .rpay{color:var(--ball);font-weight:700}
+/* A locked value keeps the shape of the field it replaces, so a row does not
+   jump about as tabs change. */
+.res .rv{
+  color:var(--court-line);border-bottom:1px dotted var(--hair);
+  min-width:26px;display:inline-block;text-align:center;
+}
+.kid .kyrv{font-size:12px;color:var(--court-line);padding:3px 2px}
 .res .rtodo{color:var(--warn)}
 #rmodal .mrow .lab{min-width:82px}
 /* ---------- year calendar ---------- */
@@ -762,10 +814,13 @@ input[type=number]#days{width:74px}
 
 <section class="view" id="view-matches">
 
+  <div class="whotabs" id="whofilter"></div>
+  <p class="hint" id="wholock" hidden></p>
+
   <div class="kids">
     <h2>Kids</h2>
     <div class="kidrow" id="kidrow"></div>
-    <div class="kidrow" style="margin-top:11px">
+    <div class="kidrow" id="kidaddrow" style="margin-top:11px">
       <input type="text" id="kid-name" maxlength="24" placeholder="Name">
       <input type="number" id="kid-year" min="1990" max="2030" step="1" placeholder="Birth year">
       <button id="kid-add">Add kid</button>
@@ -775,7 +830,15 @@ input[type=number]#days{width:74px}
       planned &rarr; entered &rarr; confirmed &rarr; skipped &rarr; not going.</p>
   </div>
 
-  <div class="addbox">
+  <div class="kids" id="rewardsbox">
+    <h2>Rewards</h2>
+    <div class="rewrow" id="rewrow"></div>
+    <p class="hint">What each child plays for, at every tournament. One event can
+      pay something different &mdash; press <b>Rewards</b> on its row, and only that
+      row shows a line.</p>
+  </div>
+
+  <div class="addbox" id="importbox">
     <h2>Import from STA</h2>
     <div class="agerow" id="agerow"></div>
     <div class="linkrow" style="margin-top:12px">
@@ -785,7 +848,7 @@ input[type=number]#days{width:74px}
     <p class="hint" id="impnote">Pulls the whole STA tournament list and keeps what the ticked children can enter.</p>
   </div>
 
-  <div class="addbox">
+  <div class="addbox" id="addbox">
     <h2>Add a tournament</h2>
     <div class="linkrow">
       <div class="fld" style="flex:1">
@@ -806,8 +869,6 @@ input[type=number]#days{width:74px}
     <div class="addrow"><button id="t-add">Add tournament</button></div>
     <p class="hint" id="feednote"></p>
   </div>
-
-  <div class="agerow" id="whofilter" style="margin-bottom:14px"></div>
 
   <div id="tournlist"></div>
 
@@ -886,8 +947,7 @@ input[type=number]#days{width:74px}
       <input type="number" id="r-imp" min="0" max="10000" step="1" placeholder="5"></div>
     <div class="mrow"><label class="lab" for="r-note">Format</label>
       <input type="text" id="r-note" maxlength="80" placeholder="Red ball, played in group"></div>
-    <p class="hint" id="r-hint">Leave a line blank to drop it. &ldquo;Beat last&rdquo; pays out when the
-      child wins more matches here than at their previous tournament.</p>
+    <p class="hint" id="r-hint"></p>
     <div class="mfoot">
       <button type="button" id="r-clear">Clear</button>
       <button type="button" id="r-cancel">Cancel</button>
@@ -1192,7 +1252,8 @@ function sanitiseState(raw, allowEmptyBlocks){
     .map((p,i) => ({id:p.id, name:p.name.slice(0,24),
                     birthYear: (Number.isInteger(p.birthYear) && p.birthYear >= 1990 && p.birthYear <= 2030)
                                ? p.birthYear : null,
-                    colour: /^#[0-9a-f]{6}$/i.test(p.colour) ? p.colour : KID_COLOURS[i % KID_COLOURS.length]}));
+                    colour: /^#[0-9a-f]{6}$/i.test(p.colour) ? p.colour : KID_COLOURS[i % KID_COLOURS.length],
+                    rewards: normRewards(p.rewards)}));
 
   // Locally held matches keep whichever source they came from — an imported STA
   // tournament must not lose its badge just because we store it alongside the
@@ -1401,16 +1462,31 @@ function commitDialog(){
   if(e && done) done(e);
 }
 
-/* The rewards dialog. Its own modal rather than a mode of the placement one:
-   they share nothing but a backdrop. */
-let rewardTarget = null;   // match id being edited; null when the dialog is shut
+/* The rewards dialog. One dialog, two things to edit: a child's standard, or
+   the one tournament that pays differently. Its own modal rather than a mode of
+   the placement one — they share nothing but a backdrop. */
+let rewardTarget = null;   // {kind:'kid'|'match', id}; null when the dialog is shut
 
-function openRewards(id){
-  const m = allMatches().find(x => x.id === id);
-  if(!m) return;
-  rewardTarget = id;
-  const r = rewardsFor(m) || {perWin:0, places:[], improve:0, note:''};
-  document.getElementById('r-title').textContent = 'Rewards — ' + m.name;
+function openRewards(kind, id){
+  const subject = kind === 'kid'
+    ? state.players.find(x => x.id === id)
+    : allMatches().find(x => x.id === id);
+  if(!subject) return;
+  rewardTarget = {kind, id};
+  // On a tournament with no exception of its own, the feed's suggestion is
+  // what to open on: accepting it is then one press of Save.
+  const r = (kind === 'kid' ? kidScheme(subject)
+                            : matchScheme(subject) || feedScheme(subject))
+            || {perWin:0, places:[], improve:0, note:''};
+  document.getElementById('r-title').textContent =
+    (kind === 'kid' ? 'Rewards — ' : 'Rewards, only here — ') + (subject.name || '');
+  document.getElementById('r-clear').textContent =
+    kind === 'kid' ? 'Clear' : 'Use standard';
+  document.getElementById('r-hint').textContent = kind === 'kid'
+    ? 'What this child plays for at every tournament. Leave a line blank to drop it. ' +
+      '“Beat last” pays out when they win more matches than at their previous tournament.'
+    : 'This tournament only. Save it with every line blank to say it pays nothing, ' +
+      'or press Use standard to go back to what the child normally plays for.';
   const put = (el, v) => { document.getElementById(el).value = v ? v : ''; };
   put('r-win', r.perWin);
   put('r-p1', r.places[0]);
@@ -1426,21 +1502,34 @@ function closeRewards(){
   rewardTarget = null;
 }
 function commitRewards(){
-  if(!rewardTarget) return;
+  if(!rewardTarget || viewLocked()) return;
   const v = id => document.getElementById(id).value;
-  state.rewards[rewardTarget] = normRewards({
+  const r = normRewards({
     perWin: v('r-win'),
     places: [v('r-p1'), v('r-p2'), v('r-p3')],
     improve: v('r-imp'),
     note: v('r-note')
   });
+  if(rewardTarget.kind === 'kid'){
+    const p = state.players.find(x => x.id === rewardTarget.id);
+    if(p) p.rewards = r;
+  } else {
+    // Kept even when empty: on a tournament, empty is the user saying it pays
+    // nothing, which has to beat the standard.
+    state.rewards[rewardTarget.id] = r;
+  }
   closeRewards(); render(); save();
 }
-// Clearing stores an empty scheme rather than removing the key, so a scheme
-// the feed suggests does not spring back the moment it is cleared.
+// On a child this drops the scheme outright. On a tournament it drops only the
+// exception, putting the child's standard back.
 function clearRewards(){
-  if(!rewardTarget) return;
-  state.rewards[rewardTarget] = normRewards({});
+  if(!rewardTarget || viewLocked()) return;
+  if(rewardTarget.kind === 'kid'){
+    const p = state.players.find(x => x.id === rewardTarget.id);
+    if(p) p.rewards = null;
+  } else {
+    delete state.rewards[rewardTarget.id];
+  }
   closeRewards(); render(); save();
 }
 
@@ -1841,7 +1930,7 @@ function normaliseMatch(m){
     // does not say how much to trust it.
     note: typeof m.note === 'string' ? m.note : '',
     // A scheme the feed can suggest. What the user sets in the browser lives in
-    // state.rewards and wins — see rewardsFor().
+    // state.rewards and wins — see schemeFor().
     rewards: normRewards(m.rewards)
   };
 }
@@ -2075,17 +2164,42 @@ function renderAgeRow(){
     }));
 }
 
-/* ---- who-to-show filter above the tournament list ---- */
+/* ---- a tab per child, above the tournaments view ----
+   One child at a time is how a parent reads this page: whose entry is that,
+   whose money is that. Everyone stays first, because the travel window and the
+   clash checks are family-wide facts that cannot be worked out one child at a
+   time. With one child there is nothing to choose between, so no strip. */
 let whoFilter = null;   // null = everyone, otherwise a player id
+function whoShown(){
+  return state.players.find(p => p.id === whoFilter) || null;
+}
+// Everyone reads the whole season at once, and every edit on this page belongs
+// to whichever child it is about, so it changes nothing — it is the overview.
+// With one child there is no strip and nothing to choose between, so the view
+// stays as editable as it ever was.
+//
+// Every mutator on this page checks this, not only the buttons: hiding a
+// control stops a person, and stopping the write is what stops everything else.
+function viewLocked(){
+  return state.players.length >= 2 && whoFilter === null;
+}
+// The tournaments one child could enter — the same rule the list itself uses.
+function matchesFor(p){
+  return allMatches().filter(m => !p || kidOnMatch(p, m, Number(m.start.slice(0,4))));
+}
 function renderWhoFilter(){
   const row = document.getElementById('whofilter');
   if(state.players.length < 2){ row.innerHTML = ''; return; }
-  const chip = (id, label, colour) =>
-    `<label class="chk${whoFilter === id ? ' on' : ''}" data-who="${id === null ? '' : id}">` +
-    (colour ? `<i class="whodot" style="--c:${colour}"></i>` : '') + escapeHtml(label) + '</label>';
-  row.innerHTML = '<span class="wholab">Show</span>' + chip(null, 'Everyone', null) +
-    state.players.map(p => chip(p.id, p.name, p.colour)).join('');
-  row.querySelectorAll('label[data-who]').forEach(el=>
+  const tab = (id, label, colour) => {
+    const n = matchesFor(state.players.find(p => p.id === id) || null).length;
+    return `<button class="whotab${whoFilter === id ? ' on' : ''}"` +
+      (colour ? ` style="--c:${colour}"` : '') + ` data-who="${id === null ? '' : id}">` +
+      (colour ? '<i class="whodot"></i>' : '') + escapeHtml(label) +
+      (n ? `<span class="ct">${n}</span>` : '') + '</button>';
+  };
+  row.innerHTML = tab(null, 'Everyone', null) +
+    state.players.map(p => tab(p.id, p.name, p.colour)).join('');
+  row.querySelectorAll('button[data-who]').forEach(el=>
     el.addEventListener('click', ()=>{
       whoFilter = el.dataset.who || null;
       render();
@@ -2148,6 +2262,7 @@ async function importFromSta(){
 
 /* ---- players ---- */
 function addPlayer(name, birthYear){
+  if(viewLocked()) return false;
   const n = (name || '').trim();
   if(!n) return false;
   const y = parseInt(birthYear, 10);
@@ -2160,6 +2275,7 @@ function addPlayer(name, birthYear){
   return true;
 }
 function setPlayerYear(id, value){
+  if(viewLocked()) return;
   const p = state.players.find(x => x.id === id);
   if(!p) return;
   const y = parseInt(value, 10);
@@ -2167,6 +2283,7 @@ function setPlayerYear(id, value){
   render(); save();
 }
 function removePlayer(id){
+  if(viewLocked()) return;
   const p = state.players.find(x=>x.id===id);
   if(p && !window.confirm(`Remove ${p.name}? Their tournament entries go too.`)) return;
   state.players = state.players.filter(x=>x.id !== id);
@@ -2180,6 +2297,7 @@ function statusOf(matchId, playerId){
   return e ? e.status : null;
 }
 function cycleEntry(matchId, playerId){
+  if(viewLocked()) return;
   const i = state.entries.findIndex(x=>x.matchId===matchId && x.playerId===playerId);
   if(i < 0){
     state.entries.push({matchId, playerId, status:'planned'});
@@ -2221,12 +2339,31 @@ function normRewards(r){
 function hasRewards(r){
   return !!r && (r.perWin > 0 || r.improve > 0 || r.places.some(v => v > 0) || !!r.note);
 }
+// A scheme is normally the child's, because the bargain is with the child and
+// not with any one draw. A tournament only carries its own when it pays
+// something different, and then it says so on the row.
+//
 // An empty scheme set by hand is not the same as no scheme: it is the user
-// saying "nothing here", and it has to beat whatever the feed suggested.
-function rewardsFor(m){
+// saying "this one pays nothing", so it is kept and it beats the child's
+// standard rather than falling through to it.
+function matchScheme(m){
   const own = state.rewards || {};
-  if(Object.prototype.hasOwnProperty.call(own, m.id)) return own[m.id];
-  return m.rewards || null;
+  return Object.prototype.hasOwnProperty.call(own, m.id) ? own[m.id] : null;
+}
+function kidScheme(p){
+  return p && hasRewards(p.rewards) ? p.rewards : null;
+}
+// The weakest tier there is. A file committed alongside the site must not
+// quietly outbid a figure the parent set on the child, so it stands in only
+// where that child has no standard — and an empty one stands in for nothing,
+// or a stray `"rewards": {}` would stop a child being paid with nothing on
+// screen to say why.
+function feedScheme(m){
+  return hasRewards(m.rewards) ? m.rewards : null;
+}
+// What this child is actually playing for here.
+function schemeFor(m, p){
+  return matchScheme(m) || kidScheme(p) || feedScheme(m);
 }
 function rewardsLine(r){
   const bits = [];
@@ -2247,6 +2384,7 @@ function resultOf(matchId, playerId){
 // up if there is not one. A blank or silly number clears the field rather than
 // being coerced — better an empty box than a wrong figure.
 function setResult(matchId, playerId, field, raw){
+  if(viewLocked()) return;
   let e = state.entries.find(x => x.matchId === matchId && x.playerId === playerId);
   if(!e){ e = {matchId, playerId, status:'confirmed'}; state.entries.push(e); }
   const v = parseInt(raw, 10);
@@ -2270,7 +2408,7 @@ function prevWins(m, playerId){
 // null when there is nothing to work from; otherwise a total and the sum shown
 // in full, because a child should be able to see how the number was reached.
 function payout(m, p){
-  const r = rewardsFor(m);
+  const r = schemeFor(m, p);
   const res = resultOf(m.id, p.id);
   if(!hasRewards(r) || !res || (res.wins === null && res.place === null)) return null;
   const parts = [];
@@ -2297,6 +2435,7 @@ function payout(m, p){
 
 /* ---- manual tournaments ---- */
 function addTournament(){
+  if(viewLocked()) return false;
   const g = id => document.getElementById(id).value.trim();
   const name = g('t-name'), start = g('t-start');
   if(!name || !/^\d{4}-\d{2}-\d{2}$/.test(start)){
@@ -2317,6 +2456,7 @@ function addTournament(){
   return true;
 }
 function removeTournament(id){
+  if(viewLocked()) return;
   const m = (state.manualMatches || []).find(x=>x.id===id);
   if(m && !window.confirm(`Delete “${m.name}”?`)) return;
   state.manualMatches = state.manualMatches.filter(x=>x.id !== id);
@@ -2349,19 +2489,51 @@ function blockCovering(m){
 /* ---- render part 2 ---- */
 function renderMatches(){
   const thisYear = new Date().getFullYear();
+  const locked = viewLocked();
   const kidrow = document.getElementById('kidrow');
   kidrow.innerHTML = state.players.map(p=>{
     const grp = primaryGroup(p, thisYear);
     return `<span class="kid" style="--c:${p.colour}"><span class="knm">${escapeHtml(p.name)}</span>` +
-      `<input class="kyr" type="number" min="1990" max="2030" step="1" data-kid="${p.id}"` +
-      ` value="${p.birthYear || ''}" placeholder="year" aria-label="${escapeHtml(p.name)} birth year">` +
+      (locked
+        ? `<span class="kyrv">${p.birthYear || '—'}</span>`
+        : `<input class="kyr" type="number" min="1990" max="2030" step="1" data-kid="${p.id}"` +
+          ` value="${p.birthYear || ''}" placeholder="year" aria-label="${escapeHtml(p.name)} birth year">`) +
       `<span class="kgrp">${grp ? escapeHtml(groupLabel(grp)) : 'no age group'}</span>` +
-      `<button class="kx" data-kid="${p.id}" aria-label="Remove ${escapeHtml(p.name)}">&times;</button></span>`;
+      (locked ? ''
+              : `<button class="kx" data-kid="${p.id}" aria-label="Remove ${escapeHtml(p.name)}">&times;</button>`) +
+      '</span>';
   }).join('') || '<span class="hint" style="margin:0">No kids yet — add one to start tracking entries.</span>';
   kidrow.querySelectorAll('.kx').forEach(btn=>
     btn.addEventListener('click', ()=>removePlayer(btn.dataset.kid)));
   kidrow.querySelectorAll('.kyr').forEach(inp=>
     inp.addEventListener('change', ()=>setPlayerYear(inp.dataset.kid, inp.value)));
+
+  // On a child's tab, their rewards are the only ones worth showing.
+  const rewrow = document.getElementById('rewrow');
+  const rewkids = whoShown() ? [whoShown()] : state.players;
+  rewrow.innerHTML = rewkids.map(p=>{
+    const r = kidScheme(p);
+    return `<div class="rewkid" style="--c:${p.colour}"><span class="rknm">${escapeHtml(p.name)}</span>` +
+      (r ? `<span class="rkline">${escapeHtml(rewardsLine(r))}</span>`
+         : '<span class="rknone">nothing set — every tournament pays nothing</span>') +
+      (locked ? ''
+              : `<button data-rewkid="${p.id}" aria-label="${r ? 'Edit' : 'Set'} ${escapeHtml(p.name)} rewards"` +
+                `>${r ? 'Edit' : 'Set rewards'}</button>`) +
+      '</div>';
+  }).join('') || '<span class="hint" style="margin:0">Add a child above and you can say what they play for.</span>';
+
+  // The setup boxes are not any one child's, but they are still changes, and
+  // Everyone makes none.
+  document.getElementById('kidaddrow').hidden = locked;
+  document.getElementById('importbox').hidden = locked;
+  document.getElementById('addbox').hidden = locked;
+  const lock = document.getElementById('wholock');
+  lock.hidden = !locked;
+  if(locked) lock.textContent =
+    'Everyone is the whole season, read only. Pick a child above to change anything — ' +
+    'their entries, their rewards, their results.';
+  rewrow.querySelectorAll('[data-rewkid]').forEach(btn=>
+    btn.addEventListener('click', ()=>openRewards('kid', btn.dataset.rewkid)));
 
   document.getElementById('feednote').textContent = feedNote ||
     'No data/matches.json yet — tournaments added here are stored in this browser.';
@@ -2371,16 +2543,17 @@ function renderMatches(){
   renderWhoFilter();
 
   const list = document.getElementById('tournlist');
-  const who = state.players.find(p => p.id === whoFilter) || null;
-  const ms = allMatches().filter(m =>
-    !who || kidOnMatch(who, m, Number(m.start.slice(0,4))));
+  const who = whoShown();
+  const ms = matchesFor(who);
   // Anything we hold locally can be deleted, however it got here. Only the
   // generated feed is read-only.
   const editable = new Set((state.manualMatches || []).map(m=>m.id));
   document.getElementById('nav-ct').textContent = ms.length ? ms.length : '';
 
   if(!ms.length){
-    list.innerHTML = '<div class="empty">No tournaments yet. Import from STA above, paste a tournament link, or add one by hand.</div>';
+    list.innerHTML = `<div class="empty">${locked
+      ? 'No tournaments yet. Pick a child above to add one.'
+      : 'No tournaments yet. Import from STA above, paste a tournament link, or add one by hand.'}</div>`;
     runSeasonChecks(ms);
     return;
   }
@@ -2409,21 +2582,26 @@ function renderMatches(){
     if(m.url) meta.push(`<a class="tlink" href="${escapeHtml(m.url)}" target="_blank" rel="noopener noreferrer">Tournament page</a>`);
     if(m.note) meta.push(`<span class="tnote">${escapeHtml(m.note)}</span>`);
 
-    const rw = rewardsFor(m);
-    const paying = hasRewards(rw);
+    // A line on the row means this tournament pays something other than the
+    // standard. Where it pays the standard there is nothing worth repeating.
+    const own = matchScheme(m);
+    const differs = hasRewards(own);
 
     // Only kids who are in it get a result box: a tournament nobody entered has
     // no result to record, and every kid the age filter allows would be noise.
-    const played = paying
-      ? state.players.filter(p => ['entered','confirmed'].includes(statusOf(m.id, p.id)))
-      : [];
+    // On a child's tab it is their money alone — the buttons above still say who
+    // else is playing, because that is a fact about the event rather than about
+    // whose season is being read.
+    const played = (whoShown() ? [whoShown()] : state.players).filter(p =>
+      ['entered','confirmed'].includes(statusOf(m.id, p.id)) && hasRewards(schemeFor(m, p)));
     const results = played.map(p=>{
       const res = resultOf(m.id, p.id) || {wins:null, place:null};
       const pay = payout(m, p);
-      const box = (cls, field, val, lo, hi, lab) =>
-        `<label>${lab} <input type="number" class="${cls}" min="${lo}" max="${hi}" step="1"` +
-        ` data-m="${m.id}" data-p="${p.id}" value="${val === null ? '' : val}"` +
-        ` aria-label="${escapeHtml(p.name)} ${field} at ${escapeHtml(m.name)}"></label>`;
+      const box = (cls, field, val, lo, hi, lab) => locked
+        ? `<span>${lab} <span class="rv">${val === null ? '—' : val}</span></span>`
+        : `<label>${lab} <input type="number" class="${cls}" min="${lo}" max="${hi}" step="1"` +
+          ` data-m="${m.id}" data-p="${p.id}" value="${val === null ? '' : val}"` +
+          ` aria-label="${escapeHtml(p.name)} ${field} at ${escapeHtml(m.name)}"></label>`;
       const sum = pay
         ? `<span class="rpay">${money(pay.total)}</span>` +
           (pay.parts.length ? `<span class="rwhy">${escapeHtml(pay.parts.join(' · '))}</span>` : '')
@@ -2436,29 +2614,33 @@ function renderMatches(){
     const mYear = Number(m.start.slice(0,4));
     const joins = state.players.filter(p => kidOnMatch(p, m, mYear)).map(p=>{
       const st = statusOf(m.id, p.id);
-      return `<button class="join${st ? ' s-'+st : ''}" data-m="${m.id}" data-p="${p.id}" style="--c:${p.colour}">` +
-             `<span class="pip"></span>${escapeHtml(p.name)}${st ? ' · ' + STATUS_LABEL[st] : ''}</button>`;
+      return `<button class="join${st ? ' s-'+st : ''}" data-m="${m.id}" data-p="${p.id}" style="--c:${p.colour}"` +
+             `${locked ? ' disabled' : ''}><span class="pip"></span>` +
+             `${escapeHtml(p.name)}${st ? ' · ' + STATUS_LABEL[st] : ''}</button>`;
     }).join('') || '<span class="nokid">no age match</span>';
 
     html += `<div class="tourn${soon?' soon':''}${past?' past':''}">
       <div class="tdate">${spanLabel(m)}<small>${DOW[d.getDay()]}</small></div>
       <div><div class="tnm">${bits.join('')}${escapeHtml(m.name)}</div>
         ${meta.length ? `<div class="tmeta">${meta.join(' · ')}</div>` : ''}
-        ${paying ? `<div class="trew">${escapeHtml(rewardsLine(rw))}</div>` : ''}</div>
-      <div class="joins">${joins}<button class="trewbtn${paying?' set':''}" data-rew="${m.id}"
-        >${paying ? 'Rewards' : '+ Rewards'}</button>${editable.has(m.id)
+        ${differs ? `<div class="trew"><span class="only">Only here</span>${escapeHtml(rewardsLine(own))}</div>` : ''}</div>
+      <div class="joins">${joins}${locked ? '' :
+        `<button class="trewbtn${differs?' set':''}" data-rew="${m.id}"
+          aria-label="Rewards for ${escapeHtml(m.name)}">Rewards</button>`}${!locked && editable.has(m.id)
         ? `<button class="tdel" data-del="${m.id}" aria-label="Delete">&times;</button>` : ''}</div>
       ${results ? `<div class="results">${results}</div>` : ''}
     </div>`;
   });
   list.innerHTML = html;
 
-  list.querySelectorAll('.join').forEach(btn=>
+  // Locked means no handler at all, not merely a disabled button: the attribute
+  // stops a real click, but nothing should be listening in the first place.
+  if(!locked) list.querySelectorAll('.join').forEach(btn=>
     btn.addEventListener('click', ()=>cycleEntry(btn.dataset.m, btn.dataset.p)));
   list.querySelectorAll('.tdel').forEach(btn=>
     btn.addEventListener('click', ()=>removeTournament(btn.dataset.del)));
   list.querySelectorAll('.trewbtn').forEach(btn=>
-    btn.addEventListener('click', ()=>openRewards(btn.dataset.rew)));
+    btn.addEventListener('click', ()=>openRewards('match', btn.dataset.rew)));
   list.querySelectorAll('.rwin').forEach(inp=>
     inp.addEventListener('change', ()=>setResult(inp.dataset.m, inp.dataset.p, 'wins', inp.value)));
   list.querySelectorAll('.rpl').forEach(inp=>
@@ -2471,6 +2653,11 @@ function runSeasonChecks(ms){
   const out = [];
   const today = todayIso();
   const upcoming = ms.filter(m => m.end >= today);
+  // The checks that walk the children are scoped to whoever's tab this is. The
+  // ones that read the list alone — the travel window, provisional dates —
+  // need no scoping: the list is already that child's, so the gap they report
+  // is the gap in that child's season.
+  const kids = whoShown() ? [whoShown()] : state.players;
 
   if(!state.players.length){
     out.push(['warn','No kids yet','Add a child above and you can track who is entered for what.']);
@@ -2484,7 +2671,7 @@ function runSeasonChecks(ms){
     if(!m.entryDeadline) return false;
     const d = daysBetween(today, m.entryDeadline);
     if(d < 0 || d > DEADLINE_WARN_DAYS) return false;
-    return state.players.some(p=>{
+    return kids.some(p=>{
       const st = statusOf(m.id, p.id);
       return st === 'planned' || st === null;
     });
@@ -2495,7 +2682,7 @@ function runSeasonChecks(ms){
 
   // the same child in two overlapping tournaments
   const clashes = [];
-  state.players.forEach(p=>{
+  kids.forEach(p=>{
     const committed = upcoming.filter(m=>['planned','entered','confirmed'].includes(statusOf(m.id, p.id)));
     for(let i=0;i<committed.length;i++)
       for(let j=i+1;j<committed.length;j++)
@@ -2521,8 +2708,9 @@ function runSeasonChecks(ms){
   // A finished tournament that pays and has no result on it is money nobody
   // has worked out yet, and the bonus rule needs the number for next time.
   const owed = [];
-  ms.filter(m => m.end < today && hasRewards(rewardsFor(m))).forEach(m=>{
-    state.players.forEach(p=>{
+  ms.filter(m => m.end < today).forEach(m=>{
+    kids.forEach(p=>{
+      if(!hasRewards(schemeFor(m, p))) return;
       if(!['entered','confirmed'].includes(statusOf(m.id, p.id))) return;
       const r = resultOf(m.id, p.id);
       if(!r || r.wins === null) owed.push(`${p.name} at ${m.name}`);
@@ -2531,13 +2719,19 @@ function runSeasonChecks(ms){
   if(owed.length) out.push(['warn','Results not in',
     owed.join('; ') + '. Add the wins and the final place to settle what is owed.']);
 
-  let earned = 0, counted = 0;
-  ms.forEach(m => state.players.forEach(p=>{
-    const pay = payout(m, p);
-    if(pay){ earned += pay.total; counted++; }
-  }));
-  if(counted) out.push(['ok','Rewards earned',
-    `${money(earned)} across ${counted} result${counted===1?'':'s'}.`]);
+  // Per child, never pooled. Two children's winnings added together is a number
+  // nobody settles up with — they are paid one at a time.
+  const purses = kids.map(p=>{
+    let total = 0, counted = 0;
+    ms.forEach(m=>{
+      const pay = payout(m, p);
+      if(pay){ total += pay.total; counted++; }
+    });
+    return {name:p.name, total, counted};
+  }).filter(x => x.counted);
+  if(purses.length) out.push(['ok','Rewards earned',
+    purses.map(x => `${x.name} ${money(x.total)} across ${x.counted} result${x.counted===1?'':'s'}`)
+          .join('; ') + '.']);
 
   if(!out.length && ms.length) out.push(['ok','Season looks clear',
     `${upcoming.length} tournament${upcoming.length===1?'':'s'} ahead, no deadline or clash problems.`]);

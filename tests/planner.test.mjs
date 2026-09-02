@@ -1391,6 +1391,10 @@ group('kids');
   ok('blank name is ignored', (addKid(dom, d, '   '), $$(d, '.kid').length === 2), $$(d, '.kid').length);
   ok('kids persist', saved(dom).players.length === 2);
 
+  // With two kids the view opens on Everyone, which changes nothing — the
+  // remove button is on a child's tab.
+  ok('no remove button on Everyone', !$(d, '.kid .kx'));
+  click(dom, $$(d, '#whofilter button[data-who]')[1]);
   dom.window.confirm = () => true;
   click(dom, $(d, '.kid .kx'));
   ok('removing a kid works', $$(d, '.kid').length === 1, $$(d, '.kid').length);
@@ -1436,8 +1440,11 @@ group('entry status per kid');
   const d = dom.window.document;
   click(dom, $(d, '#nav-matches'));
   addKid(dom, d, 'Mia');
+  addTourn(dom, d, { name: 'Champs', start: offset(60) });   // while still editable
   addKid(dom, d, 'Leo');
-  addTourn(dom, d, { name: 'Champs', start: offset(60) });
+  // A second child opens on Everyone, which changes nothing. The status cycle
+  // lives on a child's tab.
+  click(dom, $$(d, '#whofilter button[data-who]')[1]);
 
   ok('one join button per kid', $$(d, '.join').length === 2, $$(d, '.join').length);
   ok('no status initially', !$(d, '.join').className.includes('s-'));
@@ -1868,10 +1875,15 @@ group('per-kid eligibility');
   ok('birth years persist', saved(dom).players.map(p => p.birthYear).join(',') === `${Y - 9},${Y - 13}`,
      saved(dom).players.map(p => p.birthYear).join(','));
 
+  // Two children means the view opens on Everyone, which changes nothing —
+  // tournaments go in from a child's tab, and Everyone is where they are read.
+  const whoTabs = () => $$(d, '#whofilter button[data-who]');
+  click(dom, whoTabs()[1]);
   addTourn(dom, d, { name: 'STA SPEX U10 Red Competition', start: `${Y}-11-02`, cat: 'STA, Junior (U10)' });
   addTourn(dom, d, { name: 'ATF 14&U ActiveSG Cup', start: `${Y}-11-10`, cat: 'ATF, Junior' });
   addTourn(dom, d, { name: 'ATF 16&U ActiveSG Cup', start: `${Y}-11-18`, cat: 'ATF, Junior' });
   addTourn(dom, d, { name: 'Club Open Day', start: `${Y}-11-24` });
+  click(dom, whoTabs()[0]);
 
   ok('U10 event offers only the 9-year-old',
      kidsOn(rowNamed(d, 'U10 Red')).join(',') === 'Olivia', kidsOn(rowNamed(d, 'U10 Red')));
@@ -1913,37 +1925,40 @@ group('per-kid eligibility');
   ok('and the row says why', $(d3, '.tourn .nokid') !== null);
 }
 
-group('who filter');
+group('a tab per child');
 {
   const Y = new Date().getFullYear();
   const dom = boot();
   const d = dom.window.document;
   click(dom, $(d, '#nav-matches'));
-  ok('no filter shown with one kid or none', $(d, '#whofilter').textContent === '');
+  ok('no tab strip with one kid or none', $(d, '#whofilter').textContent === '');
 
   addKid(dom, d, 'Olivia', Y - 9);
-  ok('still no filter with a single kid', $(d, '#whofilter').textContent === '');
+  ok('still none with a single kid', $(d, '#whofilter').textContent === '');
 
   addKid(dom, d, 'Ian', Y - 13);
-  ok('filter appears with two kids', $$(d, '#whofilter label[data-who]').length === 3,
-     $$(d, '#whofilter label[data-who]').length);
+  ok('a tab each, plus Everyone, with two kids', $$(d, '#whofilter button[data-who]').length === 3,
+     $$(d, '#whofilter button[data-who]').length);
 
+  // added from a child's tab, because Everyone changes nothing
+  click(dom, $$(d, '#whofilter button[data-who]')[1]);
   addTourn(dom, d, { name: 'STA SPEX U10 Red', start: `${Y}-11-02`, cat: 'STA, Junior (U10)' });
   addTourn(dom, d, { name: 'ATF 16&U Cup', start: `${Y}-11-18`, cat: 'ATF, Junior' });
+  click(dom, $$(d, '#whofilter button[data-who]')[0]);
   ok('everyone sees both', $$(d, '.tourn').length === 2, $$(d, '.tourn').length);
 
-  const chips = $$(d, '#whofilter label[data-who]');
-  click(dom, chips[1]);   // Olivia
-  ok('filtering to the 9-year-old hides the 16&U event', $$(d, '.tourn').length === 1,
+  const tabs = $$(d, '#whofilter button[data-who]');
+  click(dom, tabs[1]);   // Olivia
+  ok('her tab hides the 16&U event', $$(d, '.tourn').length === 1,
      $$(d, '.tourn').length);
   ok('and keeps her U10 event', $(d, '.tourn').textContent.includes('U10 Red'));
 
-  click(dom, $$(d, '#whofilter label[data-who]')[2]);   // Ian
-  ok('filtering to the 13-year-old hides the U10 event', $$(d, '.tourn').length === 1,
+  click(dom, $$(d, '#whofilter button[data-who]')[2]);   // Ian
+  ok('his tab hides the U10 event', $$(d, '.tourn').length === 1,
      $$(d, '.tourn').length);
   ok('and keeps his 16&U event', $(d, '.tourn').textContent.includes('16&U'));
 
-  click(dom, $$(d, '#whofilter label[data-who]')[0]);   // Everyone
+  click(dom, $$(d, '#whofilter button[data-who]')[0]);   // Everyone
   ok('back to everyone shows both again', $$(d, '.tourn').length === 2, $$(d, '.tourn').length);
 }
 
@@ -2233,6 +2248,9 @@ group('year calendar');
     click(dom, $(d, '#nav-matches'));
     addKid(dom, d, 'Mia');
     addKid(dom, d, 'Leo');
+    // Everyone changes nothing with two kids, so this is all done on Mia's tab.
+    // Neither child has a birth year, so every tournament shows on either tab.
+    click(dom, $$(d, '#whofilter button[data-who]')[1]);
     addTourn(dom, d, { name: 'Both go', start: '2026-04-10' });
     addTourn(dom, d, { name: 'Only Mia', start: '2026-04-20' });
     addTourn(dom, d, { name: 'Nobody', start: '2026-04-25' });
@@ -2319,9 +2337,18 @@ group('tournament rewards');
   const rowNamed = (d, t) => $$(d, '.tourn').find(r => r.textContent.includes(t));
   const rewLine = (d, t) => {
     const el = rowNamed(d, t).querySelector('.trew');
+    return el ? el.textContent.replace('Only here', '') : '';
+  };
+  const isException = (d, t) => rowNamed(d, t).querySelector('.trewbtn').classList.contains('set');
+  const openRew = (dom, d, t) => click(dom, rowNamed(d, t).querySelector('.trewbtn'));
+  // the standard scheme, up in its own box
+  const kidRow = (d, kid) =>
+    [...$$(d, '.rewkid')].find(r => r.textContent.trim().startsWith(kid));
+  const kidLine = (d, kid) => {
+    const el = kidRow(d, kid).querySelector('.rkline');
     return el ? el.textContent : '';
   };
-  const openRew = (dom, d, t) => click(dom, rowNamed(d, t).querySelector('.trewbtn'));
+  const openKidRew = (dom, d, kid) => click(dom, kidRow(d, kid).querySelector('button'));
   const saveRew = (dom, d, o = {}) => {
     for (const [id, v] of Object.entries({
       'r-win': o.win, 'r-p1': o.p1, 'r-p2': o.p2,
@@ -2359,15 +2386,14 @@ group('tournament rewards');
 
   {
     const { dom, d } = setup();
-    ok('a tournament with no scheme offers to add one',
-       rowNamed(d, 'Series One').querySelector('.trewbtn').textContent.includes('+ Rewards'),
-       rowNamed(d, 'Series One').querySelector('.trewbtn').textContent);
+    ok('a tournament with no scheme of its own is not marked as an exception',
+       !isException(d, 'Series One'));
     ok('and shows no rewards line', rewLine(d, 'Series One') === '');
     ok('and no result boxes', !rowNamed(d, 'Series One').querySelector('.results'));
 
     openRew(dom, d, 'Series One');
-    ok('the dialog names the tournament',
-       $(d, '#r-title').textContent === 'Rewards — U10 Red Ball Series One',
+    ok('the dialog says it is for this tournament alone',
+       $(d, '#r-title').textContent === 'Rewards, only here — U10 Red Ball Series One',
        $(d, '#r-title').textContent);
     saveRew(dom, d, { win: 5, p1: 50, p2: 30, imp: 5, note: 'Red ball, played in group' });
 
@@ -2375,8 +2401,7 @@ group('tournament rewards');
        rewLine(d, 'Series One') ===
          '$5 a win · 1st $50 · 2nd $30 · $5 for beating last count · Red ball, played in group',
        rewLine(d, 'Series One'));
-    ok('the button now says the scheme is set',
-       rowNamed(d, 'Series One').querySelector('.trewbtn').classList.contains('set'));
+    ok('the row is now marked as an exception', isException(d, 'Series One'));
     ok('the scheme is saved under the match id',
        saved(dom).rewards[saved(dom).manualMatches.find(m => m.name.includes('One')).id].perWin === 5,
        JSON.stringify(saved(dom).rewards));
@@ -2469,8 +2494,7 @@ group('tournament rewards');
     openRew(dom, d, 'Series One');
     click(dom, $(d, '#r-clear'));
     ok('clear drops the line', rewLine(d, 'Series One') === '');
-    ok('and the button offers to add one again',
-       rowNamed(d, 'Series One').querySelector('.trewbtn').textContent.includes('+ Rewards'));
+    ok('and the row is no longer an exception', !isException(d, 'Series One'));
 
     openRew(dom, d, 'Series Two');
     saveRew(dom, d, { win: 5 });
@@ -2522,6 +2546,477 @@ group('tournament rewards');
     ok('a note is escaped, not rendered',
        !rowNamed(d3, 'Series One').querySelector('img') &&
        rewLine(d3, 'Series One').includes('<img'), rewLine(d3, 'Series One'));
+  }
+}
+
+group('rewards belong to the child');
+{
+  const Y = new Date().getFullYear();
+  const PAST = Y - 1;
+  const rowNamed = (d, t) => $$(d, '.tourn').find(r => r.textContent.includes(t));
+  const rewLine = (d, t) => {
+    const el = rowNamed(d, t).querySelector('.trew');
+    return el ? el.textContent.replace('Only here', '') : '';
+  };
+  const isException = (d, t) => rowNamed(d, t).querySelector('.trewbtn').classList.contains('set');
+  const kidRow = (d, kid) => $$(d, '.rewkid').find(r => r.textContent.trim().startsWith(kid));
+  const kidLine = (d, kid) => {
+    const el = kidRow(d, kid).querySelector('.rkline');
+    return el ? el.textContent : '';
+  };
+  const fillRew = (dom, d, o) => {
+    for (const [id, v] of Object.entries({
+      'r-win': o.win, 'r-p1': o.p1, 'r-p2': o.p2,
+      'r-p3': o.p3, 'r-imp': o.imp, 'r-note': o.note,
+    })) input(dom, $(d, '#' + id), v ?? '');
+    click(dom, $(d, '#r-ok'));
+  };
+  // Everyone changes nothing, so every edit below goes through a child's tab.
+  const tabTo = (dom, d, kid) => {
+    const t = $$(d, '#whofilter button[data-who]')
+      .find(b => b.textContent.trim().startsWith(kid));
+    if (t) click(dom, t);
+  };
+  const tabAll = (dom, d) => {
+    const t = $$(d, '#whofilter button[data-who]')[0];
+    if (t) click(dom, t);
+  };
+  const setKidRew = (dom, d, kid, o) => {
+    tabTo(dom, d, kid);
+    click(dom, kidRow(d, kid).querySelector('button'));
+    fillRew(dom, d, o);
+  };
+  const setMatchRew = (dom, d, t, o, kid) => {
+    tabTo(dom, d, kid || 'Ian');
+    click(dom, rowNamed(d, t).querySelector('.trewbtn'));
+    fillRew(dom, d, o);
+  };
+  const resRow = (d, t, kid) => {
+    const box = rowNamed(d, t).querySelector('.results');
+    return box ? [...box.querySelectorAll('.res')].find(r => r.textContent.trim().startsWith(kid)) : null;
+  };
+  const setRes = (dom, d, t, kid, field, v) => {
+    tabTo(dom, d, kid);
+    change(dom, resRow(d, t, kid).querySelector(field === 'wins' ? '.rwin' : '.rpl'), v);
+  };
+  const paid = (d, t, kid, dom2) => {
+    if (dom2) tabTo(dom2, d, kid);
+    const r = resRow(d, t, kid);
+    const el = r && r.querySelector('.rpay');
+    return el ? el.textContent : null;
+  };
+  const enter = (dom, d, t, i) => {
+    tabTo(dom, d, i === 0 ? 'Ian' : 'Olivia');
+    click(dom, [...rowNamed(d, t).querySelectorAll('.join')][i]);
+    click(dom, [...rowNamed(d, t).querySelectorAll('.join')][i]);
+  };
+  const setup = () => {
+    const dom = boot();
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    addKid(dom, d, 'Ian', Y - 9);
+    addKid(dom, d, 'Olivia', Y - 9);
+    // Everyone changes nothing with two kids, so the setup goes in on a tab
+    // and comes back to Everyone, which is where the view opens.
+    click(dom, $$(d, '#whofilter button[data-who]')[1]);
+    addTourn(dom, d, { name: 'U10 Red Ball Series One', start: `${PAST}-11-14` });
+    addTourn(dom, d, { name: 'U10 Red Ball Series Two', start: `${Y}-03-07` });
+    click(dom, $$(d, '#whofilter button[data-who]')[0]);
+    return { dom, d };
+  };
+
+  {
+    const { dom, d } = setup();
+    ok('every child gets a line in the rewards box', $$(d, '.rewkid').length === 2);
+    ok('and starts with nothing set',
+       kidRow(d, 'Ian').textContent.includes('nothing set'), kidRow(d, 'Ian').textContent);
+
+    setKidRew(dom, d, 'Ian',
+      { win: 5, p1: 50, p2: 30, imp: 5, note: 'Red ball, played in group' });
+    ok('the standard is listed once, up in the box',
+       kidLine(d, 'Ian') ===
+         '$5 a win · 1st $50 · 2nd $30 · $5 for beating last count · Red ball, played in group',
+       kidLine(d, 'Ian'));
+    ok('and is stored on the child, not on any tournament',
+       saved(dom).players[0].rewards.perWin === 5 &&
+       Object.keys(saved(dom).rewards).length === 0,
+       JSON.stringify(saved(dom).rewards));
+    ok('no tournament repeats it',
+       rewLine(d, 'Series One') === '' && rewLine(d, 'Series Two') === '');
+    ok('and none is marked an exception',
+       !isException(d, 'Series One') && !isException(d, 'Series Two'));
+    tabAll(dom, d);   // Everyone lists every child's standard side by side
+    ok('one child having a scheme does not give the other one',
+       kidRow(d, 'Olivia').textContent.includes('nothing set'), kidRow(d, 'Olivia').textContent);
+
+    // the standard is what pays
+    enter(dom, d, 'Series One', 0);          // Ian
+    enter(dom, d, 'Series One', 1);          // Olivia
+    tabTo(dom, d, 'Ian');
+    ok('the child with a standard gets result boxes', !!resRow(d, 'Series One', 'Ian'));
+    tabTo(dom, d, 'Olivia');   // on her own tab, so absence means she has no scheme
+    ok('the child without one does not', !resRow(d, 'Series One', 'Olivia'));
+    setRes(dom, d, 'Series One', 'Ian', 'wins', '3');
+    ok('and the standard is what pays out', paid(d, 'Series One', 'Ian') === '$15',
+       paid(d, 'Series One', 'Ian'));
+    ok('Everyone shows it too, just without a way to change it',
+       (tabAll(dom, d), resRow(d, 'Series One', 'Ian').textContent.includes('$15') &&
+        !resRow(d, 'Series One', 'Ian').querySelector('input')),
+       resRow(d, 'Series One', 'Ian').textContent);
+  }
+
+  {
+    // one tournament paying differently
+    const { dom, d } = setup();
+    setKidRew(dom, d, 'Ian', { win: 5, imp: 5 });
+    enter(dom, d, 'Series One', 0);
+    setRes(dom, d, 'Series One', 'Ian', 'wins', '3');
+    enter(dom, d, 'Series Two', 0);
+
+    setMatchRew(dom, d, 'Series Two', { win: 10 });
+    ok('an exception shows on its row only', rewLine(d, 'Series Two') === '$10 a win',
+       rewLine(d, 'Series Two'));
+    ok('and is badged as such', isException(d, 'Series Two'));
+    ok('the other tournament is untouched', rewLine(d, 'Series One') === '');
+    ok('the standard line is unchanged', kidLine(d, 'Ian') === '$5 a win · $5 for beating last count',
+       kidLine(d, 'Ian'));
+    setRes(dom, d, 'Series Two', 'Ian', 'wins', '4');
+    ok('the exception is what pays, bonus and all',
+       paid(d, 'Series Two', 'Ian') === '$40', paid(d, 'Series Two', 'Ian'));
+
+    // and back to the standard
+    click(dom, rowNamed(d, 'Series Two').querySelector('.trewbtn'));
+    ok('the button offers the standard back',
+       $(d, '#r-clear').textContent === 'Use standard', $(d, '#r-clear').textContent);
+    ok('and the dialog says it is for this tournament alone',
+       $(d, '#r-title').textContent.startsWith('Rewards, only here'), $(d, '#r-title').textContent);
+    click(dom, $(d, '#r-clear'));
+    ok('the exception goes', rewLine(d, 'Series Two') === '' && !isException(d, 'Series Two'));
+    ok('and the standard pays again, bonus included',
+       paid(d, 'Series Two', 'Ian') === '$25', paid(d, 'Series Two', 'Ian'));
+
+    // an empty exception means this one pays nothing
+    setMatchRew(dom, d, 'Series Two', {});
+    ok('an emptied tournament pays nothing at all', !resRow(d, 'Series Two', 'Ian'));
+    ok('and the standard still pays everywhere else',
+       paid(d, 'Series One', 'Ian') === '$15', paid(d, 'Series One', 'Ian'));
+  }
+
+  {
+    // clearing the standard, and what survives a reload
+    const { dom, d } = setup();
+    setKidRew(dom, d, 'Ian', { win: 5, p2: 30, note: 'Group stage' });
+    enter(dom, d, 'Series One', 0);
+    setRes(dom, d, 'Series One', 'Ian', 'wins', '6');
+
+    const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
+    const d2 = dom2.window.document;
+    click(dom2, $(d2, '#nav-matches'));
+    ok('the standard comes back', kidLine(d2, 'Ian') === '$5 a win · 2nd $30 · Group stage',
+       kidLine(d2, 'Ian'));
+    ok('and still pays', paid(d2, 'Series One', 'Ian') === '$30',
+       paid(d2, 'Series One', 'Ian'));
+
+    tabTo(dom2, d2, 'Ian');
+    click(dom2, kidRow(d2, 'Ian').querySelector('button'));
+    ok('a child’s own dialog offers a plain clear',
+       $(d2, '#r-clear').textContent === 'Clear', $(d2, '#r-clear').textContent);
+    click(dom2, $(d2, '#r-clear'));
+    ok('clearing the standard stops everything paying',
+       kidRow(d2, 'Ian').textContent.includes('nothing set') && !resRow(d2, 'Series One', 'Ian'),
+       kidRow(d2, 'Ian').textContent);
+  }
+
+  {
+    // two children, two bargains, on the same draw
+    const { dom, d } = setup();
+    setKidRew(dom, d, 'Ian', { win: 5 });
+    setKidRew(dom, d, 'Olivia', { win: 2, p1: 20 });
+    enter(dom, d, 'Series One', 0);
+    enter(dom, d, 'Series One', 1);
+    setRes(dom, d, 'Series One', 'Ian', 'wins', '4');
+    setRes(dom, d, 'Series One', 'Olivia', 'wins', '4');
+    setRes(dom, d, 'Series One', 'Olivia', 'place', '1');
+    tabAll(dom, d);   // Everyone is where both purses are read side by side
+    ok('each child is paid their own way',
+       paid(d, 'Series One', 'Ian') === '$20' && paid(d, 'Series One', 'Olivia') === '$28',
+       [paid(d, 'Series One', 'Ian'), paid(d, 'Series One', 'Olivia')].join(' / '));
+    ok('and the season total keeps the two purses apart',
+       $(d, '#mnotes').textContent.includes('Ian $20 across 1 result; Olivia $28 across 1 result'),
+       $(d, '#mnotes').textContent);
+    ok('the pooled figure is nowhere on the page',
+       !$(d, '#mnotes').textContent.includes('$48'), $(d, '#mnotes').textContent);
+  }
+
+  {
+    // rubbish on a child must not reach the page
+    const { dom } = setup();
+    const seed = saved(dom);
+    seed.players[0].rewards = { perWin: 'five', places: 'nope', improve: -1, note: {} };
+    const dom2 = boot({ [KEY]: JSON.stringify(seed) });
+    const d2 = dom2.window.document;
+    click(dom2, $(d2, '#nav-matches'));
+    ok('a broken standard reads as nothing set',
+       kidRow(d2, 'Ian').textContent.includes('nothing set'), kidRow(d2, 'Ian').textContent);
+  }
+}
+
+group('a suggested scheme is the weakest one');
+{
+  const Y = new Date().getFullYear();
+  const KID = { id: 'p1', name: 'Ian', birthYear: Y - 9, colour: '#5B9BD5' };
+  // The feed is a file in the repo. It must never quietly outbid a figure the
+  // parent set on the child, and a stray empty object must not silence one.
+  const feedOf = rewards => ({ matches: [{
+    id: 'f1', source: 'jttl', name: 'U10 Red Ball Feed Event',
+    start: `${Y - 1}-05-05`, end: `${Y - 1}-05-05`, venue: '', categories: [],
+    entryDeadline: null, url: '', provisional: false, rewards }] });
+  const seedOf = kidRewards => JSON.stringify({
+    version: 2, updatedAt: Date.now(),
+    blocks: [{ id: 'b1', name: 'B', start: `${Y}-08-01`, days: 14, plan: {} }],
+    activeBlockId: 'b1',
+    players: [{ ...KID, rewards: kidRewards }],
+    manualMatches: [], trips: [], rewards: {},
+    entries: [{ matchId: 'f1', playerId: 'p1', status: 'confirmed', wins: 4 }],
+  });
+  const bootBoth = (kidRewards, feedRewards) => new JSDOM(SRC, {
+    runScripts: 'dangerously', url: 'https://example.test/', pretendToBeVisual: true,
+    beforeParse(window) {
+      window.localStorage.setItem(KEY, seedOf(kidRewards));
+      window.fetch = url => String(url).includes('matches.json')
+        ? Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(feedOf(feedRewards)) })
+        : Promise.resolve({ ok: false, status: 404 });
+    },
+  });
+  const settle = () => new Promise(r => setTimeout(r, 40));
+  const STANDARD = { perWin: 5, places: [], improve: 0, note: '' };
+  const paidOn = async (kidRewards, feedRewards) => {
+    const dom = bootBoth(kidRewards, feedRewards);
+    const d = dom.window.document;
+    await settle();
+    click(dom, $(d, '#nav-matches'));
+    const row = $$(d, '.tourn')[0];
+    const el = row && row.querySelector('.rpay');
+    return { paid: el ? el.textContent : null, row, d, dom };
+  };
+
+  {
+    const { paid } = await paidOn(STANDARD, { perWin: 1 });
+    ok('the child’s standard outranks what the feed suggests', paid === '$20', paid);
+  }
+  {
+    const { paid } = await paidOn(null, { perWin: 1 });
+    ok('but the suggestion still pays where the child has no standard',
+       paid === '$4', paid);
+  }
+  {
+    // the bug: any object at all used to count as a scheme and swallow the rest
+    const { paid } = await paidOn(STANDARD, { note: '' });
+    ok('an empty suggestion does not stop the standard paying', paid === '$20', paid);
+  }
+  {
+    const { paid, row } = await paidOn(STANDARD, undefined);
+    ok('no suggestion at all is the same story', paid === '$20', paid);
+    ok('and a feed row is never badged as an exception',
+       !row.querySelector('.trewbtn').classList.contains('set'));
+  }
+  {
+    // an exception set here still beats both
+    const dom = bootBoth(STANDARD, { perWin: 1 });
+    const d = dom.window.document;
+    await settle();
+    click(dom, $(d, '#nav-matches'));
+    click(dom, $$(d, '.tourn')[0].querySelector('.trewbtn'));
+    ok('the dialog opens on the suggestion, ready to accept',
+       $(d, '#r-win').value === '1', $(d, '#r-win').value);
+    input(dom, $(d, '#r-win'), '9');
+    click(dom, $(d, '#r-ok'));
+    ok('an exception set here beats the standard and the suggestion both',
+       $$(d, '.tourn')[0].querySelector('.rpay').textContent === '$36',
+       $$(d, '.tourn')[0].querySelector('.rpay').textContent);
+    ok('and only then is the row badged',
+       $$(d, '.tourn')[0].querySelector('.trewbtn').classList.contains('set'));
+  }
+  {
+    // the new buttons name what they act on
+    const { d } = await paidOn(STANDARD, undefined);
+    ok('the standard’s button names the child',
+       $(d, '[data-rewkid]').getAttribute('aria-label') === 'Edit Ian rewards',
+       $(d, '[data-rewkid]').getAttribute('aria-label'));
+    ok('and a row’s button names the tournament',
+       $(d, '.trewbtn').getAttribute('aria-label') === 'Rewards for U10 Red Ball Feed Event',
+       $(d, '.trewbtn').getAttribute('aria-label'));
+  }
+}
+
+group('a child’s tab scopes the whole view');
+{
+  const Y = new Date().getFullYear();
+  const PAST = Y - 1;
+  const tabs = d => $$(d, '#whofilter button[data-who]');
+  const tabNamed = (d, name) => tabs(d).find(b => b.textContent.trim().startsWith(name));
+  const notes = d => $(d, '#mnotes').textContent.replace(/\s+/g, ' ');
+  const rewNames = d => $$(d, '.rewkid .rknm').map(e => e.textContent);
+
+  const dom = boot();
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-matches'));
+  addKid(dom, d, 'Ian', Y - 9);
+  addTourn(dom, d, { name: 'Club Open Day', start: `${PAST}-11-01` });   // while editable
+  addKid(dom, d, 'Olivia', Y - 9);
+
+  // Everyone changes nothing, so all of this is done on the children's tabs.
+  const goTab = name => click(dom, name === null ? tabs(d)[0] : tabNamed(d, name));
+  const row = () => $$(d, '.tourn')[0];
+  const setKid = (kid, o) => {
+    goTab(kid);
+    click(dom, $$(d, '.rewkid').find(r => r.textContent.trim().startsWith(kid)).querySelector('button'));
+    for (const [id, v] of Object.entries({ 'r-win': o.win })) input(dom, $(d, '#' + id), v ?? '');
+    click(dom, $(d, '#r-ok'));
+  };
+  setKid('Ian', { win: 5 });
+  setKid('Olivia', { win: 10 });
+  // the row names both children whichever tab you are on, so both enter here
+  goTab('Ian');
+  [0, 1].forEach(i => { click(dom, [...row().querySelectorAll('.join')][i]);
+                        click(dom, [...row().querySelectorAll('.join')][i]); });
+  change(dom, row().querySelector('.rwin'), '3');
+  goTab('Olivia');
+  change(dom, row().querySelector('.rwin'), '2');
+  goTab(null);
+
+  ok('Everyone is the first tab', tabs(d)[0].textContent.includes('Everyone'));
+  ok('and every child has one', tabs(d).length === 3, tabs(d).length);
+  ok('a tab carries the count of what that child can enter',
+     tabs(d)[0].querySelector('.ct').textContent === '1', tabs(d)[0].textContent);
+
+  // on Everyone, everything is shown
+  ok('Everyone lists both purses',
+     notes(d).includes('Ian $15 across 1 result; Olivia $20 across 1 result'), notes(d));
+  ok('and both standards', rewNames(d).join(',') === 'Ian,Olivia', rewNames(d).join(','));
+  ok('and both result boxes', row().querySelectorAll('.res').length === 2);
+
+  // on Ian's tab, only Ian
+  click(dom, tabNamed(d, 'Ian'));
+  ok('his tab shows his purse alone',
+     notes(d).includes('Ian $15 across 1 result') && !notes(d).includes('Olivia'), notes(d));
+  ok('and his standard alone', rewNames(d).join(',') === 'Ian', rewNames(d).join(','));
+  ok('the row still shows who else is in it', row().querySelectorAll('.join').length === 2,
+     row().querySelectorAll('.join').length);
+  ok('but only his result box', row().querySelectorAll('.res').length === 1,
+     [...row().querySelectorAll('.res .rnm')].map(e => e.textContent).join(','));
+
+  // and back
+  click(dom, tabs(d)[0]);
+  ok('Everyone brings the other child back',
+     notes(d).includes('Olivia $20') && rewNames(d).length === 2, notes(d));
+
+  // the family-wide check belongs to Everyone, but the adding does not
+  goTab('Ian');
+  addTourn(dom, d, { name: 'Far Away Cup', start: `${Y + 1}-06-01` });
+  addTourn(dom, d, { name: 'Later Still Cup', start: `${Y + 1}-08-20` });
+  goTab(null);
+  ok('Everyone still reports the travel window',
+     notes(d).includes('Travel window'), notes(d).slice(0, 160));
+}
+
+group('Everyone changes nothing');
+{
+  const Y = new Date().getFullYear();
+  const tabs = d => $$(d, '#whofilter button[data-who]');
+  const setup = () => {
+    const dom = boot();
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    addKid(dom, d, 'Ian', Y - 9);
+    return { dom, d };
+  };
+
+  {
+    // one child: no strip, and nothing is taken away
+    const { dom, d } = setup();
+    addTourn(dom, d, { name: 'Club Open Day', start: `${Y}-11-01` });
+    ok('one child has no tab strip', tabs(d).length === 0);
+    ok('and can still add a kid', !$(d, '#kidaddrow').hidden);
+    ok('and still import', !$(d, '#importbox').hidden);
+    ok('and still add a tournament', !$(d, '#addbox').hidden);
+    ok('and still edit rewards', !!$(d, '.rewkid button'));
+    ok('and the row still offers Rewards', !!$(d, '.tourn .trewbtn'));
+    ok('and its delete', !!$(d, '.tourn .tdel'));
+    ok('and no lock line is shown', $(d, '#wholock').hidden);
+  }
+
+  {
+    // a second child turns Everyone into a read-only overview
+    const { dom, d } = setup();
+    addTourn(dom, d, { name: 'Club Open Day', start: `${Y}-11-01` });
+    addKid(dom, d, 'Olivia', Y - 13);
+
+    ok('a second child brings the strip', tabs(d).length === 3, tabs(d).length);
+    ok('and Everyone is where it opens', tabs(d)[0].classList.contains('on'));
+    ok('the lock line explains itself',
+       !$(d, '#wholock').hidden && $(d, '#wholock').textContent.includes('read only'),
+       $(d, '#wholock').textContent);
+
+    ok('no adding a kid', $(d, '#kidaddrow').hidden);
+    // the attribute is not the whole story — a class with its own display can
+    // beat it, so check the write is refused too
+    ok('and the add button cannot sneak one in',
+       (addKid(dom, d, 'Smuggled', 2015), $$(d, '.kid').length === 2), $$(d, '.kid').length);
+    ok('no removing one', !$(d, '.kid .kx'));
+    ok('a birth year is text, not a field', !$(d, '.kid .kyr') && !!$(d, '.kid .kyrv'));
+    ok('no importing', $(d, '#importbox').hidden);
+    ok('no adding a tournament', $(d, '#addbox').hidden);
+    ok('no editing a standard', !$(d, '.rewkid button'));
+    ok('no Rewards on a row', !$(d, '.tourn .trewbtn'));
+    ok('no deleting a tournament', !$(d, '.tourn .tdel'));
+    ok('the status buttons do not take a click',
+       $$(d, '.tourn .join').every(b => b.disabled), $$(d, '.tourn .join').length);
+
+    // but everything is still legible
+    ok('the children are still listed', $$(d, '.kid').length === 2);
+    ok('their standards are still listed', $$(d, '.rewkid').length === 2);
+    ok('and the tournament is still there', $$(d, '.tourn').length === 1);
+
+    // clicking a status on Everyone must not sneak a change through
+    const before = JSON.stringify(saved(dom).entries);
+    click(dom, $(d, '.tourn .join'));
+    ok('a click on a locked status changes nothing',
+       JSON.stringify(saved(dom).entries) === before, saved(dom).entries);
+
+    // and a child's tab hands it all back
+    click(dom, tabs(d)[1]);
+    ok('a child’s tab can add a kid again', !$(d, '#kidaddrow').hidden);
+    ok('and import again', !$(d, '#importbox').hidden);
+    ok('and edit a standard again', !!$(d, '.rewkid button'));
+    ok('and work the row again',
+       !!$(d, '.tourn .trewbtn') && !$(d, '.tourn .join').disabled);
+    ok('and the lock line is gone', $(d, '#wholock').hidden);
+  }
+
+  {
+    // results read on Everyone, but cannot be typed there
+    const { dom, d } = setup();
+    addTourn(dom, d, { name: 'Club Open Day', start: `${Y - 1}-11-01` });   // while editable
+    addKid(dom, d, 'Olivia', Y - 13);
+    click(dom, tabs(d)[1]);                                   // Ian
+    click(dom, $(d, '.rewkid button'));
+    input(dom, $(d, '#r-win'), '5');
+    click(dom, $(d, '#r-ok'));
+    click(dom, $(d, '.tourn .join'));
+    click(dom, $(d, '.tourn .join'));                          // entered
+    change(dom, $(d, '.tourn .rwin'), '4');
+    ok('his tab totals it up', $(d, '.tourn .rpay').textContent === '$20',
+       $(d, '.tourn .rpay').textContent);
+
+    click(dom, tabs(d)[0]);                                    // Everyone
+    ok('Everyone still shows the money', $(d, '.tourn .rpay').textContent === '$20',
+       $(d, '.tourn .rpay').textContent);
+    ok('and the wins, as a value rather than a field',
+       !$(d, '.tourn .rwin') && $(d, '.tourn .rv').textContent === '4',
+       $(d, '.tourn .rv') && $(d, '.tourn .rv').textContent);
+    ok('and the season check still reads',
+       $(d, '#mnotes').textContent.includes('Ian $20 across 1 result'), $(d, '#mnotes').textContent);
   }
 }
 
