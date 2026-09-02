@@ -89,8 +89,9 @@ tests/                          jsdom harness + api tests — dev only, never de
   by month. Past ones dim.
 - **Who's going** — one button per child per tournament, cycling
   planned → entered → confirmed → skipping → not going.
-- **Rewards** — what each child plays for, and what they actually earned. Set
-  once per child; a single tournament can pay differently. See below.
+- **Rewards** — what each child plays for, and what they actually earned, kept
+  per child rather than pooled. Set once per child; a single tournament can pay
+  differently. See below.
 - **Season checks** — an entry deadline inside 21 days that nobody has committed
   to, the same child booked into two overlapping tournaments, provisional dates,
   the longest clear gap between tournaments as the window to book travel, a
@@ -406,7 +407,7 @@ Two suites. `api.test.mjs` drives `api/plan.js` directly with a stubbed store �
 backend choice, key validation, the 409 refusal and the forced write, bodies
 that are not plans, junk in the store, and an unreachable one.
 
-The rest is 540 assertions driving the real page under jsdom: cold boot, the v1.0.0
+The rest is 541 assertions driving the real page under jsdom: cold boot, the v1.0.0
 migration, state round-trips, thirteen kinds of corrupt saved state, block
 create/rename/switch/delete, variable length and its clamps, calendar alignment
 for different start weekdays, the load checks, a timezone regression, view

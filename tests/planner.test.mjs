@@ -2694,8 +2694,11 @@ group('rewards belong to the child');
     ok('each child is paid their own way',
        paid(d, 'Series One', 'Ian') === '$20' && paid(d, 'Series One', 'Olivia') === '$28',
        [paid(d, 'Series One', 'Ian'), paid(d, 'Series One', 'Olivia')].join(' / '));
-    ok('and the season total adds both up',
-       $(d, '#mnotes').textContent.includes('$48 across 2 results'), $(d, '#mnotes').textContent);
+    ok('and the season total keeps the two purses apart',
+       $(d, '#mnotes').textContent.includes('Ian $20 across 1 result; Olivia $28 across 1 result'),
+       $(d, '#mnotes').textContent);
+    ok('the pooled figure is nowhere on the page',
+       !$(d, '#mnotes').textContent.includes('$48'), $(d, '#mnotes').textContent);
   }
 
   {

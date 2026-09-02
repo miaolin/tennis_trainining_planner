@@ -2616,13 +2616,19 @@ function runSeasonChecks(ms){
   if(owed.length) out.push(['warn','Results not in',
     owed.join('; ') + '. Add the wins and the final place to settle what is owed.']);
 
-  let earned = 0, counted = 0;
-  ms.forEach(m => state.players.forEach(p=>{
-    const pay = payout(m, p);
-    if(pay){ earned += pay.total; counted++; }
-  }));
-  if(counted) out.push(['ok','Rewards earned',
-    `${money(earned)} across ${counted} result${counted===1?'':'s'}.`]);
+  // Per child, never pooled. Two children's winnings added together is a number
+  // nobody settles up with — they are paid one at a time.
+  const purses = state.players.map(p=>{
+    let total = 0, counted = 0;
+    ms.forEach(m=>{
+      const pay = payout(m, p);
+      if(pay){ total += pay.total; counted++; }
+    });
+    return {name:p.name, total, counted};
+  }).filter(x => x.counted);
+  if(purses.length) out.push(['ok','Rewards earned',
+    purses.map(x => `${x.name} ${money(x.total)} across ${x.counted} result${x.counted===1?'':'s'}`)
+          .join('; ') + '.']);
 
   if(!out.length && ms.length) out.push(['ok','Season looks clear',
     `${upcoming.length} tournament${upcoming.length===1?'':'s'} ahead, no deadline or clash problems.`]);

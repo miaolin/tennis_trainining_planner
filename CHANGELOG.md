@@ -21,7 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   alongside the site is the weakest thing there — it stands in only where a
   child has no standard of their own, and never outbids one that is set.
 - **Two children on the same draw are each paid their own way**, which the old
-  per-tournament scheme could not express at all.
+  per-tournament scheme could not express at all — and the season's total keeps
+  them apart too. Two children's winnings added together is a number nobody
+  settles up with, since they are paid one at a time.
 
 Schemes already set on a tournament keep working — they are read as exceptions,
 so nothing needs moving by hand.
