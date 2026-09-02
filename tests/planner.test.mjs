@@ -1913,37 +1913,37 @@ group('per-kid eligibility');
   ok('and the row says why', $(d3, '.tourn .nokid') !== null);
 }
 
-group('who filter');
+group('a tab per child');
 {
   const Y = new Date().getFullYear();
   const dom = boot();
   const d = dom.window.document;
   click(dom, $(d, '#nav-matches'));
-  ok('no filter shown with one kid or none', $(d, '#whofilter').textContent === '');
+  ok('no tab strip with one kid or none', $(d, '#whofilter').textContent === '');
 
   addKid(dom, d, 'Olivia', Y - 9);
-  ok('still no filter with a single kid', $(d, '#whofilter').textContent === '');
+  ok('still none with a single kid', $(d, '#whofilter').textContent === '');
 
   addKid(dom, d, 'Ian', Y - 13);
-  ok('filter appears with two kids', $$(d, '#whofilter label[data-who]').length === 3,
-     $$(d, '#whofilter label[data-who]').length);
+  ok('a tab each, plus Everyone, with two kids', $$(d, '#whofilter button[data-who]').length === 3,
+     $$(d, '#whofilter button[data-who]').length);
 
   addTourn(dom, d, { name: 'STA SPEX U10 Red', start: `${Y}-11-02`, cat: 'STA, Junior (U10)' });
   addTourn(dom, d, { name: 'ATF 16&U Cup', start: `${Y}-11-18`, cat: 'ATF, Junior' });
   ok('everyone sees both', $$(d, '.tourn').length === 2, $$(d, '.tourn').length);
 
-  const chips = $$(d, '#whofilter label[data-who]');
-  click(dom, chips[1]);   // Olivia
-  ok('filtering to the 9-year-old hides the 16&U event', $$(d, '.tourn').length === 1,
+  const tabs = $$(d, '#whofilter button[data-who]');
+  click(dom, tabs[1]);   // Olivia
+  ok('her tab hides the 16&U event', $$(d, '.tourn').length === 1,
      $$(d, '.tourn').length);
   ok('and keeps her U10 event', $(d, '.tourn').textContent.includes('U10 Red'));
 
-  click(dom, $$(d, '#whofilter label[data-who]')[2]);   // Ian
-  ok('filtering to the 13-year-old hides the U10 event', $$(d, '.tourn').length === 1,
+  click(dom, $$(d, '#whofilter button[data-who]')[2]);   // Ian
+  ok('his tab hides the U10 event', $$(d, '.tourn').length === 1,
      $$(d, '.tourn').length);
   ok('and keeps his 16&U event', $(d, '.tourn').textContent.includes('16&U'));
 
-  click(dom, $$(d, '#whofilter label[data-who]')[0]);   // Everyone
+  click(dom, $$(d, '#whofilter button[data-who]')[0]);   // Everyone
   ok('back to everyone shows both again', $$(d, '.tourn').length === 2, $$(d, '.tourn').length);
 }
 
@@ -2800,6 +2800,70 @@ group('a suggested scheme is the weakest one');
        $(d, '.trewbtn').getAttribute('aria-label') === 'Rewards for U10 Red Ball Feed Event',
        $(d, '.trewbtn').getAttribute('aria-label'));
   }
+}
+
+group('a child’s tab scopes the whole view');
+{
+  const Y = new Date().getFullYear();
+  const PAST = Y - 1;
+  const tabs = d => $$(d, '#whofilter button[data-who]');
+  const tabNamed = (d, name) => tabs(d).find(b => b.textContent.trim().startsWith(name));
+  const notes = d => $(d, '#mnotes').textContent.replace(/\s+/g, ' ');
+  const rewNames = d => $$(d, '.rewkid .rknm').map(e => e.textContent);
+
+  const dom = boot();
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-matches'));
+  addKid(dom, d, 'Ian', Y - 9);
+  addKid(dom, d, 'Olivia', Y - 9);
+  addTourn(dom, d, { name: 'Club Open Day', start: `${PAST}-11-01` });
+
+  // both play it, both get paid, on different terms
+  const setKid = (kid, o) => {
+    click(dom, $$(d, '.rewkid').find(r => r.textContent.trim().startsWith(kid)).querySelector('button'));
+    for (const [id, v] of Object.entries({ 'r-win': o.win })) input(dom, $(d, '#' + id), v ?? '');
+    click(dom, $(d, '#r-ok'));
+  };
+  setKid('Ian', { win: 5 });
+  setKid('Olivia', { win: 10 });
+  const row = () => $$(d, '.tourn')[0];
+  [0, 1].forEach(i => { click(dom, [...row().querySelectorAll('.join')][i]);
+                        click(dom, [...row().querySelectorAll('.join')][i]); });
+  const wins = i => [...row().querySelectorAll('.rwin')][i];
+  change(dom, wins(0), '3');
+  change(dom, wins(1), '2');
+
+  ok('Everyone is the first tab', tabs(d)[0].textContent.includes('Everyone'));
+  ok('and every child has one', tabs(d).length === 3, tabs(d).length);
+  ok('a tab carries the count of what that child can enter',
+     tabs(d)[0].querySelector('.ct').textContent === '1', tabs(d)[0].textContent);
+
+  // on Everyone, everything is shown
+  ok('Everyone lists both purses',
+     notes(d).includes('Ian $15 across 1 result; Olivia $20 across 1 result'), notes(d));
+  ok('and both standards', rewNames(d).join(',') === 'Ian,Olivia', rewNames(d).join(','));
+  ok('and both result boxes', row().querySelectorAll('.res').length === 2);
+
+  // on Ian's tab, only Ian
+  click(dom, tabNamed(d, 'Ian'));
+  ok('his tab shows his purse alone',
+     notes(d).includes('Ian $15 across 1 result') && !notes(d).includes('Olivia'), notes(d));
+  ok('and his standard alone', rewNames(d).join(',') === 'Ian', rewNames(d).join(','));
+  ok('the row still shows who else is in it', row().querySelectorAll('.join').length === 2,
+     row().querySelectorAll('.join').length);
+  ok('but only his result box', row().querySelectorAll('.res').length === 1,
+     [...row().querySelectorAll('.res .rnm')].map(e => e.textContent).join(','));
+
+  // and back
+  click(dom, tabs(d)[0]);
+  ok('Everyone brings the other child back',
+     notes(d).includes('Olivia $20') && rewNames(d).length === 2, notes(d));
+
+  // the family-wide check belongs to Everyone
+  addTourn(dom, d, { name: 'Far Away Cup', start: `${Y + 1}-06-01` });
+  addTourn(dom, d, { name: 'Later Still Cup', start: `${Y + 1}-08-20` });
+  ok('Everyone still reports the travel window',
+     notes(d).includes('Travel window'), notes(d).slice(0, 160));
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

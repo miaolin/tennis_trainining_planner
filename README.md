@@ -84,7 +84,10 @@ tests/                          jsdom harness + api tests — dev only, never de
   but not into every event they are technically old enough for. A child with a
   status recorded is always shown regardless, and a child with no birth year is
   shown everywhere.
-- **Show filter** — Everyone, or one child — appears once you have two kids.
+- **A tab per child** at the top of the view, plus **Everyone**, once you have
+  two kids. A child's tab scopes the whole view to them: their tournaments,
+  their rewards, their money, their checks. The row still shows who else is
+  playing, because that is a fact about the event.
 - **Tournaments** — name, dates, venue, categories and entry deadline, grouped
   by month. Past ones dim.
 - **Who's going** — one button per child per tournament, cycling
@@ -407,7 +410,7 @@ Two suites. `api.test.mjs` drives `api/plan.js` directly with a stubbed store �
 backend choice, key validation, the 409 refusal and the forced write, bodies
 that are not plans, junk in the store, and an unreachable one.
 
-The rest is 541 assertions driving the real page under jsdom: cold boot, the v1.0.0
+The rest is 553 assertions driving the real page under jsdom: cold boot, the v1.0.0
 migration, state round-trips, thirteen kinds of corrupt saved state, block
 create/rename/switch/delete, variable length and its clamps, calendar alignment
 for different start weekdays, the load checks, a timezone regression, view

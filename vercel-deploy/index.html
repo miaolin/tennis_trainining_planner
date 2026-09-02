@@ -421,6 +421,29 @@ input[type=number]#days{width:74px}
   color:var(--mute);margin-left:9px;letter-spacing:.04em;vertical-align:3px;
 }
 .navbtn.on .ct{color:var(--ball)}
+/* A tab per child, under the tournaments tab. Smaller than the view tabs above
+   them so the hierarchy reads: which view, then whose season. */
+.whotabs{
+  display:flex;flex-wrap:wrap;gap:2px;align-items:flex-end;
+  border-bottom:1px solid var(--hair);margin-bottom:20px;
+}
+.whotab{
+  font-family:'Barlow Condensed',sans-serif;font-weight:500;
+  font-size:16px;letter-spacing:.09em;text-transform:uppercase;
+  background:transparent;color:var(--mute);
+  border:none;border-bottom:3px solid transparent;border-radius:3px 3px 0 0;
+  padding:8px 16px;margin-bottom:-1px;cursor:pointer;
+  display:flex;align-items:center;gap:7px;
+  transition:color .15s,border-color .15s,background .15s;
+}
+.whotab:hover{background:rgba(255,255,255,.06);color:var(--court-line)}
+.whotab.on{color:var(--court-line);border-bottom-color:var(--c,var(--ball));background:rgba(255,255,255,.05)}
+.whotab .whodot{width:8px;height:8px;border-radius:50%;background:var(--c);display:block;opacity:.55}
+.whotab.on .whodot{opacity:1}
+.whotab .ct{
+  font-family:'Karla',sans-serif;font-size:11.5px;font-weight:700;
+  color:var(--mute);letter-spacing:.04em;
+}
 .view{display:none}
 .view.on{display:block}
 
@@ -778,6 +801,8 @@ input[type=number]#days{width:74px}
 
 <section class="view" id="view-matches">
 
+  <div class="whotabs" id="whofilter"></div>
+
   <div class="kids">
     <h2>Kids</h2>
     <div class="kidrow" id="kidrow"></div>
@@ -830,8 +855,6 @@ input[type=number]#days{width:74px}
     <div class="addrow"><button id="t-add">Add tournament</button></div>
     <p class="hint" id="feednote"></p>
   </div>
-
-  <div class="agerow" id="whofilter" style="margin-bottom:14px"></div>
 
   <div id="tournlist"></div>
 
@@ -2127,17 +2150,32 @@ function renderAgeRow(){
     }));
 }
 
-/* ---- who-to-show filter above the tournament list ---- */
+/* ---- a tab per child, above the tournaments view ----
+   One child at a time is how a parent reads this page: whose entry is that,
+   whose money is that. Everyone stays first, because the travel window and the
+   clash checks are family-wide facts that cannot be worked out one child at a
+   time. With one child there is nothing to choose between, so no strip. */
 let whoFilter = null;   // null = everyone, otherwise a player id
+function whoShown(){
+  return state.players.find(p => p.id === whoFilter) || null;
+}
+// The tournaments one child could enter — the same rule the list itself uses.
+function matchesFor(p){
+  return allMatches().filter(m => !p || kidOnMatch(p, m, Number(m.start.slice(0,4))));
+}
 function renderWhoFilter(){
   const row = document.getElementById('whofilter');
   if(state.players.length < 2){ row.innerHTML = ''; return; }
-  const chip = (id, label, colour) =>
-    `<label class="chk${whoFilter === id ? ' on' : ''}" data-who="${id === null ? '' : id}">` +
-    (colour ? `<i class="whodot" style="--c:${colour}"></i>` : '') + escapeHtml(label) + '</label>';
-  row.innerHTML = '<span class="wholab">Show</span>' + chip(null, 'Everyone', null) +
-    state.players.map(p => chip(p.id, p.name, p.colour)).join('');
-  row.querySelectorAll('label[data-who]').forEach(el=>
+  const tab = (id, label, colour) => {
+    const n = matchesFor(state.players.find(p => p.id === id) || null).length;
+    return `<button class="whotab${whoFilter === id ? ' on' : ''}"` +
+      (colour ? ` style="--c:${colour}"` : '') + ` data-who="${id === null ? '' : id}">` +
+      (colour ? '<i class="whodot"></i>' : '') + escapeHtml(label) +
+      (n ? `<span class="ct">${n}</span>` : '') + '</button>';
+  };
+  row.innerHTML = tab(null, 'Everyone', null) +
+    state.players.map(p => tab(p.id, p.name, p.colour)).join('');
+  row.querySelectorAll('button[data-who]').forEach(el=>
     el.addEventListener('click', ()=>{
       whoFilter = el.dataset.who || null;
       render();
@@ -2434,8 +2472,10 @@ function renderMatches(){
   kidrow.querySelectorAll('.kyr').forEach(inp=>
     inp.addEventListener('change', ()=>setPlayerYear(inp.dataset.kid, inp.value)));
 
+  // On a child's tab, their rewards are the only ones worth showing.
   const rewrow = document.getElementById('rewrow');
-  rewrow.innerHTML = state.players.map(p=>{
+  const rewkids = whoShown() ? [whoShown()] : state.players;
+  rewrow.innerHTML = rewkids.map(p=>{
     const r = kidScheme(p);
     return `<div class="rewkid" style="--c:${p.colour}"><span class="rknm">${escapeHtml(p.name)}</span>` +
       (r ? `<span class="rkline">${escapeHtml(rewardsLine(r))}</span>`
@@ -2454,9 +2494,8 @@ function renderMatches(){
   renderWhoFilter();
 
   const list = document.getElementById('tournlist');
-  const who = state.players.find(p => p.id === whoFilter) || null;
-  const ms = allMatches().filter(m =>
-    !who || kidOnMatch(who, m, Number(m.start.slice(0,4))));
+  const who = whoShown();
+  const ms = matchesFor(who);
   // Anything we hold locally can be deleted, however it got here. Only the
   // generated feed is read-only.
   const editable = new Set((state.manualMatches || []).map(m=>m.id));
@@ -2499,7 +2538,10 @@ function renderMatches(){
 
     // Only kids who are in it get a result box: a tournament nobody entered has
     // no result to record, and every kid the age filter allows would be noise.
-    const played = state.players.filter(p =>
+    // On a child's tab it is their money alone — the buttons above still say who
+    // else is playing, because that is a fact about the event rather than about
+    // whose season is being read.
+    const played = (whoShown() ? [whoShown()] : state.players).filter(p =>
       ['entered','confirmed'].includes(statusOf(m.id, p.id)) && hasRewards(schemeFor(m, p)));
     const results = played.map(p=>{
       const res = resultOf(m.id, p.id) || {wins:null, place:null};
@@ -2555,6 +2597,11 @@ function runSeasonChecks(ms){
   const out = [];
   const today = todayIso();
   const upcoming = ms.filter(m => m.end >= today);
+  // The checks that walk the children are scoped to whoever's tab this is. The
+  // ones that read the list alone — the travel window, provisional dates —
+  // need no scoping: the list is already that child's, so the gap they report
+  // is the gap in that child's season.
+  const kids = whoShown() ? [whoShown()] : state.players;
 
   if(!state.players.length){
     out.push(['warn','No kids yet','Add a child above and you can track who is entered for what.']);
@@ -2568,7 +2615,7 @@ function runSeasonChecks(ms){
     if(!m.entryDeadline) return false;
     const d = daysBetween(today, m.entryDeadline);
     if(d < 0 || d > DEADLINE_WARN_DAYS) return false;
-    return state.players.some(p=>{
+    return kids.some(p=>{
       const st = statusOf(m.id, p.id);
       return st === 'planned' || st === null;
     });
@@ -2579,7 +2626,7 @@ function runSeasonChecks(ms){
 
   // the same child in two overlapping tournaments
   const clashes = [];
-  state.players.forEach(p=>{
+  kids.forEach(p=>{
     const committed = upcoming.filter(m=>['planned','entered','confirmed'].includes(statusOf(m.id, p.id)));
     for(let i=0;i<committed.length;i++)
       for(let j=i+1;j<committed.length;j++)
@@ -2606,7 +2653,7 @@ function runSeasonChecks(ms){
   // has worked out yet, and the bonus rule needs the number for next time.
   const owed = [];
   ms.filter(m => m.end < today).forEach(m=>{
-    state.players.forEach(p=>{
+    kids.forEach(p=>{
       if(!hasRewards(schemeFor(m, p))) return;
       if(!['entered','confirmed'].includes(statusOf(m.id, p.id))) return;
       const r = resultOf(m.id, p.id);
@@ -2618,7 +2665,7 @@ function runSeasonChecks(ms){
 
   // Per child, never pooled. Two children's winnings added together is a number
   // nobody settles up with — they are paid one at a time.
-  const purses = state.players.map(p=>{
+  const purses = kids.map(p=>{
     let total = 0, counted = 0;
     ms.forEach(m=>{
       const pay = payout(m, p);
