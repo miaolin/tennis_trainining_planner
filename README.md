@@ -88,6 +88,10 @@ tests/                          jsdom harness + api tests — dev only, never de
   two kids. A child's tab scopes the whole view to them: their tournaments,
   their rewards, their money, their checks. The row still shows who else is
   playing, because that is a fact about the event.
+- **Everyone changes nothing.** It is the whole season, read only — no adding a
+  child or a tournament, no importing, no rewards, no entry clicks, no results.
+  Every edit belongs to whichever child it is about, so it is made on that
+  child's tab. With one child there is no strip and nothing is taken away.
 - **Tournaments** — name, dates, venue, categories and entry deadline, grouped
   by month. Past ones dim.
 - **Who's going** — one button per child per tournament, cycling
@@ -410,7 +414,7 @@ Two suites. `api.test.mjs` drives `api/plan.js` directly with a stubbed store �
 backend choice, key validation, the 409 refusal and the forced write, bodies
 that are not plans, junk in the store, and an unreachable one.
 
-The rest is 553 assertions driving the real page under jsdom: cold boot, the v1.0.0
+The rest is 589 assertions driving the real page under jsdom: cold boot, the v1.0.0
 migration, state round-trips, thirteen kinds of corrupt saved state, block
 create/rename/switch/delete, variable length and its clamps, calendar alignment
 for different start weekdays, the load checks, a timezone regression, view

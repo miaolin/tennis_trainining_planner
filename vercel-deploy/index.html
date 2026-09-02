@@ -28,6 +28,9 @@
   --bad:#D9603F;
 }
 *{box-sizing:border-box}
+/* The attribute must win. A class with its own `display` beats bare [hidden],
+   which left the add-kid row on screen while it was marked hidden. */
+[hidden]{display:none !important}
 html,body{margin:0;padding:0}
 body{
   background:var(--court);
@@ -577,6 +580,9 @@ input[type=number]#days{width:74px}
 .join.s-confirmed{border-color:var(--ok);background:rgba(79,169,124,.18);color:#9BD7B7}
 .join.s-confirmed .pip{opacity:1;background:var(--ok)}
 .join.s-skipped{opacity:.45;text-decoration:line-through}
+/* Locked, not unavailable: the status still has to read at a glance. */
+.join:disabled{cursor:default;opacity:1}
+.join.s-skipped:disabled{opacity:.45}
 .tdel{
   border:none;background:transparent;color:var(--mute);
   font-size:15px;padding:3px 7px;border-radius:3px;cursor:pointer;
@@ -617,6 +623,13 @@ input[type=number]#days{width:74px}
 .res label{display:flex;align-items:center;gap:5px}
 .res input{width:58px;font-size:12px;padding:3px 6px}
 .res .rpay{color:var(--ball);font-weight:700}
+/* A locked value keeps the shape of the field it replaces, so a row does not
+   jump about as tabs change. */
+.res .rv{
+  color:var(--court-line);border-bottom:1px dotted var(--hair);
+  min-width:26px;display:inline-block;text-align:center;
+}
+.kid .kyrv{font-size:12px;color:var(--court-line);padding:3px 2px}
 .res .rtodo{color:var(--warn)}
 #rmodal .mrow .lab{min-width:82px}
 /* ---------- year calendar ---------- */
@@ -802,11 +815,12 @@ input[type=number]#days{width:74px}
 <section class="view" id="view-matches">
 
   <div class="whotabs" id="whofilter"></div>
+  <p class="hint" id="wholock" hidden></p>
 
   <div class="kids">
     <h2>Kids</h2>
     <div class="kidrow" id="kidrow"></div>
-    <div class="kidrow" style="margin-top:11px">
+    <div class="kidrow" id="kidaddrow" style="margin-top:11px">
       <input type="text" id="kid-name" maxlength="24" placeholder="Name">
       <input type="number" id="kid-year" min="1990" max="2030" step="1" placeholder="Birth year">
       <button id="kid-add">Add kid</button>
@@ -824,7 +838,7 @@ input[type=number]#days{width:74px}
       row shows a line.</p>
   </div>
 
-  <div class="addbox">
+  <div class="addbox" id="importbox">
     <h2>Import from STA</h2>
     <div class="agerow" id="agerow"></div>
     <div class="linkrow" style="margin-top:12px">
@@ -834,7 +848,7 @@ input[type=number]#days{width:74px}
     <p class="hint" id="impnote">Pulls the whole STA tournament list and keeps what the ticked children can enter.</p>
   </div>
 
-  <div class="addbox">
+  <div class="addbox" id="addbox">
     <h2>Add a tournament</h2>
     <div class="linkrow">
       <div class="fld" style="flex:1">
@@ -1488,7 +1502,7 @@ function closeRewards(){
   rewardTarget = null;
 }
 function commitRewards(){
-  if(!rewardTarget) return;
+  if(!rewardTarget || viewLocked()) return;
   const v = id => document.getElementById(id).value;
   const r = normRewards({
     perWin: v('r-win'),
@@ -1509,7 +1523,7 @@ function commitRewards(){
 // On a child this drops the scheme outright. On a tournament it drops only the
 // exception, putting the child's standard back.
 function clearRewards(){
-  if(!rewardTarget) return;
+  if(!rewardTarget || viewLocked()) return;
   if(rewardTarget.kind === 'kid'){
     const p = state.players.find(x => x.id === rewardTarget.id);
     if(p) p.rewards = null;
@@ -2159,6 +2173,16 @@ let whoFilter = null;   // null = everyone, otherwise a player id
 function whoShown(){
   return state.players.find(p => p.id === whoFilter) || null;
 }
+// Everyone reads the whole season at once, and every edit on this page belongs
+// to whichever child it is about, so it changes nothing — it is the overview.
+// With one child there is no strip and nothing to choose between, so the view
+// stays as editable as it ever was.
+//
+// Every mutator on this page checks this, not only the buttons: hiding a
+// control stops a person, and stopping the write is what stops everything else.
+function viewLocked(){
+  return state.players.length >= 2 && whoFilter === null;
+}
 // The tournaments one child could enter — the same rule the list itself uses.
 function matchesFor(p){
   return allMatches().filter(m => !p || kidOnMatch(p, m, Number(m.start.slice(0,4))));
@@ -2238,6 +2262,7 @@ async function importFromSta(){
 
 /* ---- players ---- */
 function addPlayer(name, birthYear){
+  if(viewLocked()) return false;
   const n = (name || '').trim();
   if(!n) return false;
   const y = parseInt(birthYear, 10);
@@ -2250,6 +2275,7 @@ function addPlayer(name, birthYear){
   return true;
 }
 function setPlayerYear(id, value){
+  if(viewLocked()) return;
   const p = state.players.find(x => x.id === id);
   if(!p) return;
   const y = parseInt(value, 10);
@@ -2257,6 +2283,7 @@ function setPlayerYear(id, value){
   render(); save();
 }
 function removePlayer(id){
+  if(viewLocked()) return;
   const p = state.players.find(x=>x.id===id);
   if(p && !window.confirm(`Remove ${p.name}? Their tournament entries go too.`)) return;
   state.players = state.players.filter(x=>x.id !== id);
@@ -2270,6 +2297,7 @@ function statusOf(matchId, playerId){
   return e ? e.status : null;
 }
 function cycleEntry(matchId, playerId){
+  if(viewLocked()) return;
   const i = state.entries.findIndex(x=>x.matchId===matchId && x.playerId===playerId);
   if(i < 0){
     state.entries.push({matchId, playerId, status:'planned'});
@@ -2356,6 +2384,7 @@ function resultOf(matchId, playerId){
 // up if there is not one. A blank or silly number clears the field rather than
 // being coerced — better an empty box than a wrong figure.
 function setResult(matchId, playerId, field, raw){
+  if(viewLocked()) return;
   let e = state.entries.find(x => x.matchId === matchId && x.playerId === playerId);
   if(!e){ e = {matchId, playerId, status:'confirmed'}; state.entries.push(e); }
   const v = parseInt(raw, 10);
@@ -2406,6 +2435,7 @@ function payout(m, p){
 
 /* ---- manual tournaments ---- */
 function addTournament(){
+  if(viewLocked()) return false;
   const g = id => document.getElementById(id).value.trim();
   const name = g('t-name'), start = g('t-start');
   if(!name || !/^\d{4}-\d{2}-\d{2}$/.test(start)){
@@ -2426,6 +2456,7 @@ function addTournament(){
   return true;
 }
 function removeTournament(id){
+  if(viewLocked()) return;
   const m = (state.manualMatches || []).find(x=>x.id===id);
   if(m && !window.confirm(`Delete “${m.name}”?`)) return;
   state.manualMatches = state.manualMatches.filter(x=>x.id !== id);
@@ -2458,14 +2489,19 @@ function blockCovering(m){
 /* ---- render part 2 ---- */
 function renderMatches(){
   const thisYear = new Date().getFullYear();
+  const locked = viewLocked();
   const kidrow = document.getElementById('kidrow');
   kidrow.innerHTML = state.players.map(p=>{
     const grp = primaryGroup(p, thisYear);
     return `<span class="kid" style="--c:${p.colour}"><span class="knm">${escapeHtml(p.name)}</span>` +
-      `<input class="kyr" type="number" min="1990" max="2030" step="1" data-kid="${p.id}"` +
-      ` value="${p.birthYear || ''}" placeholder="year" aria-label="${escapeHtml(p.name)} birth year">` +
+      (locked
+        ? `<span class="kyrv">${p.birthYear || '—'}</span>`
+        : `<input class="kyr" type="number" min="1990" max="2030" step="1" data-kid="${p.id}"` +
+          ` value="${p.birthYear || ''}" placeholder="year" aria-label="${escapeHtml(p.name)} birth year">`) +
       `<span class="kgrp">${grp ? escapeHtml(groupLabel(grp)) : 'no age group'}</span>` +
-      `<button class="kx" data-kid="${p.id}" aria-label="Remove ${escapeHtml(p.name)}">&times;</button></span>`;
+      (locked ? ''
+              : `<button class="kx" data-kid="${p.id}" aria-label="Remove ${escapeHtml(p.name)}">&times;</button>`) +
+      '</span>';
   }).join('') || '<span class="hint" style="margin:0">No kids yet — add one to start tracking entries.</span>';
   kidrow.querySelectorAll('.kx').forEach(btn=>
     btn.addEventListener('click', ()=>removePlayer(btn.dataset.kid)));
@@ -2480,9 +2516,22 @@ function renderMatches(){
     return `<div class="rewkid" style="--c:${p.colour}"><span class="rknm">${escapeHtml(p.name)}</span>` +
       (r ? `<span class="rkline">${escapeHtml(rewardsLine(r))}</span>`
          : '<span class="rknone">nothing set — every tournament pays nothing</span>') +
-      `<button data-rewkid="${p.id}" aria-label="${r ? 'Edit' : 'Set'} ${escapeHtml(p.name)} rewards"` +
-      `>${r ? 'Edit' : 'Set rewards'}</button></div>`;
+      (locked ? ''
+              : `<button data-rewkid="${p.id}" aria-label="${r ? 'Edit' : 'Set'} ${escapeHtml(p.name)} rewards"` +
+                `>${r ? 'Edit' : 'Set rewards'}</button>`) +
+      '</div>';
   }).join('') || '<span class="hint" style="margin:0">Add a child above and you can say what they play for.</span>';
+
+  // The setup boxes are not any one child's, but they are still changes, and
+  // Everyone makes none.
+  document.getElementById('kidaddrow').hidden = locked;
+  document.getElementById('importbox').hidden = locked;
+  document.getElementById('addbox').hidden = locked;
+  const lock = document.getElementById('wholock');
+  lock.hidden = !locked;
+  if(locked) lock.textContent =
+    'Everyone is the whole season, read only. Pick a child above to change anything — ' +
+    'their entries, their rewards, their results.';
   rewrow.querySelectorAll('[data-rewkid]').forEach(btn=>
     btn.addEventListener('click', ()=>openRewards('kid', btn.dataset.rewkid)));
 
@@ -2502,7 +2551,9 @@ function renderMatches(){
   document.getElementById('nav-ct').textContent = ms.length ? ms.length : '';
 
   if(!ms.length){
-    list.innerHTML = '<div class="empty">No tournaments yet. Import from STA above, paste a tournament link, or add one by hand.</div>';
+    list.innerHTML = `<div class="empty">${locked
+      ? 'No tournaments yet. Pick a child above to add one.'
+      : 'No tournaments yet. Import from STA above, paste a tournament link, or add one by hand.'}</div>`;
     runSeasonChecks(ms);
     return;
   }
@@ -2546,10 +2597,11 @@ function renderMatches(){
     const results = played.map(p=>{
       const res = resultOf(m.id, p.id) || {wins:null, place:null};
       const pay = payout(m, p);
-      const box = (cls, field, val, lo, hi, lab) =>
-        `<label>${lab} <input type="number" class="${cls}" min="${lo}" max="${hi}" step="1"` +
-        ` data-m="${m.id}" data-p="${p.id}" value="${val === null ? '' : val}"` +
-        ` aria-label="${escapeHtml(p.name)} ${field} at ${escapeHtml(m.name)}"></label>`;
+      const box = (cls, field, val, lo, hi, lab) => locked
+        ? `<span>${lab} <span class="rv">${val === null ? '—' : val}</span></span>`
+        : `<label>${lab} <input type="number" class="${cls}" min="${lo}" max="${hi}" step="1"` +
+          ` data-m="${m.id}" data-p="${p.id}" value="${val === null ? '' : val}"` +
+          ` aria-label="${escapeHtml(p.name)} ${field} at ${escapeHtml(m.name)}"></label>`;
       const sum = pay
         ? `<span class="rpay">${money(pay.total)}</span>` +
           (pay.parts.length ? `<span class="rwhy">${escapeHtml(pay.parts.join(' · '))}</span>` : '')
@@ -2562,8 +2614,9 @@ function renderMatches(){
     const mYear = Number(m.start.slice(0,4));
     const joins = state.players.filter(p => kidOnMatch(p, m, mYear)).map(p=>{
       const st = statusOf(m.id, p.id);
-      return `<button class="join${st ? ' s-'+st : ''}" data-m="${m.id}" data-p="${p.id}" style="--c:${p.colour}">` +
-             `<span class="pip"></span>${escapeHtml(p.name)}${st ? ' · ' + STATUS_LABEL[st] : ''}</button>`;
+      return `<button class="join${st ? ' s-'+st : ''}" data-m="${m.id}" data-p="${p.id}" style="--c:${p.colour}"` +
+             `${locked ? ' disabled' : ''}><span class="pip"></span>` +
+             `${escapeHtml(p.name)}${st ? ' · ' + STATUS_LABEL[st] : ''}</button>`;
     }).join('') || '<span class="nokid">no age match</span>';
 
     html += `<div class="tourn${soon?' soon':''}${past?' past':''}">
@@ -2571,15 +2624,18 @@ function renderMatches(){
       <div><div class="tnm">${bits.join('')}${escapeHtml(m.name)}</div>
         ${meta.length ? `<div class="tmeta">${meta.join(' · ')}</div>` : ''}
         ${differs ? `<div class="trew"><span class="only">Only here</span>${escapeHtml(rewardsLine(own))}</div>` : ''}</div>
-      <div class="joins">${joins}<button class="trewbtn${differs?' set':''}" data-rew="${m.id}"
-        aria-label="Rewards for ${escapeHtml(m.name)}">Rewards</button>${editable.has(m.id)
+      <div class="joins">${joins}${locked ? '' :
+        `<button class="trewbtn${differs?' set':''}" data-rew="${m.id}"
+          aria-label="Rewards for ${escapeHtml(m.name)}">Rewards</button>`}${!locked && editable.has(m.id)
         ? `<button class="tdel" data-del="${m.id}" aria-label="Delete">&times;</button>` : ''}</div>
       ${results ? `<div class="results">${results}</div>` : ''}
     </div>`;
   });
   list.innerHTML = html;
 
-  list.querySelectorAll('.join').forEach(btn=>
+  // Locked means no handler at all, not merely a disabled button: the attribute
+  // stops a real click, but nothing should be listening in the first place.
+  if(!locked) list.querySelectorAll('.join').forEach(btn=>
     btn.addEventListener('click', ()=>cycleEntry(btn.dataset.m, btn.dataset.p)));
   list.querySelectorAll('.tdel').forEach(btn=>
     btn.addEventListener('click', ()=>removeTournament(btn.dataset.del)));

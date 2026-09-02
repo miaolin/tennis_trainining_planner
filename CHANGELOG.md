@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   child's standard, then a `data/matches.json` suggestion. A file committed
   alongside the site is the weakest thing there — it stands in only where a
   child has no standard of their own, and never outbids one that is set.
+- **A tab per child**, with **Everyone** first, once there are two children to
+  separate. A child's tab scopes the whole view — their tournaments, their
+  standard, their money, their checks — and **Everyone changes nothing**: it is
+  the season read only, because every edit here belongs to whichever child it is
+  about. With one child there is no strip and nothing is taken away.
 - **Two children on the same draw are each paid their own way**, which the old
   per-tournament scheme could not express at all — and the season's total keeps
   them apart too. Two children's winnings added together is a number nobody

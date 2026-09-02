@@ -1391,6 +1391,10 @@ group('kids');
   ok('blank name is ignored', (addKid(dom, d, '   '), $$(d, '.kid').length === 2), $$(d, '.kid').length);
   ok('kids persist', saved(dom).players.length === 2);
 
+  // With two kids the view opens on Everyone, which changes nothing — the
+  // remove button is on a child's tab.
+  ok('no remove button on Everyone', !$(d, '.kid .kx'));
+  click(dom, $$(d, '#whofilter button[data-who]')[1]);
   dom.window.confirm = () => true;
   click(dom, $(d, '.kid .kx'));
   ok('removing a kid works', $$(d, '.kid').length === 1, $$(d, '.kid').length);
@@ -1436,8 +1440,11 @@ group('entry status per kid');
   const d = dom.window.document;
   click(dom, $(d, '#nav-matches'));
   addKid(dom, d, 'Mia');
+  addTourn(dom, d, { name: 'Champs', start: offset(60) });   // while still editable
   addKid(dom, d, 'Leo');
-  addTourn(dom, d, { name: 'Champs', start: offset(60) });
+  // A second child opens on Everyone, which changes nothing. The status cycle
+  // lives on a child's tab.
+  click(dom, $$(d, '#whofilter button[data-who]')[1]);
 
   ok('one join button per kid', $$(d, '.join').length === 2, $$(d, '.join').length);
   ok('no status initially', !$(d, '.join').className.includes('s-'));
@@ -1868,10 +1875,15 @@ group('per-kid eligibility');
   ok('birth years persist', saved(dom).players.map(p => p.birthYear).join(',') === `${Y - 9},${Y - 13}`,
      saved(dom).players.map(p => p.birthYear).join(','));
 
+  // Two children means the view opens on Everyone, which changes nothing —
+  // tournaments go in from a child's tab, and Everyone is where they are read.
+  const whoTabs = () => $$(d, '#whofilter button[data-who]');
+  click(dom, whoTabs()[1]);
   addTourn(dom, d, { name: 'STA SPEX U10 Red Competition', start: `${Y}-11-02`, cat: 'STA, Junior (U10)' });
   addTourn(dom, d, { name: 'ATF 14&U ActiveSG Cup', start: `${Y}-11-10`, cat: 'ATF, Junior' });
   addTourn(dom, d, { name: 'ATF 16&U ActiveSG Cup', start: `${Y}-11-18`, cat: 'ATF, Junior' });
   addTourn(dom, d, { name: 'Club Open Day', start: `${Y}-11-24` });
+  click(dom, whoTabs()[0]);
 
   ok('U10 event offers only the 9-year-old',
      kidsOn(rowNamed(d, 'U10 Red')).join(',') === 'Olivia', kidsOn(rowNamed(d, 'U10 Red')));
@@ -1928,8 +1940,11 @@ group('a tab per child');
   ok('a tab each, plus Everyone, with two kids', $$(d, '#whofilter button[data-who]').length === 3,
      $$(d, '#whofilter button[data-who]').length);
 
+  // added from a child's tab, because Everyone changes nothing
+  click(dom, $$(d, '#whofilter button[data-who]')[1]);
   addTourn(dom, d, { name: 'STA SPEX U10 Red', start: `${Y}-11-02`, cat: 'STA, Junior (U10)' });
   addTourn(dom, d, { name: 'ATF 16&U Cup', start: `${Y}-11-18`, cat: 'ATF, Junior' });
+  click(dom, $$(d, '#whofilter button[data-who]')[0]);
   ok('everyone sees both', $$(d, '.tourn').length === 2, $$(d, '.tourn').length);
 
   const tabs = $$(d, '#whofilter button[data-who]');
@@ -2233,6 +2248,9 @@ group('year calendar');
     click(dom, $(d, '#nav-matches'));
     addKid(dom, d, 'Mia');
     addKid(dom, d, 'Leo');
+    // Everyone changes nothing with two kids, so this is all done on Mia's tab.
+    // Neither child has a birth year, so every tournament shows on either tab.
+    click(dom, $$(d, '#whofilter button[data-who]')[1]);
     addTourn(dom, d, { name: 'Both go', start: '2026-04-10' });
     addTourn(dom, d, { name: 'Only Mia', start: '2026-04-20' });
     addTourn(dom, d, { name: 'Nobody', start: '2026-04-25' });
@@ -2553,11 +2571,23 @@ group('rewards belong to the child');
     })) input(dom, $(d, '#' + id), v ?? '');
     click(dom, $(d, '#r-ok'));
   };
+  // Everyone changes nothing, so every edit below goes through a child's tab.
+  const tabTo = (dom, d, kid) => {
+    const t = $$(d, '#whofilter button[data-who]')
+      .find(b => b.textContent.trim().startsWith(kid));
+    if (t) click(dom, t);
+  };
+  const tabAll = (dom, d) => {
+    const t = $$(d, '#whofilter button[data-who]')[0];
+    if (t) click(dom, t);
+  };
   const setKidRew = (dom, d, kid, o) => {
+    tabTo(dom, d, kid);
     click(dom, kidRow(d, kid).querySelector('button'));
     fillRew(dom, d, o);
   };
-  const setMatchRew = (dom, d, t, o) => {
+  const setMatchRew = (dom, d, t, o, kid) => {
+    tabTo(dom, d, kid || 'Ian');
     click(dom, rowNamed(d, t).querySelector('.trewbtn'));
     fillRew(dom, d, o);
   };
@@ -2565,14 +2595,18 @@ group('rewards belong to the child');
     const box = rowNamed(d, t).querySelector('.results');
     return box ? [...box.querySelectorAll('.res')].find(r => r.textContent.trim().startsWith(kid)) : null;
   };
-  const setRes = (dom, d, t, kid, field, v) =>
+  const setRes = (dom, d, t, kid, field, v) => {
+    tabTo(dom, d, kid);
     change(dom, resRow(d, t, kid).querySelector(field === 'wins' ? '.rwin' : '.rpl'), v);
-  const paid = (d, t, kid) => {
+  };
+  const paid = (d, t, kid, dom2) => {
+    if (dom2) tabTo(dom2, d, kid);
     const r = resRow(d, t, kid);
     const el = r && r.querySelector('.rpay');
     return el ? el.textContent : null;
   };
   const enter = (dom, d, t, i) => {
+    tabTo(dom, d, i === 0 ? 'Ian' : 'Olivia');
     click(dom, [...rowNamed(d, t).querySelectorAll('.join')][i]);
     click(dom, [...rowNamed(d, t).querySelectorAll('.join')][i]);
   };
@@ -2582,8 +2616,12 @@ group('rewards belong to the child');
     click(dom, $(d, '#nav-matches'));
     addKid(dom, d, 'Ian', Y - 9);
     addKid(dom, d, 'Olivia', Y - 9);
+    // Everyone changes nothing with two kids, so the setup goes in on a tab
+    // and comes back to Everyone, which is where the view opens.
+    click(dom, $$(d, '#whofilter button[data-who]')[1]);
     addTourn(dom, d, { name: 'U10 Red Ball Series One', start: `${PAST}-11-14` });
     addTourn(dom, d, { name: 'U10 Red Ball Series Two', start: `${Y}-03-07` });
+    click(dom, $$(d, '#whofilter button[data-who]')[0]);
     return { dom, d };
   };
 
@@ -2607,17 +2645,24 @@ group('rewards belong to the child');
        rewLine(d, 'Series One') === '' && rewLine(d, 'Series Two') === '');
     ok('and none is marked an exception',
        !isException(d, 'Series One') && !isException(d, 'Series Two'));
+    tabAll(dom, d);   // Everyone lists every child's standard side by side
     ok('one child having a scheme does not give the other one',
        kidRow(d, 'Olivia').textContent.includes('nothing set'), kidRow(d, 'Olivia').textContent);
 
     // the standard is what pays
     enter(dom, d, 'Series One', 0);          // Ian
     enter(dom, d, 'Series One', 1);          // Olivia
+    tabTo(dom, d, 'Ian');
     ok('the child with a standard gets result boxes', !!resRow(d, 'Series One', 'Ian'));
+    tabTo(dom, d, 'Olivia');   // on her own tab, so absence means she has no scheme
     ok('the child without one does not', !resRow(d, 'Series One', 'Olivia'));
     setRes(dom, d, 'Series One', 'Ian', 'wins', '3');
     ok('and the standard is what pays out', paid(d, 'Series One', 'Ian') === '$15',
        paid(d, 'Series One', 'Ian'));
+    ok('Everyone shows it too, just without a way to change it',
+       (tabAll(dom, d), resRow(d, 'Series One', 'Ian').textContent.includes('$15') &&
+        !resRow(d, 'Series One', 'Ian').querySelector('input')),
+       resRow(d, 'Series One', 'Ian').textContent);
   }
 
   {
@@ -2672,6 +2717,7 @@ group('rewards belong to the child');
     ok('and still pays', paid(d2, 'Series One', 'Ian') === '$30',
        paid(d2, 'Series One', 'Ian'));
 
+    tabTo(dom2, d2, 'Ian');
     click(dom2, kidRow(d2, 'Ian').querySelector('button'));
     ok('a child’s own dialog offers a plain clear',
        $(d2, '#r-clear').textContent === 'Clear', $(d2, '#r-clear').textContent);
@@ -2691,6 +2737,7 @@ group('rewards belong to the child');
     setRes(dom, d, 'Series One', 'Ian', 'wins', '4');
     setRes(dom, d, 'Series One', 'Olivia', 'wins', '4');
     setRes(dom, d, 'Series One', 'Olivia', 'place', '1');
+    tabAll(dom, d);   // Everyone is where both purses are read side by side
     ok('each child is paid their own way',
        paid(d, 'Series One', 'Ian') === '$20' && paid(d, 'Series One', 'Olivia') === '$28',
        [paid(d, 'Series One', 'Ian'), paid(d, 'Series One', 'Olivia')].join(' / '));
@@ -2815,23 +2862,28 @@ group('a child’s tab scopes the whole view');
   const d = dom.window.document;
   click(dom, $(d, '#nav-matches'));
   addKid(dom, d, 'Ian', Y - 9);
+  addTourn(dom, d, { name: 'Club Open Day', start: `${PAST}-11-01` });   // while editable
   addKid(dom, d, 'Olivia', Y - 9);
-  addTourn(dom, d, { name: 'Club Open Day', start: `${PAST}-11-01` });
 
-  // both play it, both get paid, on different terms
+  // Everyone changes nothing, so all of this is done on the children's tabs.
+  const goTab = name => click(dom, name === null ? tabs(d)[0] : tabNamed(d, name));
+  const row = () => $$(d, '.tourn')[0];
   const setKid = (kid, o) => {
+    goTab(kid);
     click(dom, $$(d, '.rewkid').find(r => r.textContent.trim().startsWith(kid)).querySelector('button'));
     for (const [id, v] of Object.entries({ 'r-win': o.win })) input(dom, $(d, '#' + id), v ?? '');
     click(dom, $(d, '#r-ok'));
   };
   setKid('Ian', { win: 5 });
   setKid('Olivia', { win: 10 });
-  const row = () => $$(d, '.tourn')[0];
+  // the row names both children whichever tab you are on, so both enter here
+  goTab('Ian');
   [0, 1].forEach(i => { click(dom, [...row().querySelectorAll('.join')][i]);
                         click(dom, [...row().querySelectorAll('.join')][i]); });
-  const wins = i => [...row().querySelectorAll('.rwin')][i];
-  change(dom, wins(0), '3');
-  change(dom, wins(1), '2');
+  change(dom, row().querySelector('.rwin'), '3');
+  goTab('Olivia');
+  change(dom, row().querySelector('.rwin'), '2');
+  goTab(null);
 
   ok('Everyone is the first tab', tabs(d)[0].textContent.includes('Everyone'));
   ok('and every child has one', tabs(d).length === 3, tabs(d).length);
@@ -2859,11 +2911,113 @@ group('a child’s tab scopes the whole view');
   ok('Everyone brings the other child back',
      notes(d).includes('Olivia $20') && rewNames(d).length === 2, notes(d));
 
-  // the family-wide check belongs to Everyone
+  // the family-wide check belongs to Everyone, but the adding does not
+  goTab('Ian');
   addTourn(dom, d, { name: 'Far Away Cup', start: `${Y + 1}-06-01` });
   addTourn(dom, d, { name: 'Later Still Cup', start: `${Y + 1}-08-20` });
+  goTab(null);
   ok('Everyone still reports the travel window',
      notes(d).includes('Travel window'), notes(d).slice(0, 160));
+}
+
+group('Everyone changes nothing');
+{
+  const Y = new Date().getFullYear();
+  const tabs = d => $$(d, '#whofilter button[data-who]');
+  const setup = () => {
+    const dom = boot();
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    addKid(dom, d, 'Ian', Y - 9);
+    return { dom, d };
+  };
+
+  {
+    // one child: no strip, and nothing is taken away
+    const { dom, d } = setup();
+    addTourn(dom, d, { name: 'Club Open Day', start: `${Y}-11-01` });
+    ok('one child has no tab strip', tabs(d).length === 0);
+    ok('and can still add a kid', !$(d, '#kidaddrow').hidden);
+    ok('and still import', !$(d, '#importbox').hidden);
+    ok('and still add a tournament', !$(d, '#addbox').hidden);
+    ok('and still edit rewards', !!$(d, '.rewkid button'));
+    ok('and the row still offers Rewards', !!$(d, '.tourn .trewbtn'));
+    ok('and its delete', !!$(d, '.tourn .tdel'));
+    ok('and no lock line is shown', $(d, '#wholock').hidden);
+  }
+
+  {
+    // a second child turns Everyone into a read-only overview
+    const { dom, d } = setup();
+    addTourn(dom, d, { name: 'Club Open Day', start: `${Y}-11-01` });
+    addKid(dom, d, 'Olivia', Y - 13);
+
+    ok('a second child brings the strip', tabs(d).length === 3, tabs(d).length);
+    ok('and Everyone is where it opens', tabs(d)[0].classList.contains('on'));
+    ok('the lock line explains itself',
+       !$(d, '#wholock').hidden && $(d, '#wholock').textContent.includes('read only'),
+       $(d, '#wholock').textContent);
+
+    ok('no adding a kid', $(d, '#kidaddrow').hidden);
+    // the attribute is not the whole story — a class with its own display can
+    // beat it, so check the write is refused too
+    ok('and the add button cannot sneak one in',
+       (addKid(dom, d, 'Smuggled', 2015), $$(d, '.kid').length === 2), $$(d, '.kid').length);
+    ok('no removing one', !$(d, '.kid .kx'));
+    ok('a birth year is text, not a field', !$(d, '.kid .kyr') && !!$(d, '.kid .kyrv'));
+    ok('no importing', $(d, '#importbox').hidden);
+    ok('no adding a tournament', $(d, '#addbox').hidden);
+    ok('no editing a standard', !$(d, '.rewkid button'));
+    ok('no Rewards on a row', !$(d, '.tourn .trewbtn'));
+    ok('no deleting a tournament', !$(d, '.tourn .tdel'));
+    ok('the status buttons do not take a click',
+       $$(d, '.tourn .join').every(b => b.disabled), $$(d, '.tourn .join').length);
+
+    // but everything is still legible
+    ok('the children are still listed', $$(d, '.kid').length === 2);
+    ok('their standards are still listed', $$(d, '.rewkid').length === 2);
+    ok('and the tournament is still there', $$(d, '.tourn').length === 1);
+
+    // clicking a status on Everyone must not sneak a change through
+    const before = JSON.stringify(saved(dom).entries);
+    click(dom, $(d, '.tourn .join'));
+    ok('a click on a locked status changes nothing',
+       JSON.stringify(saved(dom).entries) === before, saved(dom).entries);
+
+    // and a child's tab hands it all back
+    click(dom, tabs(d)[1]);
+    ok('a child’s tab can add a kid again', !$(d, '#kidaddrow').hidden);
+    ok('and import again', !$(d, '#importbox').hidden);
+    ok('and edit a standard again', !!$(d, '.rewkid button'));
+    ok('and work the row again',
+       !!$(d, '.tourn .trewbtn') && !$(d, '.tourn .join').disabled);
+    ok('and the lock line is gone', $(d, '#wholock').hidden);
+  }
+
+  {
+    // results read on Everyone, but cannot be typed there
+    const { dom, d } = setup();
+    addTourn(dom, d, { name: 'Club Open Day', start: `${Y - 1}-11-01` });   // while editable
+    addKid(dom, d, 'Olivia', Y - 13);
+    click(dom, tabs(d)[1]);                                   // Ian
+    click(dom, $(d, '.rewkid button'));
+    input(dom, $(d, '#r-win'), '5');
+    click(dom, $(d, '#r-ok'));
+    click(dom, $(d, '.tourn .join'));
+    click(dom, $(d, '.tourn .join'));                          // entered
+    change(dom, $(d, '.tourn .rwin'), '4');
+    ok('his tab totals it up', $(d, '.tourn .rpay').textContent === '$20',
+       $(d, '.tourn .rpay').textContent);
+
+    click(dom, tabs(d)[0]);                                    // Everyone
+    ok('Everyone still shows the money', $(d, '.tourn .rpay').textContent === '$20',
+       $(d, '.tourn .rpay').textContent);
+    ok('and the wins, as a value rather than a field',
+       !$(d, '.tourn .rwin') && $(d, '.tourn .rv').textContent === '4',
+       $(d, '.tourn .rv') && $(d, '.tourn .rv').textContent);
+    ok('and the season check still reads',
+       $(d, '#mnotes').textContent.includes('Ian $20 across 1 result'), $(d, '#mnotes').textContent);
+  }
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
