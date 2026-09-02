@@ -1336,12 +1336,28 @@ const offset = n => {
   const p = x => String(x).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
-const addKid = (dom, d, name, birthYear) => {
+// Once there are two kids the strip appears and adding a child or a tournament
+// only happens on Setup, so these do what a person has to do: go there, do it,
+// and come back to the tab they were on.
+const whoTabs = d => $$(d, '#whofilter button[data-who]');
+const goTab = (dom, d, key) => {
+  const b = whoTabs(d).find(x => x.dataset.who === key);
+  if (b) click(dom, b);
+};
+const onSetup = (dom, d, fn) => {
+  const strip = whoTabs(d);
+  if (!strip.length) return fn();
+  const was = (strip.find(b => b.classList.contains('on')) || strip[0]).dataset.who;
+  goTab(dom, d, 'setup');
+  fn();
+  goTab(dom, d, was);
+};
+const addKid = (dom, d, name, birthYear) => onSetup(dom, d, () => {
   input(dom, $(d, '#kid-name'), name);
   if (birthYear !== undefined) input(dom, $(d, '#kid-year'), String(birthYear));
   click(dom, $(d, '#kid-add'));
-};
-const addTourn = (dom, d, { name, start, end, venue, cat, deadline }) => {
+});
+const addTourn = (dom, d, { name, start, end, venue, cat, deadline }) => onSetup(dom, d, () => {
   input(dom, $(d, '#t-name'), name);
   input(dom, $(d, '#t-start'), start);
   if (end) input(dom, $(d, '#t-end'), end);
@@ -1349,7 +1365,7 @@ const addTourn = (dom, d, { name, start, end, venue, cat, deadline }) => {
   if (cat) input(dom, $(d, '#t-cat'), cat);
   if (deadline) input(dom, $(d, '#t-deadline'), deadline);
   click(dom, $(d, '#t-add'));
-};
+});
 
 group('three views');
 {
@@ -1391,10 +1407,10 @@ group('kids');
   ok('blank name is ignored', (addKid(dom, d, '   '), $$(d, '.kid').length === 2), $$(d, '.kid').length);
   ok('kids persist', saved(dom).players.length === 2);
 
-  // With two kids the view opens on Everyone, which changes nothing — the
-  // remove button is on a child's tab.
-  ok('no remove button on Everyone', !$(d, '.kid .kx'));
-  click(dom, $$(d, '#whofilter button[data-who]')[1]);
+  // With two kids the view opens on Everyone, which has no Kids box at all —
+  // who the children are is settled on Setup.
+  ok('no Kids box outside Setup', $(d, '#kidsbox').hidden);
+  goTab(dom, d, 'setup');
   dom.window.confirm = () => true;
   click(dom, $(d, '.kid .kx'));
   ok('removing a kid works', $$(d, '.kid').length === 1, $$(d, '.kid').length);
@@ -1937,8 +1953,9 @@ group('a tab per child');
   ok('still none with a single kid', $(d, '#whofilter').textContent === '');
 
   addKid(dom, d, 'Ian', Y - 13);
-  ok('a tab each, plus Everyone, with two kids', $$(d, '#whofilter button[data-who]').length === 3,
-     $$(d, '#whofilter button[data-who]').length);
+  ok('a tab each, plus Everyone and Setup, with two kids',
+     $$(d, '#whofilter button[data-who]').length === 4,
+     $$(d, '#whofilter button[data-who]').map(b => b.textContent.trim()).join('|'));
 
   // added from a child's tab, because Everyone changes nothing
   click(dom, $$(d, '#whofilter button[data-who]')[1]);
@@ -2886,7 +2903,8 @@ group('a child’s tab scopes the whole view');
   goTab(null);
 
   ok('Everyone is the first tab', tabs(d)[0].textContent.includes('Everyone'));
-  ok('and every child has one', tabs(d).length === 3, tabs(d).length);
+  ok('and every child has one, with Setup last', tabs(d).length === 4 &&
+     tabs(d)[3].textContent.trim() === 'Setup', tabs(d).map(b => b.textContent.trim()).join('|'));
   ok('a tab carries the count of what that child can enter',
      tabs(d)[0].querySelector('.ct').textContent === '1', tabs(d)[0].textContent);
 
@@ -2952,19 +2970,21 @@ group('Everyone changes nothing');
     addTourn(dom, d, { name: 'Club Open Day', start: `${Y}-11-01` });
     addKid(dom, d, 'Olivia', Y - 13);
 
-    ok('a second child brings the strip', tabs(d).length === 3, tabs(d).length);
+    ok('a second child brings the strip', tabs(d).length === 4, tabs(d).length);
     ok('and Everyone is where it opens', tabs(d)[0].classList.contains('on'));
     ok('the lock line explains itself',
        !$(d, '#wholock').hidden && $(d, '#wholock').textContent.includes('read only'),
        $(d, '#wholock').textContent);
 
-    ok('no adding a kid', $(d, '#kidaddrow').hidden);
-    // the attribute is not the whole story — a class with its own display can
-    // beat it, so check the write is refused too
-    ok('and the add button cannot sneak one in',
-       (addKid(dom, d, 'Smuggled', 2015), $$(d, '.kid').length === 2), $$(d, '.kid').length);
-    ok('no removing one', !$(d, '.kid .kx'));
-    ok('a birth year is text, not a field', !$(d, '.kid .kyr') && !!$(d, '.kid .kyrv'));
+    ok('no Kids box at all — that is Setup', $(d, '#kidsbox').hidden);
+    // the attribute is not the whole story: a class with its own display can
+    // beat it, and the fields are still in the DOM, so check the write refuses
+    ok('and the add form cannot sneak one in', (() => {
+      input(dom, $(d, '#kid-name'), 'Smuggled');
+      input(dom, $(d, '#kid-year'), '2015');
+      click(dom, $(d, '#kid-add'));
+      return saved(dom).players.length === 2;
+    })(), saved(dom).players.map(p => p.name).join(','));
     ok('no importing', $(d, '#importbox').hidden);
     ok('no adding a tournament', $(d, '#addbox').hidden);
     ok('no editing a standard', !$(d, '.rewkid button'));
@@ -2973,10 +2993,11 @@ group('Everyone changes nothing');
     ok('the status buttons do not take a click',
        $$(d, '.tourn .join').every(b => b.disabled), $$(d, '.tourn .join').length);
 
-    // but everything is still legible
-    ok('the children are still listed', $$(d, '.kid').length === 2);
-    ok('their standards are still listed', $$(d, '.rewkid').length === 2);
+    // but the season itself is still legible
+    ok('both standards are still listed', $$(d, '.rewkid').length === 2,
+       $$(d, '.rewkid').length);
     ok('and the tournament is still there', $$(d, '.tourn').length === 1);
+    ok('and the season check still reads', !$(d, '#checksbox').hidden);
 
     // clicking a status on Everyone must not sneak a change through
     const before = JSON.stringify(saved(dom).entries);
@@ -2986,12 +3007,36 @@ group('Everyone changes nothing');
 
     // and a child's tab hands it all back
     click(dom, tabs(d)[1]);
-    ok('a child’s tab can add a kid again', !$(d, '#kidaddrow').hidden);
-    ok('and import again', !$(d, '#importbox').hidden);
-    ok('and edit a standard again', !!$(d, '.rewkid button'));
-    ok('and work the row again',
+    ok('a child’s tab edits their standard again', !!$(d, '.rewkid button'));
+    ok('and works the row again',
        !!$(d, '.tourn .trewbtn') && !$(d, '.tourn .join').disabled);
-    ok('and the lock line is gone', $(d, '#wholock').hidden);
+    ok('but still leaves the setting up to Setup',
+       $(d, '#kidsbox').hidden && $(d, '#importbox').hidden && $(d, '#addbox').hidden);
+    ok('and its lock line is its own',
+       !$(d, '#wholock').hidden === false, $(d, '#wholock').textContent);
+
+    // Setup is where the children and the tournaments are
+    goTab(dom, d, 'setup');
+    ok('Setup has the Kids box', !$(d, '#kidsbox').hidden);
+    ok('and the import box', !$(d, '#importbox').hidden);
+    ok('and the add box', !$(d, '#addbox').hidden);
+    ok('and a delete on the row', !!$(d, '.tourn .tdel'));
+    ok('but no rewards, statuses or results there',
+       !$(d, '.tourn .trewbtn') && !$(d, '.tourn .join') && !$(d, '.tourn .res'));
+    ok('and no rewards box', $(d, '#rewardsbox').hidden);
+    ok('nor a season check', $(d, '#checksbox').hidden);
+    ok('it says what it is for',
+       $(d, '#wholock').textContent.includes('what the season is made of'),
+       $(d, '#wholock').textContent);
+    // the header line has to describe the tab you are on
+    ok('and the header stops telling you to click a child',
+       !$(d, '#sub').textContent.includes('Click a child'), $(d, '#sub').textContent);
+    click(dom, tabs(d)[0]);
+    ok('Everyone says to pick a child instead',
+       $(d, '#sub').textContent.includes('Pick a child above'), $(d, '#sub').textContent);
+    click(dom, tabs(d)[1]);
+    ok('and a child’s tab keeps the original line',
+       $(d, '#sub').textContent.includes('Click a child on a row'), $(d, '#sub').textContent);
   }
 
   {

@@ -5,6 +5,24 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] — 2026-09-02
+
+### Changed
+
+- **A Setup tab, and every edit has one place to be.** A child's tab still
+  showed the Kids box, so Olivia's tab listed Ian and offered to add another
+  child — neither hers nor an overview. Who the children are and which
+  tournaments exist are the family's, not any one child's, and they now live on
+  **Setup**: Kids, Import from STA, Add a tournament, and the list with its
+  delete. Nothing else is there — no rewards, no statuses, no results, no season
+  check, because those all belong to a child.
+- **The header line follows the tab.** Telling someone to click a child on a row
+  is wrong on the two tabs where clicking does nothing, so Everyone and Setup
+  each say what they are instead.
+
+With one child there is still no strip and nothing moves: one view, everything
+on it.
+
 ## [2.8.0] — 2026-09-01
 
 ### Changed
