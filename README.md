@@ -1,8 +1,8 @@
 # Tennis training planner
 
-**Version 2.9.1** · [Changelog](CHANGELOG.md)
+**Version 2.10.0** · [Changelog](CHANGELOG.md)
 
-A single-page planner for a junior tennis season, in three parts:
+A single-page planner for a junior tennis season, in four parts:
 
 1. **Calendar** (the landing view) — twelve months on one page: who is playing
    when (a coloured dot per child), where the training blocks sit, and the
@@ -16,6 +16,9 @@ A single-page planner for a junior tennis season, in three parts:
    all can be blocked out alongside. The page tallies daily and weekly hours and
    flags a plan that is too heavy, too relentless, or too solitary for a young
    player.
+4. **Setup** — who the children are and which tournaments exist. Tournaments and
+   Training both split by child, so neither of them owns these: they are the
+   family's, and they have a page of their own.
 
 The design and the source research behind it are in `task_plan.md` and
 `findings.md`.
@@ -86,31 +89,25 @@ tests/                          jsdom harness + api tests — dev only, never de
 
 ## What it does — Tournaments
 
-- **Kids** — add each child with a birth year; they get their own colour and an
-  age group (U10, 14&U, 16&U, Junior). Ages follow the Singapore convention: the
-  age reached during the season year, so 10&U in 2026 means born 2016 or later.
 - **Only the children who can enter a tournament are offered on it.** A U10
   event shows the nine-year-old alone, a 16&U event the thirteen-year-old. Each
   child is offered their own group and one above it — juniors play up a group,
   but not into every event they are technically old enough for. A child with a
   status recorded is always shown regardless, and a child with no birth year is
   shown everywhere.
-- **Four tabs, once you have two kids** — **Everyone**, one per child, and
-  **Setup**:
+- **A tab per child, once you have two kids** — **Everyone**, then one each:
 
   | Tab | What it is |
   | --- | --- |
   | Everyone | the whole season, read only |
   | A child | their tournaments, their rewards, their results — theirs to edit |
-  | Setup | which children, which tournaments — nothing else |
 
   Every edit belongs somewhere. What is one child's is on that child's tab;
   what is the family's — who the children are, which tournaments exist — is on
-  Setup. Everyone changes nothing, so it can be read without care.
+  the Setup page. Everyone changes nothing, so it can be read without care.
 
   A child's row still shows who else is playing, because that is a fact about
-  the event. With one child there is no strip at all and everything stays on
-  the single page.
+  the event. With one child there is no strip at all.
 - **Tournaments** — name, dates, venue, categories and entry deadline, grouped
   by month. Past ones dim.
 - **Who's going** — one button per child per tournament, cycling
@@ -164,6 +161,23 @@ does not pay. This is the reason results are stored at all.
 Nought wins is a real result and is kept as one; an empty box means *not yet
 entered*, which is what the season check chases after a tournament has
 finished.
+
+## What it does — Setup
+
+Who the children are and which tournaments exist. Tournaments and Training both
+split by child, so neither of them owns this — it is the family's, it has a page
+of its own, and nothing on it is ever read-only.
+
+- **Kids** — add each child with a birth year; they get their own colour and an
+  age group (U10, 14&U, 16&U, Junior). Ages follow the Singapore convention: the
+  age reached during the season year, so 10&U in 2026 means born 2016 or later.
+  The birth year is what lets a tournament offer only the children who can enter
+  it, and what the training load checks read to know how hard a day is.
+- **Every tournament there is**, whoever can enter it, each with a **×**. This is
+  the only place one can be deleted: removing a tournament is setting up, not
+  running a season.
+- No statuses, no rewards, no results here — those belong to a child, on their
+  own tab under Tournaments.
 
 ### Importing the STA calendar
 
@@ -436,13 +450,14 @@ Two suites. `api.test.mjs` drives `api/plan.js` directly with a stubbed store �
 backend choice, key validation, the 409 refusal and the forced write, bodies
 that are not plans, junk in the store, and an unreachable one.
 
-The rest is 638 assertions driving the real page under jsdom: cold boot, the v1.0.0
+The rest is 663 assertions driving the real page under jsdom: cold boot, the v1.0.0
 migration, state round-trips, thirteen kinds of corrupt saved state, block
 create/rename/switch/delete, variable length and its clamps, calendar alignment
 for different start weekdays, the load checks and the age they scale with, whose
 block is whose — the training strip, the owner picker, and a block outliving the
 child it belonged to — a timezone regression, view
-switching, kids, tournament add/delete, the entry-status cycle, the reward
+switching, Setup as a view of its own and its edits reaching both strips,
+kids, tournament add/delete, the entry-status cycle, the reward
 schemes — per child, per tournament, a feed's suggestion, and the order the
 three resolve in — the payout arithmetic behind them, and the season checks.
 

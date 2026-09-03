@@ -451,8 +451,6 @@ input[type=number]#days{width:74px}
 .whotab.on{color:var(--court-line);border-bottom-color:var(--c,var(--ball));background:rgba(255,255,255,.05)}
 .whotab .whodot{width:8px;height:8px;border-radius:50%;background:var(--c);display:block;opacity:.55}
 .whotab.on .whodot{opacity:1}
-.whotab.setup{margin-left:auto;color:var(--mute)}
-.whotab.setup.on{color:var(--ball);border-bottom-color:var(--ball)}
 .whotab .ct{
   font-family:'Karla',sans-serif;font-size:11.5px;font-weight:700;
   color:var(--mute);letter-spacing:.04em;
@@ -759,6 +757,7 @@ input[type=number]#days{width:74px}
   <button class="navbtn on" id="nav-calendar" data-view="calendar">Calendar</button>
   <button class="navbtn" id="nav-matches" data-view="matches">Tournaments<span class="ct" id="nav-ct"></span></button>
   <button class="navbtn" id="nav-training" data-view="training">Training</button>
+  <button class="navbtn" id="nav-setup" data-view="setup">Setup</button>
 </nav>
 
 <header>
@@ -832,6 +831,25 @@ input[type=number]#days{width:74px}
   <div class="whotabs" id="whofilter"></div>
   <p class="hint" id="wholock" hidden></p>
 
+  <div class="kids" id="rewardsbox">
+    <h2>Rewards</h2>
+    <div class="rewrow" id="rewrow"></div>
+    <p class="hint">What each child plays for, at every tournament. One event can
+      pay something different &mdash; press <b>Rewards</b> on its row, and only that
+      row shows a line.</p>
+  </div>
+
+  <div id="tournlist"></div>
+
+  <div class="checks" id="checksbox">
+    <h2>Season check</h2>
+    <div id="mnotes"></div>
+  </div>
+
+</section>
+
+<section class="view" id="view-setup">
+
   <div class="kids" id="kidsbox">
     <h2>Kids</h2>
     <div class="kidrow" id="kidrow"></div>
@@ -841,16 +859,9 @@ input[type=number]#days{width:74px}
       <button id="kid-add">Add kid</button>
     </div>
     <p class="hint">A birth year sets each child's age group, so a tournament only
-      offers the children who can actually enter it. Click a child to cycle
-      planned &rarr; entered &rarr; confirmed &rarr; skipped &rarr; not going.</p>
-  </div>
-
-  <div class="kids" id="rewardsbox">
-    <h2>Rewards</h2>
-    <div class="rewrow" id="rewrow"></div>
-    <p class="hint">What each child plays for, at every tournament. One event can
-      pay something different &mdash; press <b>Rewards</b> on its row, and only that
-      row shows a line.</p>
+      offers the children who can actually enter it, and the training load checks
+      know how old they are. Every child gets a tab of their own on Tournaments
+      and on Training.</p>
   </div>
 
   <div class="addbox" id="importbox">
@@ -885,12 +896,7 @@ input[type=number]#days{width:74px}
     <p class="hint" id="feednote"></p>
   </div>
 
-  <div id="tournlist"></div>
-
-  <div class="checks" id="checksbox">
-    <h2>Season check</h2>
-    <div id="mnotes"></div>
-  </div>
+  <div id="setuplist"></div>
 
 </section>
 
@@ -2295,8 +2301,7 @@ function renderAgeRow(){
    whose money is that. Everyone stays first, because the travel window and the
    clash checks are family-wide facts that cannot be worked out one child at a
    time. With one child there is nothing to choose between, so no strip. */
-const SETUP_TAB = 'setup';   // not a uid, so it can never collide with a child
-let whoFilter = null;        // null = everyone, SETUP_TAB, otherwise a player id
+let whoFilter = null;        // null = everyone, otherwise a player id
 function whoShown(){
   return state.players.find(p => p.id === whoFilter) || null;
 }
@@ -2304,7 +2309,6 @@ function whoShown(){
 // child there is nothing to choose between, so the page stays as it was: one
 // view, everything on it.
 function hasStrip(){ return state.players.length >= 2; }
-function onSetup(){ return whoFilter === SETUP_TAB; }
 // Everyone reads the whole season at once, and every edit on this page belongs
 // to whichever child it is about, so it changes nothing — it is the overview.
 // With one child there is no strip and nothing to choose between, so the view
@@ -2314,11 +2318,6 @@ function onSetup(){ return whoFilter === SETUP_TAB; }
 // control stops a person, and stopping the write is what stops everything else.
 function viewLocked(){
   return hasStrip() && whoFilter === null;
-}
-// Which children there are, and which tournaments exist, are not any one
-// child's business — they are the family's, and they are settled on Setup.
-function setupBarred(){
-  return hasStrip() && !onSetup();
 }
 // The tournaments one child could enter — the same rule the list itself uses.
 function matchesFor(p){
@@ -2335,8 +2334,7 @@ function renderWhoFilter(){
       (n ? `<span class="ct">${n}</span>` : '') + '</button>';
   };
   row.innerHTML = tab(null, 'Everyone', null) +
-    state.players.map(p => tab(p.id, p.name, p.colour)).join('') +
-    `<button class="whotab setup${onSetup() ? ' on' : ''}" data-who="${SETUP_TAB}">Setup</button>`;
+    state.players.map(p => tab(p.id, p.name, p.colour)).join('');
   row.querySelectorAll('button[data-who]').forEach(el=>
     el.addEventListener('click', ()=>{
       whoFilter = el.dataset.who || null;
@@ -2400,7 +2398,6 @@ async function importFromSta(){
 
 /* ---- players ---- */
 function addPlayer(name, birthYear){
-  if(setupBarred()) return false;
   const n = (name || '').trim();
   if(!n) return false;
   const y = parseInt(birthYear, 10);
@@ -2413,7 +2410,6 @@ function addPlayer(name, birthYear){
   return true;
 }
 function setPlayerYear(id, value){
-  if(setupBarred()) return;
   const p = state.players.find(x => x.id === id);
   if(!p) return;
   const y = parseInt(value, 10);
@@ -2421,7 +2417,6 @@ function setPlayerYear(id, value){
   render(); save();
 }
 function removePlayer(id){
-  if(setupBarred()) return;
   const p = state.players.find(x=>x.id===id);
   if(p && !window.confirm(
       `Remove ${p.name}? Their tournament entries go too. `
@@ -2579,7 +2574,6 @@ function payout(m, p){
 
 /* ---- manual tournaments ---- */
 function addTournament(){
-  if(setupBarred()) return false;
   const g = id => document.getElementById(id).value.trim();
   const name = g('t-name'), start = g('t-start');
   if(!name || !/^\d{4}-\d{2}-\d{2}$/.test(start)){
@@ -2600,7 +2594,6 @@ function addTournament(){
   return true;
 }
 function removeTournament(id){
-  if(setupBarred()) return;
   const m = (state.manualMatches || []).find(x=>x.id===id);
   if(m && !window.confirm(`Delete “${m.name}”?`)) return;
   state.manualMatches = state.manualMatches.filter(x=>x.id !== id);
@@ -2636,85 +2629,18 @@ function blockCovering(m, who){
 }
 
 /* ---- render part 2 ---- */
-function renderMatches(){
-  const thisYear = new Date().getFullYear();
-  const locked = viewLocked();
-  const setup = onSetup();
-  const strip = hasStrip();
-  const kidrow = document.getElementById('kidrow');
-  kidrow.innerHTML = state.players.map(p=>{
-    const grp = primaryGroup(p, thisYear);
-    return `<span class="kid" style="--c:${p.colour}"><span class="knm">${escapeHtml(p.name)}</span>` +
-      (locked
-        ? `<span class="kyrv">${p.birthYear || '—'}</span>`
-        : `<input class="kyr" type="number" min="1990" max="2030" step="1" data-kid="${p.id}"` +
-          ` value="${p.birthYear || ''}" placeholder="year" aria-label="${escapeHtml(p.name)} birth year">`) +
-      `<span class="kgrp">${grp ? escapeHtml(groupLabel(grp)) : 'no age group'}</span>` +
-      (locked ? ''
-              : `<button class="kx" data-kid="${p.id}" aria-label="Remove ${escapeHtml(p.name)}">&times;</button>`) +
-      '</span>';
-  }).join('') || '<span class="hint" style="margin:0">No kids yet — add one to start tracking entries.</span>';
-  kidrow.querySelectorAll('.kx').forEach(btn=>
-    btn.addEventListener('click', ()=>removePlayer(btn.dataset.kid)));
-  kidrow.querySelectorAll('.kyr').forEach(inp=>
-    inp.addEventListener('change', ()=>setPlayerYear(inp.dataset.kid, inp.value)));
-
-  // On a child's tab, their rewards are the only ones worth showing.
-  const rewrow = document.getElementById('rewrow');
-  const rewkids = whoShown() ? [whoShown()] : state.players;
-  rewrow.innerHTML = rewkids.map(p=>{
-    const r = kidScheme(p);
-    return `<div class="rewkid" style="--c:${p.colour}"><span class="rknm">${escapeHtml(p.name)}</span>` +
-      (r ? `<span class="rkline">${escapeHtml(rewardsLine(r))}</span>`
-         : '<span class="rknone">nothing set — every tournament pays nothing</span>') +
-      (locked ? ''
-              : `<button data-rewkid="${p.id}" aria-label="${r ? 'Edit' : 'Set'} ${escapeHtml(p.name)} rewards"` +
-                `>${r ? 'Edit' : 'Set rewards'}</button>`) +
-      '</div>';
-  }).join('') || '<span class="hint" style="margin:0">Add a child above and you can say what they play for.</span>';
-
-  // Who the children are and which tournaments exist live on Setup. Everyone
-  // and the children's tabs are the season; Setup is what the season is made
-  // of. With one child there is no strip, so it all stays on the one page.
-  const onlySetup = strip && !setup;
-  document.getElementById('kidsbox').hidden = onlySetup;
-  document.getElementById('kidaddrow').hidden = false;
-  document.getElementById('importbox').hidden = onlySetup;
-  document.getElementById('addbox').hidden = onlySetup;
-  // Rewards are the child's, so they are not part of setting up.
-  document.getElementById('rewardsbox').hidden = setup;
-  document.getElementById('checksbox').hidden = setup;
-  const lock = document.getElementById('wholock');
-  lock.hidden = !locked && !setup;
-  if(locked) lock.textContent =
-    'Everyone is the whole season, read only. Pick a child above to change anything — ' +
-    'their entries, their rewards, their results.';
-  else if(setup) lock.textContent =
-    'Setup is what the season is made of: which children, which tournaments. ' +
-    'Entries, rewards and results belong to a child, on their own tab.';
-  rewrow.querySelectorAll('[data-rewkid]').forEach(btn=>
-    btn.addEventListener('click', ()=>openRewards('kid', btn.dataset.rewkid)));
-
-  document.getElementById('feednote').textContent = feedNote ||
-    'No data/matches.json yet — tournaments added here are stored in this browser.';
-
-  renderAgeRow();
-
-  renderWhoFilter();
-
-  const list = document.getElementById('tournlist');
-  const who = whoShown();
-  const ms = matchesFor(who);
+/* One row renderer, two lists. Setup asks what exists — no statuses, no
+   results, no rewards, and the × that removes one. The tournaments page asks
+   how the season is going, for whoever's tab you are on. */
+function renderTournList(list, ms, {setup, locked, who}){
   // Anything we hold locally can be deleted, however it got here. Only the
   // generated feed is read-only.
   const editable = new Set((state.manualMatches || []).map(m=>m.id));
-  document.getElementById('nav-ct').textContent = ms.length ? ms.length : '';
 
   if(!ms.length){
-    list.innerHTML = `<div class="empty">${strip && !setup
-      ? 'No tournaments yet. Add them on the Setup tab.'
-      : 'No tournaments yet. Import from STA above, paste a tournament link, or add one by hand.'}</div>`;
-    runSeasonChecks(ms);
+    list.innerHTML = `<div class="empty">${setup
+      ? 'No tournaments yet. Import from STA above, paste a tournament link, or add one by hand.'
+      : 'No tournaments yet. Add them on Setup.'}</div>`;
     return;
   }
 
@@ -2737,7 +2663,7 @@ function renderMatches(){
     if(m.venue) meta.push(escapeHtml(m.venue));
     if(m.categories.length) meta.push(escapeHtml(m.categories.join(', ')));
     if(m.entryDeadline) meta.push(`Entry by ${fmt(new Date(m.entryDeadline+'T00:00:00'))}${dl !== null && dl >= 0 && !past ? ` (${dl}d)` : ''}`);
-    const shownKid = whoShown();
+    const shownKid = who;
     const cover = blockCovering(m, shownKid ? shownKid.id : null);
     if(cover){
       // On Everyone the block name alone is ambiguous between two children.
@@ -2760,7 +2686,7 @@ function renderMatches(){
     // whose season is being read.
     // Setup is what exists, not how it is going: no statuses, no results, no
     // rewards there — those all belong to a child.
-    const played = setup ? [] : (whoShown() ? [whoShown()] : state.players).filter(p =>
+    const played = setup ? [] : (who ? [who] : state.players).filter(p =>
       ['entered','confirmed'].includes(statusOf(m.id, p.id)) && hasRewards(schemeFor(m, p)));
     const results = played.map(p=>{
       const res = resultOf(m.id, p.id) || {wins:null, place:null};
@@ -2794,7 +2720,7 @@ function renderMatches(){
         ${differs ? `<div class="trew"><span class="only">Only here</span>${escapeHtml(rewardsLine(own))}</div>` : ''}</div>
       <div class="joins">${joins}${locked || setup ? '' :
         `<button class="trewbtn${differs?' set':''}" data-rew="${m.id}"
-          aria-label="Rewards for ${escapeHtml(m.name)}">Rewards</button>`}${(!strip || setup) && editable.has(m.id)
+          aria-label="Rewards for ${escapeHtml(m.name)}">Rewards</button>`}${setup && editable.has(m.id)
         ? `<button class="tdel" data-del="${m.id}" aria-label="Delete">&times;</button>` : ''}</div>
       ${results ? `<div class="results">${results}</div>` : ''}
     </div>`;
@@ -2814,6 +2740,84 @@ function renderMatches(){
   list.querySelectorAll('.rpl').forEach(inp=>
     inp.addEventListener('change', ()=>setResult(inp.dataset.m, inp.dataset.p, 'place', inp.value)));
 
+  list.innerHTML = html;
+
+  // Locked means no handler at all, not merely a disabled button: the attribute
+  // stops a real click, but nothing should be listening in the first place.
+  if(!locked) list.querySelectorAll('.join').forEach(btn=>
+    btn.addEventListener('click', ()=>cycleEntry(btn.dataset.m, btn.dataset.p)));
+  list.querySelectorAll('.tdel').forEach(btn=>
+    btn.addEventListener('click', ()=>removeTournament(btn.dataset.del)));
+  list.querySelectorAll('.trewbtn').forEach(btn=>
+    btn.addEventListener('click', ()=>openRewards('match', btn.dataset.rew)));
+  list.querySelectorAll('.rwin').forEach(inp=>
+    inp.addEventListener('change', ()=>setResult(inp.dataset.m, inp.dataset.p, 'wins', inp.value)));
+  list.querySelectorAll('.rpl').forEach(inp=>
+    inp.addEventListener('change', ()=>setResult(inp.dataset.m, inp.dataset.p, 'place', inp.value)));
+}
+
+/* ---- render: Setup ----
+   Which children there are and which tournaments exist are the family's, not
+   any one child's — and now that Training splits by child too, they are not
+   the tournaments page's either. They live on their own view, reachable from
+   anywhere, and nothing here is ever read-only: setting up is the one thing
+   you always came to do. */
+function renderSetup(){
+  const thisYear = new Date().getFullYear();
+  const kidrow = document.getElementById('kidrow');
+  kidrow.innerHTML = state.players.map(p=>{
+    const grp = primaryGroup(p, thisYear);
+    return `<span class="kid" style="--c:${p.colour}"><span class="knm">${escapeHtml(p.name)}</span>` +
+      `<input class="kyr" type="number" min="1990" max="2030" step="1" data-kid="${p.id}"` +
+      ` value="${p.birthYear || ''}" placeholder="year" aria-label="${escapeHtml(p.name)} birth year">` +
+      `<span class="kgrp">${grp ? escapeHtml(groupLabel(grp)) : 'no age group'}</span>` +
+      `<button class="kx" data-kid="${p.id}" aria-label="Remove ${escapeHtml(p.name)}">&times;</button>` +
+      '</span>';
+  }).join('') || '<span class="hint" style="margin:0">No kids yet — add one to start tracking entries.</span>';
+  kidrow.querySelectorAll('.kx').forEach(btn=>
+    btn.addEventListener('click', ()=>removePlayer(btn.dataset.kid)));
+  kidrow.querySelectorAll('.kyr').forEach(inp=>
+    inp.addEventListener('change', ()=>setPlayerYear(inp.dataset.kid, inp.value)));
+
+  document.getElementById('feednote').textContent = feedNote ||
+    'No data/matches.json yet — tournaments added here are stored in this browser.';
+  renderAgeRow();
+
+  renderTournList(document.getElementById('setuplist'), allMatches(),
+                  {setup:true, locked:false, who:null});
+}
+
+function renderMatches(){
+  const locked = viewLocked();
+
+  // On a child's tab, their rewards are the only ones worth showing.
+  const rewrow = document.getElementById('rewrow');
+  const rewkids = whoShown() ? [whoShown()] : state.players;
+  rewrow.innerHTML = rewkids.map(p=>{
+    const r = kidScheme(p);
+    return `<div class="rewkid" style="--c:${p.colour}"><span class="rknm">${escapeHtml(p.name)}</span>` +
+      (r ? `<span class="rkline">${escapeHtml(rewardsLine(r))}</span>`
+         : '<span class="rknone">nothing set — every tournament pays nothing</span>') +
+      (locked ? ''
+              : `<button data-rewkid="${p.id}" aria-label="${r ? 'Edit' : 'Set'} ${escapeHtml(p.name)} rewards"` +
+                `>${r ? 'Edit' : 'Set rewards'}</button>`) +
+      '</div>';
+  }).join('') || '<span class="hint" style="margin:0">Add a child on Setup and you can say what they play for.</span>';
+  rewrow.querySelectorAll('[data-rewkid]').forEach(btn=>
+    btn.addEventListener('click', ()=>openRewards('kid', btn.dataset.rewkid)));
+
+  const lock = document.getElementById('wholock');
+  lock.hidden = !locked;
+  if(locked) lock.textContent =
+    'Everyone is the whole season, read only. Pick a child above to change anything — ' +
+    'their entries, their rewards, their results.';
+
+  renderWhoFilter();
+
+  const who = whoShown();
+  const ms = matchesFor(who);
+  document.getElementById('nav-ct').textContent = ms.length ? ms.length : '';
+  renderTournList(document.getElementById('tournlist'), ms, {setup:false, locked, who});
   runSeasonChecks(ms);
 }
 
@@ -3164,7 +3168,7 @@ function renderDataBar(){
 let view = 'calendar';
 
 function setView(v){
-  view = ['matches','calendar'].includes(v) ? v : 'training';
+  view = ['matches','calendar','setup'].includes(v) ? v : 'training';
   render();
 }
 function renderHeader(){
@@ -3191,12 +3195,10 @@ function renderHeader(){
     document.getElementById('range').textContent = upcoming.length
       ? `next ${spanLabel(upcoming[0])}` : 'season';
     // The line has to describe the tab you are on: telling someone to click a
-    // child on a row is wrong on the two tabs where clicking does nothing.
-    sub.textContent = onSetup()
-      ? 'Which children, and which tournaments. What each of them is playing for lives on their own tab.'
-      : viewLocked()
-        ? 'Every tournament and who is going, across both children. Pick a child above to change anything.'
-        : 'Every tournament and who is going. Click a child on a row to cycle their status.';
+    // child on a row is wrong on the one tab where clicking does nothing.
+    sub.textContent = viewLocked()
+      ? 'Every tournament and who is going, across both children. Pick a child above to change anything.'
+      : 'Every tournament and who is going. Click a child on a row to cycle their status.';
     document.getElementById('tot').textContent = upcoming.length;
     document.getElementById('ondays').textContent = state.players.length;
     document.getElementById('restdays').textContent =
@@ -3204,6 +3206,18 @@ function renderHeader(){
     document.getElementById('lab1').textContent = 'Upcoming';
     document.getElementById('lab2').textContent = 'Kids';
     document.getElementById('lab3').textContent = 'Entered';
+  } else if(view === 'setup'){
+    const ms = allMatches();
+    document.getElementById('title').textContent = 'Setup';
+    document.getElementById('range').textContent = 'the whole family';
+    sub.textContent = 'Which children, and which tournaments. Both pages split by child ' +
+      'from here; what each of them plays for lives on their own tab under Tournaments.';
+    document.getElementById('tot').textContent = state.players.length;
+    document.getElementById('ondays').textContent = ms.length;
+    document.getElementById('restdays').textContent = (state.manualMatches || []).length;
+    document.getElementById('lab1').textContent = 'Kids';
+    document.getElementById('lab2').textContent = 'Tournaments';
+    document.getElementById('lab3').textContent = 'Added here';
   } else {
     const own = blockOwner(active());
     // Hours and rest days are one child's, so the line names them: with two
@@ -3214,10 +3228,9 @@ function renderHeader(){
     document.getElementById('lab2').textContent = 'On-court days';
     document.getElementById('lab3').textContent = 'Rest days';
   }
-  ['training','matches','calendar'].forEach(v=>{
+  ['training','matches','calendar','setup'].forEach(v=>{
     document.getElementById('view-' + v).classList.toggle('on', view === v);
-    document.getElementById('nav-' + (v === 'training' ? 'training' : v === 'matches' ? 'matches' : 'calendar'))
-      .classList.toggle('on', view === v);
+    document.getElementById('nav-' + v).classList.toggle('on', view === v);
   });
 }
 
@@ -3225,6 +3238,7 @@ function renderHeader(){
 // keeps all the existing render() call sites correct.
 function render(){
   renderTraining();
+  renderSetup();
   renderMatches();
   renderCalendar();
   renderHeader();
@@ -3929,6 +3943,7 @@ document.getElementById('btn-copy').addEventListener('click', async ()=>{
 document.getElementById('nav-training').addEventListener('click', ()=>setView('training'));
 document.getElementById('nav-matches').addEventListener('click', ()=>setView('matches'));
 document.getElementById('nav-calendar').addEventListener('click', ()=>setView('calendar'));
+document.getElementById('nav-setup').addEventListener('click', ()=>setView('setup'));
 document.getElementById('cal-prev').addEventListener('click', ()=>{ calYear--; render(); });
 document.getElementById('cal-next').addEventListener('click', ()=>{ calYear++; render(); });
 

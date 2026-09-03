@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   block added on a child's tab is theirs; a child's tab shows their blocks and
   any block nobody has claimed, so nothing can become unreachable. The block tab
   carries their colour, a hollow ring where nobody is named yet.
+- **A Setup page.** Setting up moved out from under Tournaments and became a
+  fourth nav item beside Calendar, Tournaments and Training: Kids, Import from
+  STA, Add a tournament, and the list of every tournament with the **×** that
+  removes one. Both pages split by child now, so who the children are and which
+  tournaments exist belong to neither of them — they are the family's. It is
+  reachable with no children added at all, which the old tab, which only
+  appeared once there were two kids, was not.
 - **Load ceilings that know how old the child is.** The 3.5h that is a hard day
   at nine is an ordinary one at fifteen. The daily and weekly caps — and the day
   bars and week totals drawn from them — now scale with the owner's age in the
@@ -28,13 +35,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Both child strips read the same:** Everyone, then a tab each. The
+  Tournaments strip has lost its Setup tab, and the tournaments page has lost
+  the Kids, Import and Add boxes with it. What is left there is the season —
+  rewards, statuses, results and the season check.
+- **Nothing on Setup is ever read-only.** The guards that kept those controls
+  off a child's tab are gone, because the controls are not there to guard:
+  setting up is the one thing you always came to do. Everyone stays read-only on
+  Tournaments, where an edit really does belong to one child.
+- **One row renderer, two lists.** Setup asks what exists — no statuses, no
+  results, no rewards. The tournaments page asks how the season is going, for
+  whoever's tab you are on, and no longer offers a delete.
+- **Everyone stays editable on Training**, unlike the tournaments overview: a
+  block names its own owner, so an edit made from the overview is never
+  ambiguous about who it is for.
 - **The year view says whose training week it is.** A day only one child trains
   takes their colour on its left edge, and the tooltip names them:
   `Training: Her block (Olivia)`. A day both train keeps the neutral marker — a
   single stripe cannot honestly stand for two children.
-- **Everyone stays editable on Training**, unlike the tournaments overview: a
-  block names its own owner, so an edit made from the overview is never
-  ambiguous about who it is for.
 - **A tournament's build-up follows the tab.** "During *Her block*" now prefers
   the block belonging to the child whose tab you are on, and names the owner on
   Everyone where the block name alone is ambiguous.
@@ -47,8 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Removing a child no longer takes their training with them.** Their blocks go
   back to unassigned and stay on the page; the plans in them are real work.
 
-With one child there is still no strip and nothing moves: one view, everything
-on it.
+With one child there is still no strip on either page: Tournaments and Training
+each stay one view with everything on it, and Setup is where it always is.
 
 ## [2.9.1] — 2026-09-03
 

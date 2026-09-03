@@ -1336,21 +1336,22 @@ const offset = n => {
   const p = x => String(x).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
-// Once there are two kids the strip appears and adding a child or a tournament
-// only happens on Setup, so these do what a person has to do: go there, do it,
-// and come back to the tab they were on.
+// Who the children are and which tournaments exist belong to the family, not
+// to a tab, so they live on a view of their own. These do what a person has to
+// do: go to Setup, do it, and come back to the view they were on.
 const whoTabs = d => $$(d, '#whofilter button[data-who]');
 const goTab = (dom, d, key) => {
   const b = whoTabs(d).find(x => x.dataset.who === key);
   if (b) click(dom, b);
 };
+const VIEWS = ['calendar', 'matches', 'training', 'setup'];
+const currentView = d => VIEWS.find(v => $(d, '#view-' + v).classList.contains('on')) || 'calendar';
+const goSetup = (dom, d) => click(dom, $(d, '#nav-setup'));
 const onSetup = (dom, d, fn) => {
-  const strip = whoTabs(d);
-  if (!strip.length) return fn();
-  const was = (strip.find(b => b.classList.contains('on')) || strip[0]).dataset.who;
-  goTab(dom, d, 'setup');
+  const was = currentView(d);
+  goSetup(dom, d);
   fn();
-  goTab(dom, d, was);
+  click(dom, $(d, '#nav-' + was));
 };
 const addKid = (dom, d, name, birthYear) => onSetup(dom, d, () => {
   input(dom, $(d, '#kid-name'), name);
@@ -1375,8 +1376,9 @@ group('three views');
   ok('calendar nav marked active', $(d, '#nav-calendar').classList.contains('on'));
   ok('training hidden by default', !$(d, '#view-training').classList.contains('on'));
   ok('tournaments hidden by default', !$(d, '#view-matches').classList.contains('on'));
-  ok('tab order is calendar, tournaments, training',
-     $$(d, '.navbtn').map(b => b.id).join(',') === 'nav-calendar,nav-matches,nav-training',
+  ok('setup hidden by default', !$(d, '#view-setup').classList.contains('on'));
+  ok('tab order is calendar, tournaments, training, setup',
+     $$(d, '.navbtn').map(b => b.id).join(',') === 'nav-calendar,nav-matches,nav-training,nav-setup',
      $$(d, '.navbtn').map(b => b.id).join(','));
 
   click(dom, $(d, '#nav-matches'));
@@ -1407,10 +1409,12 @@ group('kids');
   ok('blank name is ignored', (addKid(dom, d, '   '), $$(d, '.kid').length === 2), $$(d, '.kid').length);
   ok('kids persist', saved(dom).players.length === 2);
 
-  // With two kids the view opens on Everyone, which has no Kids box at all —
-  // who the children are is settled on Setup.
-  ok('no Kids box outside Setup', $(d, '#kidsbox').hidden);
-  goTab(dom, d, 'setup');
+  // Who the children are is not the tournaments page's business at all: the
+  // Kids box lives on Setup, whichever tab you are standing on.
+  ok('the Kids box is not on the tournaments page',
+     !$(d, '#view-matches').contains($(d, '#kidsbox')));
+  ok('it is on Setup', $(d, '#view-setup').contains($(d, '#kidsbox')));
+  goSetup(dom, d);
   dom.window.confirm = () => true;
   click(dom, $(d, '.kid .kx'));
   ok('removing a kid works', $$(d, '.kid').length === 1, $$(d, '.kid').length);
@@ -1427,27 +1431,27 @@ group('adding tournaments');
 
   addTourn(dom, d, { name: 'STA Junior Champs', start: '2026-11-21', end: '2026-11-23',
                      venue: 'Kallang', cat: '12U Girls, 14U Girls', deadline: '2026-11-01' });
-  ok('one tournament row', $$(d, '.tourn').length === 1, $$(d, '.tourn').length);
-  ok('date span collapses to one month', $(d, '.tourn .tdate').textContent.includes('21–23 Nov'),
-     $(d, '.tourn .tdate').textContent);
-  ok('venue and categories shown', $(d, '.tourn .tmeta').textContent.includes('Kallang') &&
-     $(d, '.tourn .tmeta').textContent.includes('12U Girls'));
+  ok('one tournament row', $$(d, '#tournlist .tourn').length === 1, $$(d, '#tournlist .tourn').length);
+  ok('date span collapses to one month', $(d, '#tournlist .tourn .tdate').textContent.includes('21–23 Nov'),
+     $(d, '#tournlist .tourn .tdate').textContent);
+  ok('venue and categories shown', $(d, '#tournlist .tourn .tmeta').textContent.includes('Kallang') &&
+     $(d, '#tournlist .tourn .tmeta').textContent.includes('12U Girls'));
   ok('month heading rendered', $(d, '.monthhead').textContent === 'Nov 2026', $(d, '.monthhead')?.textContent);
   ok('nav shows the count', $(d, '#nav-ct').textContent === '1', $(d, '#nav-ct').textContent);
   ok('form cleared after add', $(d, '#t-name').value === '');
   ok('tournament persisted', saved(dom).manualMatches.length === 1);
 
   addTourn(dom, d, { name: 'No date', start: '' });
-  ok('a tournament with no start date is rejected', $$(d, '.tourn').length === 1, $$(d, '.tourn').length);
+  ok('a tournament with no start date is rejected', $$(d, '#tournlist .tourn').length === 1, $$(d, '#tournlist .tourn').length);
 
   addTourn(dom, d, { name: 'Single day', start: '2026-12-05' });
   ok('single-day tournament shows one date',
-     $$(d, '.tourn .tdate')[1].textContent.includes('5 Dec'), $$(d, '.tourn .tdate')[1].textContent);
-  ok('sorted by date', $$(d, '.tourn .tnm').map(e => e.textContent).join('|').indexOf('STA Junior Champs') === 0);
+     $$(d, '#tournlist .tourn .tdate')[1].textContent.includes('5 Dec'), $$(d, '#tournlist .tourn .tdate')[1].textContent);
+  ok('sorted by date', $$(d, '#tournlist .tourn .tnm').map(e => e.textContent).join('|').indexOf('STA Junior Champs') === 0);
 
   dom.window.confirm = () => true;
   click(dom, $(d, '.tdel'));
-  ok('delete removes it', $$(d, '.tourn').length === 1, $$(d, '.tourn').length);
+  ok('delete removes it', $$(d, '#tournlist .tourn').length === 1, $$(d, '#tournlist .tourn').length);
 }
 
 group('entry status per kid');
@@ -1462,27 +1466,27 @@ group('entry status per kid');
   // lives on a child's tab.
   click(dom, $$(d, '#whofilter button[data-who]')[1]);
 
-  ok('one join button per kid', $$(d, '.join').length === 2, $$(d, '.join').length);
-  ok('no status initially', !$(d, '.join').className.includes('s-'));
+  ok('one join button per kid', $$(d, '#tournlist .join').length === 2, $$(d, '#tournlist .join').length);
+  ok('no status initially', !$(d, '#tournlist .join').className.includes('s-'));
 
-  click(dom, $(d, '.join'));
-  ok('first click -> planned', $(d, '.join').className.includes('s-planned'), $(d, '.join').className);
-  click(dom, $(d, '.join'));
-  ok('second -> entered', $(d, '.join').className.includes('s-entered'), $(d, '.join').className);
+  click(dom, $(d, '#tournlist .join'));
+  ok('first click -> planned', $(d, '#tournlist .join').className.includes('s-planned'), $(d, '#tournlist .join').className);
+  click(dom, $(d, '#tournlist .join'));
+  ok('second -> entered', $(d, '#tournlist .join').className.includes('s-entered'), $(d, '#tournlist .join').className);
   ok('entered counts in the header', $(d, '#restdays').textContent === '1', $(d, '#restdays').textContent);
-  click(dom, $(d, '.join'));
-  ok('third -> confirmed', $(d, '.join').className.includes('s-confirmed'), $(d, '.join').className);
-  click(dom, $(d, '.join'));
-  ok('fourth -> skipped', $(d, '.join').className.includes('s-skipped'), $(d, '.join').className);
-  click(dom, $(d, '.join'));
-  ok('fifth clears it', !$(d, '.join').className.includes('s-'), $(d, '.join').className);
+  click(dom, $(d, '#tournlist .join'));
+  ok('third -> confirmed', $(d, '#tournlist .join').className.includes('s-confirmed'), $(d, '#tournlist .join').className);
+  click(dom, $(d, '#tournlist .join'));
+  ok('fourth -> skipped', $(d, '#tournlist .join').className.includes('s-skipped'), $(d, '#tournlist .join').className);
+  click(dom, $(d, '#tournlist .join'));
+  ok('fifth clears it', !$(d, '#tournlist .join').className.includes('s-'), $(d, '#tournlist .join').className);
 
-  click(dom, $(d, '.join'));
+  click(dom, $(d, '#tournlist .join'));
   ok('entry persisted', saved(dom).entries.length === 1, saved(dom).entries.length);
   const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
   const d2 = dom2.window.document;
   click(dom2, $(d2, '#nav-matches'));
-  ok('entry survives reload', $(d2, '.join').className.includes('s-planned'), $(d2, '.join').className);
+  ok('entry survives reload', $(d2, '#tournlist .join').className.includes('s-planned'), $(d2, '#tournlist .join').className);
 }
 
 group('season checks');
@@ -1496,11 +1500,11 @@ group('season checks');
   addTourn(dom, d, { name: 'Closing soon', start: offset(40), deadline: offset(5) });
   ok('a closing deadline is flagged', $(d, '#mnotes').textContent.includes('Entry deadline closing'),
      $(d, '#mnotes').textContent.slice(0, 120));
-  ok('the row is marked', $(d, '.tourn').classList.contains('soon'));
+  ok('the row is marked', $(d, '#tournlist .tourn').classList.contains('soon'));
 
   // marking as skipping should silence it
-  click(dom, $(d, '.join'));  // planned
-  click(dom, $(d, '.join'));  // entered
+  click(dom, $(d, '#tournlist .join'));  // planned
+  click(dom, $(d, '#tournlist .join'));  // entered
   ok('entering it clears the deadline warning',
      !$(d, '#mnotes').textContent.includes('Entry deadline closing'),
      $(d, '#mnotes').textContent.slice(0, 120));
@@ -1508,7 +1512,7 @@ group('season checks');
   // overlapping tournaments for the same kid
   addTourn(dom, d, { name: 'Clash A', start: offset(90), end: offset(93) });
   addTourn(dom, d, { name: 'Clash B', start: offset(92), end: offset(95) });
-  const joins = $$(d, '.join');
+  const joins = $$(d, '#tournlist .join');
   click(dom, joins[joins.length - 2]);
   click(dom, joins[joins.length - 1]);
   ok('overlapping tournaments are flagged', $(d, '#mnotes').textContent.includes('Overlapping tournaments'),
@@ -1535,10 +1539,10 @@ group('training block linkage');
   // default block is 21 Nov - 4 Dec
   addTourn(dom, d, { name: 'Inside the block', start: '2026-11-28' });
   ok('a tournament inside a block names it',
-     $(d, '.tourn .tmeta').textContent.includes('During “Camp plan”'), $(d, '.tourn .tmeta').textContent);
+     $(d, '#tournlist .tourn .tmeta').textContent.includes('During “Camp plan”'), $(d, '#tournlist .tourn .tmeta').textContent);
 
   addTourn(dom, d, { name: 'Well outside', start: '2027-05-01' });
-  const metas = $$(d, '.tourn .tmeta').map(e => e.textContent);
+  const metas = $$(d, '#tournlist .tourn .tmeta').map(e => e.textContent);
   ok('a tournament outside every block says nothing',
      !metas.some(m => m.includes('Well outside') && m.includes('During')));
 }
@@ -1628,8 +1632,8 @@ group('STA link lookup');
        seen.body.slug === 'sta-spex-u10-red-competition-viii-2026', JSON.stringify(seen.body));
 
     click(dom, $(d, '#t-add'));
-    ok('the looked-up tournament is added', $$(d, '.tourn').length === 1, $$(d, '.tourn').length);
-    ok('link rendered on the row', $(d, '.tourn .tmeta a.tlink') !== null);
+    ok('the looked-up tournament is added', $$(d, '#tournlist .tourn').length === 1, $$(d, '#tournlist .tourn').length);
+    ok('link rendered on the row', $(d, '#tournlist .tourn .tmeta a.tlink') !== null);
     ok('link stored', (saved(dom).manualMatches[0].url || '').includes('singtennis.org.sg'),
        saved(dom).manualMatches[0].url);
     ok('link field cleared after add', $(d, '#t-url').value === '');
@@ -1701,8 +1705,8 @@ group('STA link lookup');
     const dom = boot({ [KEY]: seed });
     const d = dom.window.document;
     click(dom, $(d, '#nav-matches'));
-    ok('tournament with a javascript: url still renders', $$(d, '.tourn').length === 1);
-    ok('javascript: url is not rendered as a link', $(d, '.tourn .tmeta a.tlink') === null);
+    ok('tournament with a javascript: url still renders', $$(d, '#tournlist .tourn').length === 1);
+    ok('javascript: url is not rendered as a link', $(d, '#tournlist .tourn .tmeta a.tlink') === null);
     ok('javascript: url is stripped from storage', !JSON.stringify(saved(dom)).includes('javascript:'));
   }
 }
@@ -1752,30 +1756,31 @@ group('bulk import from STA');
 
     click(dom, $(d, '#imp-run'));
     await settle();
-    ok('imports the four junior tournaments', $$(d, '.tourn').length === 4, $$(d, '.tourn').length);
+    ok('imports the four junior tournaments', $$(d, '#tournlist .tourn').length === 4, $$(d, '#tournlist .tourn').length);
     ok('adult events excluded', !$(d, '#tournlist').textContent.includes('Advanced Singles'));
     ok('finished U10 event excluded by "upcoming only"',
        !$(d, '#tournlist').textContent.includes('Orange Competition'));
     ok('note reports what happened', /4 added/.test($(d, '#impnote').textContent), $(d, '#impnote').textContent);
     ok('note reports the skipped past event', /already finished/.test($(d, '#impnote').textContent),
        $(d, '#impnote').textContent);
-    ok('imported rows carry the STA badge', $$(d, '.tourn .src.sta').length === 4, $$(d, '.tourn .src.sta').length);
-    ok('imported rows link back to STA', $$(d, '.tourn a.tlink').length === 4);
-    ok('imported rows are deletable', $$(d, '.tourn .tdel').length === 4);
+    ok('imported rows carry the STA badge', $$(d, '#tournlist .tourn .src.sta').length === 4, $$(d, '#tournlist .tourn .src.sta').length);
+    ok('imported rows link back to STA', $$(d, '#tournlist .tourn a.tlink').length === 4);
+    ok('imported rows are deletable on Setup', $$(d, '#setuplist .tourn .tdel').length === 4);
+  ok('and carry no × on the tournaments page', !$(d, '#tournlist .tourn .tdel'));
     ok('entry deadlines came through', $(d, '#tournlist').textContent.includes('Entry by'));
 
     // re-import must not duplicate
     click(dom, $(d, '#imp-run'));
     await settle();
-    ok('re-import adds nothing', $$(d, '.tourn').length === 4, $$(d, '.tourn').length);
+    ok('re-import adds nothing', $$(d, '#tournlist .tourn').length === 4, $$(d, '#tournlist .tourn').length);
     ok('re-import says they are already there', /already there/.test($(d, '#impnote').textContent),
        $(d, '#impnote').textContent);
 
     const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
     const d2 = dom2.window.document;
     click(dom2, $(d2, '#nav-matches'));
-    ok('imports survive reload', $$(d2, '.tourn').length === 4, $$(d2, '.tourn').length);
-    ok('STA source survives reload', $$(d2, '.tourn .src.sta').length === 4, $$(d2, '.tourn .src.sta').length);
+    ok('imports survive reload', $$(d2, '#tournlist .tourn').length === 4, $$(d2, '#tournlist .tourn').length);
+    ok('STA source survives reload', $$(d2, '#tournlist .tourn .src.sta').length === 4, $$(d2, '#tournlist .tourn .src.sta').length);
   }
 
   {
@@ -1790,7 +1795,7 @@ group('bulk import from STA');
 
     click(dom, $(d, '#imp-run'));
     await settle();
-    const names = $$(d, '.tourn .tnm').map(e => e.textContent);
+    const names = $$(d, '#tournlist .tourn .tnm').map(e => e.textContent);
     ok('U10 event imported for a 9-year-old', names.some(n => n.includes('U10 Red')), names);
     ok('14&U imported (one group up)', names.some(n => n.includes('14&U')), names);
     ok('16&U not imported', !names.some(n => n.includes('16&U')), names);
@@ -1809,7 +1814,7 @@ group('bulk import from STA');
     ok('two kid checkboxes', impKids(d).length === 2);
     click(dom, $(d, '#imp-run'));
     await settle();
-    const names = $$(d, '.tourn .tnm').map(e => e.textContent);
+    const names = $$(d, '#tournlist .tourn .tnm').map(e => e.textContent);
     ok('U10 imported for the younger', names.some(n => n.includes('U10 Red')), names);
     ok('16&U imported for the older', names.some(n => n.includes('16&U')), names);
     ok('note names both children', /Olivia and Ian/.test($(d, '#impnote').textContent),
@@ -1836,9 +1841,9 @@ group('bulk import from STA');
     up.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
     click(dom, $(d, '#imp-run'));
     await settle();
-    ok('unticking "upcoming only" pulls the finished one too', $$(d, '.tourn').length === 5,
-       $$(d, '.tourn').length);
-    ok('the past row is dimmed', $$(d, '.tourn.past').length === 1, $$(d, '.tourn.past').length);
+    ok('unticking "upcoming only" pulls the finished one too', $$(d, '#tournlist .tourn').length === 5,
+       $$(d, '#tournlist .tourn').length);
+    ok('the past row is dimmed', $$(d, '#tournlist .tourn.past').length === 1, $$(d, '#tournlist .tourn.past').length);
   }
 
   {
@@ -1852,7 +1857,7 @@ group('bulk import from STA');
     await settle();
     ok('no child ticked asks for one', $(d, '#impnote').textContent.includes('Tick at least one child'),
        $(d, '#impnote').textContent);
-    ok('and imports nothing', $$(d, '.tourn').length === 0);
+    ok('and imports nothing', $$(d, '#tournlist .tourn').length === 0);
   }
 
   {
@@ -1867,7 +1872,7 @@ group('bulk import from STA');
     await settle();
     ok('an unreachable API is reported', $(d, '#impnote').textContent.includes('Could not reach the STA API'),
        $(d, '#impnote').textContent);
-    ok('nothing imported on failure', $$(d, '.tourn').length === 0);
+    ok('nothing imported on failure', $$(d, '#tournlist .tourn').length === 0);
   }
 }
 
@@ -1882,7 +1887,7 @@ group('per-kid eligibility');
     addKid(dom, d, 'Ian', Y - 13);      // 14&U
     return { dom, d };
   };
-  const rowNamed = (d, text) => $$(d, '.tourn').find(r => r.textContent.includes(text));
+  const rowNamed = (d, text) => $$(d, '#tournlist .tourn').find(r => r.textContent.includes(text));
   const kidsOn = row => [...row.querySelectorAll('.join')].map(b => b.textContent.replace(/·.*/, '').trim());
 
   const { dom, d } = setup();
@@ -1927,8 +1932,8 @@ group('per-kid eligibility');
   click(dom3, $(d3, '#nav-matches'));
   addKid(dom3, d3, 'Unknown');
   addTourn(dom3, d3, { name: 'STA SPEX U10 Red', start: `${Y}-11-02`, cat: 'STA, Junior (U10)' });
-  ok('a kid with no birth year still appears', $$(d3, '.tourn .join').length === 1,
-     $$(d3, '.tourn .join').length);
+  ok('a kid with no birth year still appears', $$(d3, '#tournlist .tourn .join').length === 1,
+     $$(d3, '#tournlist .tourn .join').length);
   ok('chip says the age group is unset', $(d3, '#kidrow').textContent.includes('no age group'),
      $(d3, '#kidrow').textContent);
 
@@ -1936,9 +1941,9 @@ group('per-kid eligibility');
   const yr = $(d3, '.kid .kyr');
   yr.value = String(Y - 13);
   yr.dispatchEvent(new dom3.window.Event('change', { bubbles: true }));
-  ok('filling the year in later applies the rules', $$(d3, '.tourn .join').length === 0,
-     $$(d3, '.tourn .join').length);
-  ok('and the row says why', $(d3, '.tourn .nokid') !== null);
+  ok('filling the year in later applies the rules', $$(d3, '#tournlist .tourn .join').length === 0,
+     $$(d3, '#tournlist .tourn .join').length);
+  ok('and the row says why', $(d3, '#tournlist .tourn .nokid') !== null);
 }
 
 group('a tab per child');
@@ -1953,30 +1958,32 @@ group('a tab per child');
   ok('still none with a single kid', $(d, '#whofilter').textContent === '');
 
   addKid(dom, d, 'Ian', Y - 13);
-  ok('a tab each, plus Everyone and Setup, with two kids',
-     $$(d, '#whofilter button[data-who]').length === 4,
+  ok('a tab each, plus Everyone, with two kids',
+     $$(d, '#whofilter button[data-who]').length === 3,
      $$(d, '#whofilter button[data-who]').map(b => b.textContent.trim()).join('|'));
+  ok('and no Setup among them',
+     !$$(d, '#whofilter button[data-who]').some(b => /setup/i.test(b.textContent)));
 
   // added from a child's tab, because Everyone changes nothing
   click(dom, $$(d, '#whofilter button[data-who]')[1]);
   addTourn(dom, d, { name: 'STA SPEX U10 Red', start: `${Y}-11-02`, cat: 'STA, Junior (U10)' });
   addTourn(dom, d, { name: 'ATF 16&U Cup', start: `${Y}-11-18`, cat: 'ATF, Junior' });
   click(dom, $$(d, '#whofilter button[data-who]')[0]);
-  ok('everyone sees both', $$(d, '.tourn').length === 2, $$(d, '.tourn').length);
+  ok('everyone sees both', $$(d, '#tournlist .tourn').length === 2, $$(d, '#tournlist .tourn').length);
 
   const tabs = $$(d, '#whofilter button[data-who]');
   click(dom, tabs[1]);   // Olivia
-  ok('her tab hides the 16&U event', $$(d, '.tourn').length === 1,
-     $$(d, '.tourn').length);
-  ok('and keeps her U10 event', $(d, '.tourn').textContent.includes('U10 Red'));
+  ok('her tab hides the 16&U event', $$(d, '#tournlist .tourn').length === 1,
+     $$(d, '#tournlist .tourn').length);
+  ok('and keeps her U10 event', $(d, '#tournlist .tourn').textContent.includes('U10 Red'));
 
   click(dom, $$(d, '#whofilter button[data-who]')[2]);   // Ian
-  ok('his tab hides the U10 event', $$(d, '.tourn').length === 1,
-     $$(d, '.tourn').length);
-  ok('and keeps his 16&U event', $(d, '.tourn').textContent.includes('16&U'));
+  ok('his tab hides the U10 event', $$(d, '#tournlist .tourn').length === 1,
+     $$(d, '#tournlist .tourn').length);
+  ok('and keeps his 16&U event', $(d, '#tournlist .tourn').textContent.includes('16&U'));
 
   click(dom, $$(d, '#whofilter button[data-who]')[0]);   // Everyone
-  ok('back to everyone shows both again', $$(d, '.tourn').length === 2, $$(d, '.tourn').length);
+  ok('back to everyone shows both again', $$(d, '#tournlist .tourn').length === 2, $$(d, '#tournlist .tourn').length);
 }
 
 group('generated matches.json feed');
@@ -2007,17 +2014,17 @@ group('generated matches.json feed');
   const d = dom.window.document;
   await settle();
   click(dom, $(d, '#nav-matches'));
-  ok('feed tournaments listed', $$(d, '.tourn').length === 2, $$(d, '.tourn').length);
+  ok('feed tournaments listed', $$(d, '#tournlist .tourn').length === 2, $$(d, '#tournlist .tourn').length);
   ok('feed note reports the count and date',
      /2 tournaments loaded/.test($(d, '#feednote').textContent), $(d, '#feednote').textContent);
-  ok('JTTL badge shown', $$(d, '.src.jttl').length === 2, $$(d, '.src.jttl').length);
-  ok('provisional badge only on the provisional one', $$(d, '.src.prov').length === 1,
+  ok('JTTL badge shown', $$(d, '#tournlist .src.jttl').length === 2, $$(d, '#tournlist .src.jttl').length);
+  ok('provisional badge only on the provisional one', $$(d, '#tournlist .src.prov').length === 1,
      $$(d, '.src.prov').length);
   ok('the provisional note is shown, not just the badge',
-     $(d, '.tourn .tnote').textContent.includes('Draw not yet published'),
-     $(d, '.tourn .tnote') && $(d, '.tourn .tnote').textContent);
-  ok('feed tournaments are not deletable', $$(d, '.tourn .tdel').length === 0,
-     $$(d, '.tourn .tdel').length);
+     $(d, '#tournlist .tourn .tnote').textContent.includes('Draw not yet published'),
+     $(d, '#tournlist .tourn .tnote') && $(d, '#tournlist .tourn .tnote').textContent);
+  ok('feed tournaments are not deletable', $$(d, '#tournlist .tourn .tdel').length === 0,
+     $$(d, '#tournlist .tourn .tdel').length);
   ok('season check warns about provisional dates',
      $(d, '#mnotes').textContent.includes('Provisional dates'), $(d, '#mnotes').textContent.slice(0, 120));
   ok('feed matches are not written into local state',
@@ -2057,7 +2064,7 @@ group('backup export / import');
     click(dom, $(d, '#nav-matches'));
     addKid(dom, d, 'Olivia', Y - 9);
     addTourn(dom, d, { name: 'Champs', start: `${Y}-11-02` });
-    click(dom, $(d, '.join'));
+    click(dom, $(d, '#tournlist .join'));
     ok('data bar updates', /1 kid · 1 tournament · 1 entry/.test($(d, '#dstat').textContent),
        $(d, '#dstat').textContent);
 
@@ -2086,9 +2093,9 @@ group('backup export / import');
     await restore(dom2, d2, text);
     click(dom2, $(d2, '#nav-matches'));
     ok('restore brings the kid back', $$(d2, '.kid').length === 1, $$(d2, '.kid').length);
-    ok('restore brings the tournament back', $$(d2, '.tourn').length === 1, $$(d2, '.tourn').length);
-    ok('restore brings the entry status back', $(d2, '.join').className.includes('s-planned'),
-       $(d2, '.join').className);
+    ok('restore brings the tournament back', $$(d2, '#tournlist .tourn').length === 1, $$(d2, '#tournlist .tourn').length);
+    ok('restore brings the entry status back', $(d2, '#tournlist .join').className.includes('s-planned'),
+       $(d2, '#tournlist .join').className);
     ok('restore reports what it did', $(d2, '#datanote').textContent.includes('Restored'),
        $(d2, '#datanote').textContent);
     ok('restore names the backup date', $(d2, '#datanote').textContent.includes('2026-08-07'),
@@ -2232,8 +2239,8 @@ group('year calendar');
        $(d, '.cell.ev').getAttribute('title'));
 
     click(dom, $(d, '#nav-matches'));
-    click(dom, $(d, '.join'));   // planned
-    click(dom, $(d, '.join'));   // entered
+    click(dom, $(d, '#tournlist .join'));   // planned
+    click(dom, $(d, '#tournlist .join'));   // entered
     click(dom, $(d, '#nav-calendar'));
     while ($(d, '#cal-year').textContent !== '2026') click(dom, $(d, '#cal-prev'));
     ok('entered tournaments highlighted', $$(d, '.cell.ev.ent').length === 3,
@@ -2272,7 +2279,7 @@ group('year calendar');
     addTourn(dom, d, { name: 'Only Mia', start: '2026-04-20' });
     addTourn(dom, d, { name: 'Nobody', start: '2026-04-25' });
 
-    const rowJoins = n => $$(d, '.tourn')[n].querySelectorAll('.join');
+    const rowJoins = n => $$(d, '#tournlist .tourn')[n].querySelectorAll('.join');
     click(dom, rowJoins(0)[0]);           // Mia planned on "Both go"
     click(dom, rowJoins(0)[1]);           // Leo planned on "Both go"
     click(dom, rowJoins(1)[0]);           // Mia planned on "Only Mia"
@@ -2351,7 +2358,7 @@ group('tournament rewards');
 {
   const Y = new Date().getFullYear();
   const PAST = Y - 1;                       // definitely finished, whenever this runs
-  const rowNamed = (d, t) => $$(d, '.tourn').find(r => r.textContent.includes(t));
+  const rowNamed = (d, t) => $$(d, '#tournlist .tourn').find(r => r.textContent.includes(t));
   const rewLine = (d, t) => {
     const el = rowNamed(d, t).querySelector('.trew');
     return el ? el.textContent.replace('Only here', '') : '';
@@ -2517,7 +2524,9 @@ group('tournament rewards');
     saveRew(dom, d, { win: 5 });
     const two = saved(dom).manualMatches.find(m => m.name.includes('Two')).id;
     dom.window.confirm = () => true;
-    click(dom, rowNamed(d, 'Series Two').querySelector('.tdel'));
+    // Deleting is setting up, so the × is on the Setup list.
+    click(dom, $$(d, '#setuplist .tourn').find(r => r.textContent.includes('Series Two'))
+                 .querySelector('.tdel'));
     ok('deleting a tournament takes its scheme with it', !(two in saved(dom).rewards),
        JSON.stringify(saved(dom).rewards));
   }
@@ -2570,7 +2579,7 @@ group('rewards belong to the child');
 {
   const Y = new Date().getFullYear();
   const PAST = Y - 1;
-  const rowNamed = (d, t) => $$(d, '.tourn').find(r => r.textContent.includes(t));
+  const rowNamed = (d, t) => $$(d, '#tournlist .tourn').find(r => r.textContent.includes(t));
   const rewLine = (d, t) => {
     const el = rowNamed(d, t).querySelector('.trew');
     return el ? el.textContent.replace('Only here', '') : '';
@@ -2812,7 +2821,7 @@ group('a suggested scheme is the weakest one');
     const d = dom.window.document;
     await settle();
     click(dom, $(d, '#nav-matches'));
-    const row = $$(d, '.tourn')[0];
+    const row = $$(d, '#tournlist .tourn')[0];
     const el = row && row.querySelector('.rpay');
     return { paid: el ? el.textContent : null, row, d, dom };
   };
@@ -2843,16 +2852,16 @@ group('a suggested scheme is the weakest one');
     const d = dom.window.document;
     await settle();
     click(dom, $(d, '#nav-matches'));
-    click(dom, $$(d, '.tourn')[0].querySelector('.trewbtn'));
+    click(dom, $$(d, '#tournlist .tourn')[0].querySelector('.trewbtn'));
     ok('the dialog opens on the suggestion, ready to accept',
        $(d, '#r-win').value === '1', $(d, '#r-win').value);
     input(dom, $(d, '#r-win'), '9');
     click(dom, $(d, '#r-ok'));
     ok('an exception set here beats the standard and the suggestion both',
-       $$(d, '.tourn')[0].querySelector('.rpay').textContent === '$36',
-       $$(d, '.tourn')[0].querySelector('.rpay').textContent);
+       $$(d, '#tournlist .tourn')[0].querySelector('.rpay').textContent === '$36',
+       $$(d, '#tournlist .tourn')[0].querySelector('.rpay').textContent);
     ok('and only then is the row badged',
-       $$(d, '.tourn')[0].querySelector('.trewbtn').classList.contains('set'));
+       $$(d, '#tournlist .tourn')[0].querySelector('.trewbtn').classList.contains('set'));
   }
   {
     // the new buttons name what they act on
@@ -2884,7 +2893,7 @@ group('a child’s tab scopes the whole view');
 
   // Everyone changes nothing, so all of this is done on the children's tabs.
   const goTab = name => click(dom, name === null ? tabs(d)[0] : tabNamed(d, name));
-  const row = () => $$(d, '.tourn')[0];
+  const row = () => $$(d, '#tournlist .tourn')[0];
   const setKid = (kid, o) => {
     goTab(kid);
     click(dom, $$(d, '.rewkid').find(r => r.textContent.trim().startsWith(kid)).querySelector('button'));
@@ -2903,8 +2912,8 @@ group('a child’s tab scopes the whole view');
   goTab(null);
 
   ok('Everyone is the first tab', tabs(d)[0].textContent.includes('Everyone'));
-  ok('and every child has one, with Setup last', tabs(d).length === 4 &&
-     tabs(d)[3].textContent.trim() === 'Setup', tabs(d).map(b => b.textContent.trim()).join('|'));
+  ok('and every child has one, and nothing else', tabs(d).length === 3,
+     tabs(d).map(b => b.textContent.trim()).join('|'));
   ok('a tab carries the count of what that child can enter',
      tabs(d)[0].querySelector('.ct').textContent === '1', tabs(d)[0].textContent);
 
@@ -2955,13 +2964,15 @@ group('Everyone changes nothing');
     const { dom, d } = setup();
     addTourn(dom, d, { name: 'Club Open Day', start: `${Y}-11-01` });
     ok('one child has no tab strip', tabs(d).length === 0);
-    ok('and can still add a kid', !$(d, '#kidaddrow').hidden);
-    ok('and still import', !$(d, '#importbox').hidden);
-    ok('and still add a tournament', !$(d, '#addbox').hidden);
     ok('and still edit rewards', !!$(d, '.rewkid button'));
-    ok('and the row still offers Rewards', !!$(d, '.tourn .trewbtn'));
-    ok('and its delete', !!$(d, '.tourn .tdel'));
+    ok('and the row still offers Rewards', !!$(d, '#tournlist .tourn .trewbtn'));
     ok('and no lock line is shown', $(d, '#wholock').hidden);
+    // Setting up is a view of its own whether there is one child or three.
+    goSetup(dom, d);
+    ok('Setup can add a kid', !$(d, '#kidaddrow').hidden);
+    ok('and import', !$(d, '#importbox').hidden);
+    ok('and add a tournament', !$(d, '#addbox').hidden);
+    ok('and delete one', !!$(d, '#setuplist .tourn .tdel'));
   }
 
   {
@@ -2970,38 +2981,31 @@ group('Everyone changes nothing');
     addTourn(dom, d, { name: 'Club Open Day', start: `${Y}-11-01` });
     addKid(dom, d, 'Olivia', Y - 13);
 
-    ok('a second child brings the strip', tabs(d).length === 4, tabs(d).length);
+    ok('a second child brings the strip', tabs(d).length === 3, tabs(d).length);
     ok('and Everyone is where it opens', tabs(d)[0].classList.contains('on'));
     ok('the lock line explains itself',
        !$(d, '#wholock').hidden && $(d, '#wholock').textContent.includes('read only'),
        $(d, '#wholock').textContent);
 
-    ok('no Kids box at all — that is Setup', $(d, '#kidsbox').hidden);
-    // the attribute is not the whole story: a class with its own display can
-    // beat it, and the fields are still in the DOM, so check the write refuses
-    ok('and the add form cannot sneak one in', (() => {
-      input(dom, $(d, '#kid-name'), 'Smuggled');
-      input(dom, $(d, '#kid-year'), '2015');
-      click(dom, $(d, '#kid-add'));
-      return saved(dom).players.length === 2;
-    })(), saved(dom).players.map(p => p.name).join(','));
-    ok('no importing', $(d, '#importbox').hidden);
-    ok('no adding a tournament', $(d, '#addbox').hidden);
+    // Setting up is not on this page at all — no tab of it, no box of it.
+    ok('no Kids box on this page', !$(d, '#view-matches').contains($(d, '#kidsbox')));
+    ok('nor the import box', !$(d, '#view-matches').contains($(d, '#importbox')));
+    ok('nor the add form', !$(d, '#view-matches').contains($(d, '#addbox')));
     ok('no editing a standard', !$(d, '.rewkid button'));
-    ok('no Rewards on a row', !$(d, '.tourn .trewbtn'));
-    ok('no deleting a tournament', !$(d, '.tourn .tdel'));
+    ok('no Rewards on a row', !$(d, '#tournlist .tourn .trewbtn'));
+    ok('no deleting a tournament from here', !$(d, '#tournlist .tourn .tdel'));
     ok('the status buttons do not take a click',
-       $$(d, '.tourn .join').every(b => b.disabled), $$(d, '.tourn .join').length);
+       $$(d, '#tournlist .tourn .join').every(b => b.disabled), $$(d, '#tournlist .tourn .join').length);
 
     // but the season itself is still legible
-    ok('both standards are still listed', $$(d, '.rewkid').length === 2,
-       $$(d, '.rewkid').length);
-    ok('and the tournament is still there', $$(d, '.tourn').length === 1);
+    ok('both standards are still listed', $$(d, '#rewrow .rewkid').length === 2,
+       $$(d, '#rewrow .rewkid').length);
+    ok('and the tournament is still there', $$(d, '#tournlist .tourn').length === 1);
     ok('and the season check still reads', !$(d, '#checksbox').hidden);
 
     // clicking a status on Everyone must not sneak a change through
     const before = JSON.stringify(saved(dom).entries);
-    click(dom, $(d, '.tourn .join'));
+    click(dom, $(d, '#tournlist .tourn .join'));
     ok('a click on a locked status changes nothing',
        JSON.stringify(saved(dom).entries) === before, saved(dom).entries);
 
@@ -3009,34 +3013,30 @@ group('Everyone changes nothing');
     click(dom, tabs(d)[1]);
     ok('a child’s tab edits their standard again', !!$(d, '.rewkid button'));
     ok('and works the row again',
-       !!$(d, '.tourn .trewbtn') && !$(d, '.tourn .join').disabled);
-    ok('but still leaves the setting up to Setup',
-       $(d, '#kidsbox').hidden && $(d, '#importbox').hidden && $(d, '#addbox').hidden);
-    ok('and its lock line is its own',
-       !$(d, '#wholock').hidden === false, $(d, '#wholock').textContent);
+       !!$(d, '#tournlist .tourn .trewbtn') && !$(d, '#tournlist .tourn .join').disabled);
+    ok('and no lock line on a child’s tab', $(d, '#wholock').hidden);
 
-    // Setup is where the children and the tournaments are
-    goTab(dom, d, 'setup');
-    ok('Setup has the Kids box', !$(d, '#kidsbox').hidden);
-    ok('and the import box', !$(d, '#importbox').hidden);
-    ok('and the add box', !$(d, '#addbox').hidden);
-    ok('and a delete on the row', !!$(d, '.tourn .tdel'));
-    ok('but no rewards, statuses or results there',
-       !$(d, '.tourn .trewbtn') && !$(d, '.tourn .join') && !$(d, '.tourn .res'));
-    ok('and no rewards box', $(d, '#rewardsbox').hidden);
-    ok('nor a season check', $(d, '#checksbox').hidden);
-    ok('it says what it is for',
-       $(d, '#wholock').textContent.includes('what the season is made of'),
-       $(d, '#wholock').textContent);
     // the header line has to describe the tab you are on
-    ok('and the header stops telling you to click a child',
-       !$(d, '#sub').textContent.includes('Click a child'), $(d, '#sub').textContent);
+    ok('a child’s tab keeps the original line',
+       $(d, '#sub').textContent.includes('Click a child on a row'), $(d, '#sub').textContent);
     click(dom, tabs(d)[0]);
     ok('Everyone says to pick a child instead',
        $(d, '#sub').textContent.includes('Pick a child above'), $(d, '#sub').textContent);
-    click(dom, tabs(d)[1]);
-    ok('and a child’s tab keeps the original line',
-       $(d, '#sub').textContent.includes('Click a child on a row'), $(d, '#sub').textContent);
+
+    // Setup is a view, not a tab: the children and the tournaments are there
+    goSetup(dom, d);
+    ok('Setup is the view on show', $(d, '#view-setup').classList.contains('on'));
+    ok('and the tournaments page is not', !$(d, '#view-matches').classList.contains('on'));
+    ok('its list offers a delete', !!$(d, '#setuplist .tourn .tdel'));
+    ok('but no rewards, statuses or results there',
+       !$(d, '#setuplist .tourn .trewbtn') && !$(d, '#setuplist .tourn .join') &&
+       !$(d, '#setuplist .tourn .res'));
+    ok('it says what it is for',
+       $(d, '#sub').textContent.includes('Which children, and which tournaments'),
+       $(d, '#sub').textContent);
+    ok('and counts the family in the header',
+       $(d, '#lab1').textContent === 'Kids' && $(d, '#tot').textContent === '2',
+       $(d, '#lab1').textContent + ' ' + $(d, '#tot').textContent);
   }
 
   {
@@ -3048,18 +3048,18 @@ group('Everyone changes nothing');
     click(dom, $(d, '.rewkid button'));
     input(dom, $(d, '#r-win'), '5');
     click(dom, $(d, '#r-ok'));
-    click(dom, $(d, '.tourn .join'));
-    click(dom, $(d, '.tourn .join'));                          // entered
-    change(dom, $(d, '.tourn .rwin'), '4');
-    ok('his tab totals it up', $(d, '.tourn .rpay').textContent === '$20',
-       $(d, '.tourn .rpay').textContent);
+    click(dom, $(d, '#tournlist .tourn .join'));
+    click(dom, $(d, '#tournlist .tourn .join'));                          // entered
+    change(dom, $(d, '#tournlist .tourn .rwin'), '4');
+    ok('his tab totals it up', $(d, '#tournlist .tourn .rpay').textContent === '$20',
+       $(d, '#tournlist .tourn .rpay').textContent);
 
     click(dom, tabs(d)[0]);                                    // Everyone
-    ok('Everyone still shows the money', $(d, '.tourn .rpay').textContent === '$20',
-       $(d, '.tourn .rpay').textContent);
+    ok('Everyone still shows the money', $(d, '#tournlist .tourn .rpay').textContent === '$20',
+       $(d, '#tournlist .tourn .rpay').textContent);
     ok('and the wins, as a value rather than a field',
-       !$(d, '.tourn .rwin') && $(d, '.tourn .rv').textContent === '4',
-       $(d, '.tourn .rv') && $(d, '.tourn .rv').textContent);
+       !$(d, '#tournlist .tourn .rwin') && $(d, '#tournlist .tourn .rv').textContent === '4',
+       $(d, '#tournlist .tourn .rv') && $(d, '#tournlist .tourn .rv').textContent);
     ok('and the season check still reads',
        $(d, '#mnotes').textContent.includes('Ian $20 across 1 result'), $(d, '#mnotes').textContent);
   }
@@ -3188,7 +3188,7 @@ group('a child leaving keeps their plans');
   const d = dom.window.document;
   dom.window.confirm = () => true;
   click(dom, $(d, '#nav-matches'));
-  goTab(dom, d, 'setup');
+  goSetup(dom, d);
   click(dom, $$(d, '.kid .kx')[0]);                  // remove Olivia
   const after = saved(dom);
   ok('her block is not deleted with her', after.blocks.length === 2, after.blocks.length);
@@ -3247,12 +3247,92 @@ group('which block a tournament is the build-up to');
   addTourn(dom, d, { name: 'Club 14&U Cup', start: `${Y}-06-17`, cat: 'STA, Junior' });
   goTab(dom, d, '');                                  // Everyone
   ok('Everyone names the child the block belongs to',
-     $(d, '.tourn').textContent.includes('During “Her block” (Olivia)'),
-     $(d, '.tourn').textContent);
+     $(d, '#tournlist .tourn').textContent.includes('During “Her block” (Olivia)'),
+     $(d, '#tournlist .tourn').textContent);
   goTab(dom, d, 'pb');
   ok('his tab shows his own build-up',
-     $$(d, '.tourn').map(t => t.textContent).join('|').includes('During “His block”'),
-     $$(d, '.tourn').map(t => t.textContent).join('|'));
+     $$(d, '#tournlist .tourn').map(t => t.textContent).join('|').includes('During “His block”'),
+     $$(d, '#tournlist .tourn').map(t => t.textContent).join('|'));
+}
+
+/* ------------------------------------------------------------------ */
+/* Setting up is a view, not a tab. Both pages split by child now, so who the
+   children are and which tournaments exist belong to neither of them. */
+
+group('Setup is a view of its own');
+{
+  const Y = new Date().getFullYear();
+  const dom = boot();
+  const d = dom.window.document;
+
+  ok('there is a Setup nav button', !!$(d, '#nav-setup'));
+  ok('and a Setup view to go with it', !!$(d, '#view-setup'));
+  ok('the Kids box lives there', $(d, '#view-setup').contains($(d, '#kidsbox')));
+  ok('so does Import from STA', $(d, '#view-setup').contains($(d, '#importbox')));
+  ok('and Add a tournament', $(d, '#view-setup').contains($(d, '#addbox')));
+  ok('rewards stay with the tournaments page',
+     $(d, '#view-matches').contains($(d, '#rewardsbox')));
+  ok('and so does the season check',
+     $(d, '#view-matches').contains($(d, '#checksbox')));
+
+  goSetup(dom, d);
+  ok('clicking it switches view', $(d, '#view-setup').classList.contains('on'));
+  ok('and marks the nav button', $(d, '#nav-setup').classList.contains('on'));
+  ok('the header names it', $(d, '#title').textContent === 'Setup', $(d, '#title').textContent);
+
+  // Everything family-level is reachable from here with no kids at all — the
+  // old Setup tab only existed once there were two children to hide it behind.
+  ok('the add-a-kid row is there from the start', !$(d, '#kidaddrow').hidden);
+  addKid(dom, d, 'Olivia', Y - 9);
+  ok('adding a kid works with nobody else around', saved(dom).players.length === 1);
+  addKid(dom, d, 'Ian', Y - 13);
+  ok('and with two', saved(dom).players.length === 2);
+  ok('Setup has no child strip of its own', !$(d, '#view-setup').querySelector('.whotabs'));
+  ok('the header counts the family',
+     $(d, '#tot').textContent === '2' && $(d, '#lab1').textContent === 'Kids',
+     $(d, '#tot').textContent + '/' + $(d, '#lab1').textContent);
+
+  addTourn(dom, d, { name: 'Club Meet', start: `${Y}-11-02`, cat: 'Junior (U10)' });
+  goSetup(dom, d);
+  ok('its list shows every tournament, whoever can enter it',
+     $$(d, '#setuplist .tourn').length === 1, $$(d, '#setuplist .tourn').length);
+  ok('with a delete', !!$(d, '#setuplist .tourn .tdel'));
+  ok('and no statuses, rewards or results',
+     !$(d, '#setuplist .join') && !$(d, '#setuplist .trewbtn') && !$(d, '#setuplist .res'));
+
+  // The tournaments page keeps the season and loses the setting up.
+  click(dom, $(d, '#nav-matches'));
+  ok('the strip is Everyone and the children, nothing more',
+     $$(d, '#whofilter button[data-who]').length === 3,
+     $$(d, '#whofilter button[data-who]').map(b => b.textContent.trim()).join('|'));
+  ok('the row has statuses', !!$(d, '#tournlist .tourn .join'));
+  ok('but no delete', !$(d, '#tournlist .tourn .tdel'));
+}
+
+group('Setup edits reach both pages');
+{
+  const Y = new Date().getFullYear();
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Olivia', Y - 9);
+  addKid(dom, d, 'Ian', Y - 13);
+
+  // A child added on Setup has to turn up on both strips without a reload.
+  click(dom, $(d, '#nav-training'));
+  ok('Training gained a strip', $$(d, '#trainwho button[data-who]').length === 3,
+     $$(d, '#trainwho button[data-who]').map(b => b.textContent.trim()).join('|'));
+  click(dom, $(d, '#nav-matches'));
+  ok('and Tournaments gained one too', $$(d, '#whofilter button[data-who]').length === 3);
+
+  // And removing one has to take both strips back down.
+  dom.window.confirm = () => true;
+  goSetup(dom, d);
+  click(dom, $$(d, '.kid .kx')[0]);
+  ok('a child removed on Setup is gone', saved(dom).players.length === 1);
+  click(dom, $(d, '#nav-training'));
+  ok('Training drops its strip', $$(d, '#trainwho button[data-who]').length === 0);
+  click(dom, $(d, '#nav-matches'));
+  ok('so does Tournaments', $$(d, '#whofilter button[data-who]').length === 0);
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
