@@ -5,6 +5,16 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.1] — 2026-09-03
+
+### Fixed
+
+- **The add-a-tournament fields and the button read as one line.** Six fields sat
+  across the box and the button dropped to a row of its own underneath, so the
+  form looked like two things. Name through Entry deadline and **Add tournament**
+  now share a single row at full width, and below it they fall into even rows of
+  three, then two, with the button on its own line at its natural width.
+
 ## [2.9.0] — 2026-09-02
 
 ### Changed
