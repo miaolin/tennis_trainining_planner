@@ -5,6 +5,51 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.0] — 2026-09-03
+
+### Added
+
+- **A training tab per child, and a block that knows whose it is.** Hours, rest
+  days and every load check are judgements about one body, so averaging two
+  children's weeks together said nothing true about either. Training now carries
+  the same strip as Tournaments — **Everyone** and a tab per child — and each
+  block belongs to one of them, set from **Whose** on the block's own bar. A
+  block added on a child's tab is theirs; a child's tab shows their blocks and
+  any block nobody has claimed, so nothing can become unreachable. The block tab
+  carries their colour, a hollow ring where nobody is named yet.
+- **Load ceilings that know how old the child is.** The 3.5h that is a hard day
+  at nine is an ordinary one at fifteen. The daily and weekly caps — and the day
+  bars and week totals drawn from them — now scale with the owner's age in the
+  season the block runs in. A block with nobody attached keeps the original
+  figures.
+- **The load check names the child.** It said "past the useful ceiling for a
+  9-year-old — she will stop learning", which was one child's block hard-coded
+  into the page. It now gives the owner's real age and their name.
+
+### Changed
+
+- **The year view says whose training week it is.** A day only one child trains
+  takes their colour on its left edge, and the tooltip names them:
+  `Training: Her block (Olivia)`. A day both train keeps the neutral marker — a
+  single stripe cannot honestly stand for two children.
+- **Everyone stays editable on Training**, unlike the tournaments overview: a
+  block names its own owner, so an edit made from the overview is never
+  ambiguous about who it is for.
+- **A tournament's build-up follows the tab.** "During *Her block*" now prefers
+  the block belonging to the child whose tab you are on, and names the owner on
+  Everyone where the block name alone is ambiguous.
+- **Copying a plan as text carries the name** — the text lands in a message with
+  no tab strip around it to say whose it is. The printed page drops the strip,
+  as it already drops the block bar.
+
+### Fixed
+
+- **Removing a child no longer takes their training with them.** Their blocks go
+  back to unassigned and stay on the page; the plans in them are real work.
+
+With one child there is still no strip and nothing moves: one view, everything
+on it.
+
 ## [2.9.1] — 2026-09-03
 
 ### Fixed

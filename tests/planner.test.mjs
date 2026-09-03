@@ -3065,5 +3065,195 @@ group('Everyone changes nothing');
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* Training, once there are two children. A block belongs to one of them:
+   the hours, the rest days and every load check are judgements about one
+   body, so the page has to say whose. */
+
+const trainTabs = d => $$(d, '#trainwho button[data-who]');
+const blockTabs = d => $$(d, '#blockbar .btab:not(.btab-add)');
+const activeBlock = dom => {
+  const s = saved(dom);
+  return s.blocks.find(b => b.id === s.activeBlockId);
+};
+// Two children, a block each, and a 4h day in both — the same day that is over
+// the ceiling at nine and an ordinary one at thirteen.
+const twoKidPlan = (opts = {}) => {
+  const Y = new Date().getFullYear();
+  return JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [
+      { id: 'ba', name: 'Her block', start: `${Y}-06-01`, days: 7,
+        playerId: opts.unowned ? null : 'pa', plan: { 0: { am: 'g2', pm: 'g2' } } },
+      { id: 'bb', name: 'His block', start: `${Y}-06-15`, days: 7,
+        playerId: 'pb', plan: { 0: { am: 'g2', pm: 'g2' } } },
+    ],
+    activeBlockId: 'ba',
+    players: [
+      { id: 'pa', name: 'Olivia', birthYear: Y - 9,  colour: '#5B9BD5' },
+      { id: 'pb', name: 'Ian',    birthYear: Y - 13, colour: '#D6E64B' },
+    ],
+    entries: [], manualMatches: [], trips: [], rewards: {},
+  });
+};
+
+group('a training tab per child');
+{
+  const Y = new Date().getFullYear();
+  const dom = boot();
+  const d = dom.window.document;
+  ok('no strip with no kids', trainTabs(d).length === 0 && $(d, '#trainwho').hidden);
+  ok('and no owner picker either', $(d, '#blockwho').hidden);
+
+  addKid(dom, d, 'Olivia', Y - 9);
+  ok('still none with a single kid', trainTabs(d).length === 0);
+  ok('and still nothing to pick', $(d, '#blockwho').hidden);
+
+  addKid(dom, d, 'Ian', Y - 13);
+  ok('Everyone plus a tab each, with two kids', trainTabs(d).length === 3,
+     trainTabs(d).map(b => b.textContent.trim()).join('|'));
+  ok('and the picker turns up', !$(d, '#blockwho').hidden);
+  ok('the block that was here already belongs to nobody',
+     activeBlock(dom).playerId === null);
+  ok('so it shows on the strip with a hollow dot',
+     $(d, '#blockbar .btab .bdot') && !$(d, '#blockbar .btab .bdot').getAttribute('style'));
+
+  const kids = saved(dom).players;
+  // A block added on a child's tab is theirs — that is the whole point of
+  // standing on their tab.
+  click(dom, trainTabs(d)[1]);
+  click(dom, $(d, '#btn-add'));
+  ok('a block added on her tab is hers', activeBlock(dom).playerId === kids[0].id,
+     activeBlock(dom).playerId);
+  ok('and the tab carries her colour',
+     ($(d, '#blockbar .btab.on .bdot').getAttribute('style') || '').includes(kids[0].colour),
+     $(d, '#blockbar .btab.on .bdot').getAttribute('style'));
+  ok('the header says whose block is on screen',
+     $(d, '#sub').textContent.startsWith('Olivia’s block.'), $(d, '#sub').textContent);
+
+  click(dom, trainTabs(d)[2]);
+  ok('his tab does not show hers', blockTabs(d).length === 1, blockTabs(d).length);
+  ok('but an unassigned block stays reachable from it',
+     blockTabs(d)[0].textContent.includes('Camp plan'), blockTabs(d)[0].textContent);
+  ok('and the grid follows to a block his tab actually shows',
+     activeBlock(dom).name === 'Camp plan', activeBlock(dom).name);
+
+  click(dom, trainTabs(d)[0]);
+  ok('Everyone sees both', blockTabs(d).length === 2, blockTabs(d).length);
+
+  // Everyone stays editable: a block names its own owner, so an edit made from
+  // the overview is never ambiguous about who it is for.
+  input(dom, $(d, '#blockname'), 'Renamed from Everyone');
+  ok('and can still edit from there',
+     saved(dom).blocks.some(b => b.name === 'Renamed from Everyone'));
+}
+
+group('handing a block to a child');
+{
+  const dom = boot({ [KEY]: twoKidPlan({ unowned: true }) });
+  const d = dom.window.document;
+  const kids = saved(dom).players;
+
+  ok('an unowned block shows on every tab', blockTabs(d).length === 2);
+  click(dom, trainTabs(d)[2]);
+  ok('his tab shows his own and the unowned one', blockTabs(d).length === 2,
+     blockTabs(d).map(b => b.textContent).join('|'));
+
+  click(dom, trainTabs(d)[0]);
+  click(dom, blockTabs(d)[0]);                       // Her block, still unowned
+  change(dom, $(d, '#blockwho'), kids[0].id);
+  ok('the picker assigns it',
+     saved(dom).blocks.find(b => b.id === 'ba').playerId === kids[0].id);
+
+  click(dom, trainTabs(d)[2]);
+  ok('and it drops off the other tab', blockTabs(d).length === 1,
+     blockTabs(d).map(b => b.textContent).join('|'));
+
+  // Handing it on from a child's tab would file it out of sight, so the page
+  // follows it rather than leaving the grid on a stranger.
+  click(dom, trainTabs(d)[1]);
+  change(dom, $(d, '#blockwho'), kids[1].id);
+  ok('handing it on moves you to the tab it went to',
+     trainTabs(d)[2].classList.contains('on'),
+     trainTabs(d).map(b => b.className).join('|'));
+  ok('and the grid is still on that block', activeBlock(dom).id === 'ba');
+  ok('while her tab is now empty', (click(dom, trainTabs(d)[1]), blockTabs(d).length === 0));
+  ok('and says so by name', $(d, '#notes').textContent.includes('No blocks for Olivia'),
+     $(d, '#notes').textContent);
+}
+
+group('a child leaving keeps their plans');
+{
+  const dom = boot({ [KEY]: twoKidPlan() });
+  const d = dom.window.document;
+  dom.window.confirm = () => true;
+  click(dom, $(d, '#nav-matches'));
+  goTab(dom, d, 'setup');
+  click(dom, $$(d, '.kid .kx')[0]);                  // remove Olivia
+  const after = saved(dom);
+  ok('her block is not deleted with her', after.blocks.length === 2, after.blocks.length);
+  ok('it goes back to unassigned', after.blocks.find(b => b.id === 'ba').playerId === null);
+  click(dom, $(d, '#nav-training'));
+  ok('and the strip is gone with only one kid left', trainTabs(d).length === 0);
+  ok('so every block is on show again', blockTabs(d).length === 2);
+}
+
+group('load checks belong to one child');
+{
+  const dom = boot({ [KEY]: twoKidPlan() });
+  const d = dom.window.document;
+  ok('her 4h day is over a nine-year-old’s ceiling',
+     $(d, '#notes').textContent.includes('Heavy days'), $(d, '#notes').textContent);
+  ok('the check gives her age', /a 9-year-old/.test($(d, '#notes').textContent),
+     $(d, '#notes').textContent);
+  ok('and names her rather than guessing a pronoun',
+     $(d, '#notes').textContent.includes('Olivia will stop learning'),
+     $(d, '#notes').textContent);
+  ok('the day bar reads as over', $$(d, '#grid .load-bar i.over').length === 1,
+     $$(d, '#grid .load-bar i.over').length);
+
+  click(dom, trainTabs(d)[2]);                        // Ian, 13
+  ok('the same 4h day is an ordinary one at thirteen',
+     !$(d, '#notes').textContent.includes('Heavy days'), $(d, '#notes').textContent);
+  ok('and his day bar is not over', $$(d, '#grid .load-bar i.over').length === 0);
+  ok('his hours are his own, not the pair added up',
+     $(d, '#tot').textContent === '4.0', $(d, '#tot').textContent);
+}
+
+group('the year view says whose training week it is');
+{
+  const dom = boot({ [KEY]: twoKidPlan() });
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-calendar'));
+  const blk = $$(d, '#months .cell.blk');
+  ok('training days are still marked', blk.length === 14, blk.length);
+  ok('and the tooltip names the child',
+     blk.some(c => (c.getAttribute('title') || '').includes('Her block (Olivia)')),
+     blk.map(c => c.getAttribute('title')).find(Boolean));
+  ok('a day only one child trains takes their colour',
+     blk.some(c => (c.getAttribute('style') || '').includes('#5B9BD5')));
+  ok('and his week takes his', blk.some(c => (c.getAttribute('style') || '').includes('#D6E64B')));
+}
+
+group('which block a tournament is the build-up to');
+{
+  const Y = new Date().getFullYear();
+  const dom = boot({ [KEY]: twoKidPlan() });
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-matches'));
+  // Her block covers the first, his covers the second; the age groups keep the
+  // U10 event off his tab, which is what makes his row the interesting one.
+  addTourn(dom, d, { name: 'Club Meet', start: `${Y}-06-03`, cat: 'Junior (U10)' });
+  addTourn(dom, d, { name: 'Club 14&U Cup', start: `${Y}-06-17`, cat: 'STA, Junior' });
+  goTab(dom, d, '');                                  // Everyone
+  ok('Everyone names the child the block belongs to',
+     $(d, '.tourn').textContent.includes('During “Her block” (Olivia)'),
+     $(d, '.tourn').textContent);
+  goTab(dom, d, 'pb');
+  ok('his tab shows his own build-up',
+     $$(d, '.tourn').map(t => t.textContent).join('|').includes('During “His block”'),
+     $$(d, '.tourn').map(t => t.textContent).join('|'));
+}
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('failed: ' + failures.join(' | ')); process.exit(1); }

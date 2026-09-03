@@ -41,6 +41,12 @@ tests/                          jsdom harness + api tests — dev only, never de
 - **Multiple training blocks.** Name them, give each a start date and a length
   (1–60 days), and switch between them from the tab row. A new block starts the
   day after the previous one ends.
+- **A block belongs to one child.** With two children on the page a strip appears
+  above the block row — **Everyone**, then a tab each — and **Whose** on the
+  block's bar says who a block is for. A block added on a child's tab is theirs;
+  their tab shows their blocks plus any block nobody has claimed yet. Everyone
+  lists them all and stays editable, because a block names its own owner. With
+  one child there is no strip and nothing changes.
 - **Calendar grid** laid out Sun–Sat, aligned to whatever weekday the block
   starts on. Each day has a morning, an afternoon and an evening slot.
 - **An exact start time on every session.** Placing one asks when it starts —
@@ -65,11 +71,16 @@ tests/                          jsdom harness + api tests — dev only, never de
 - **The palette stays with you**, pinned to the top of the window and shrunk to
   the chips once you scroll past it, so a session is always there to drag.
 - **Running totals** per day, per 7-day week, and across the block, with a
-  per-day load bar that turns amber at 3h and red past the daily cap.
+  per-day load bar that turns amber near the daily cap and red past it.
+- **Caps that scale with age.** The daily and weekly ceilings follow the age the
+  block's child reaches that season — 3h/11h at eight, 3.5h/13h at nine and ten,
+  up to 5h/20h at fifteen and over. A block with nobody attached keeps the
+  3.5h/13h defaults.
 - **Load checks** that re-evaluate on every edit: days over the cap, long runs
   without a rest day, too few group sessions, two private blocks stacked on one
   day, two things booked over the same hour, physical work crowding out court
-  time, and weeks over the weekly cap.
+  time, and weeks over the weekly cap. They are written about the block's child
+  by name and age.
 - **Export** the plan as plain text to the clipboard, or print it — the print
   stylesheet drops the controls and prints the grid on white.
 
@@ -113,7 +124,8 @@ tests/                          jsdom harness + api tests — dev only, never de
   finished tournament whose result nobody has entered, and the season's running
   reward total.
 - A tournament falling inside a training block shows that block's name, so
-  build-up blocks are visible from the list.
+  build-up blocks are visible from the list. On a child's tab it prefers their
+  own block over a sibling's; on Everyone it names whose block it is.
 
 ### Rewards
 
@@ -219,7 +231,9 @@ Twelve months for one year, with arrows to move between years.
   can see who is competing when. Grey means a tournament nobody has committed
   to yet; a child who is skipping shows nothing. Hover a day for the names,
   statuses and holiday.
-- **Training blocks** as a yellow left edge.
+- **Training blocks** as a left edge — in the child's colour on a day only they
+  train, yellow where two of them do or where the block has no owner. Hover for
+  the block name and whose it is.
 - **School holidays** as the day background — vacations green, public holidays
   amber.
 - **Holidays this year**, longest first, each marked clear or with the number of
