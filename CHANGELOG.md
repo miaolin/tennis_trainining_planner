@@ -5,6 +5,31 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.1] — 2026-09-04
+
+### Changed
+
+- **Who a tournament is for is a field in the add row, not a strip under the
+  button.** Asking the question below the button asked it after the moment it
+  could be answered: you pressed **Add tournament** and only then met the row
+  that said who it was for. **For** now sits between the entry deadline and the
+  button, reads *Everyone* until told otherwise, and opens a panel to tick
+  children off — a field like the others, in the order the form is filled in.
+  Names are far too long to spell out inline, so the field says who and the
+  panel does the choosing.
+- The three date fields hold a fixed 140px rather than an equal share, so eight
+  controls fit the row where eight equal ones would not. Name takes the largest
+  part of what is left, being the one anyone reads back.
+
+### Fixed
+
+- **A field's caption and input styling stopped leaking into anything nested
+  inside it.** The tick boxes in the For panel are a `<label>` and an `<input>`
+  inside a `.fld`, so they were being drawn as field captions — tiny, letter
+  spaced, uppercase — with each tick box stretched to the full width of the
+  panel, pushing its name off to the right. Both rules now stop at the field's
+  own children.
+
 ## [2.11.0] — 2026-09-04
 
 ### Added

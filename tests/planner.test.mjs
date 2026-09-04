@@ -3346,8 +3346,13 @@ group('Setup edits reach both pages');
 
 const forChips = d => $$(d, '#setuplist .tourn .forpick');
 const forTicks = d => $$(d, '#forrow input[data-forkid]');
-// The row redraws itself after every tick, so a box has to be found again each
-// time rather than held from before.
+// Who it is for is a field in the row now, and its answers live in a panel the
+// field opens — so the panel has to be open before there is anything to tick.
+const openFor = (dom, d) => {
+  if ($(d, '#t-for').getAttribute('aria-expanded') !== 'true') click(dom, $(d, '#t-for'));
+};
+// The panel redraws itself after every tick, so a box has to be found again
+// each time rather than held from before.
 const tickFor = (dom, d, name, want) => {
   const cb = forTicks(d).find(x => x.closest('label').textContent.trim() === name);
   if (!cb || cb.checked === want) return;
@@ -3357,8 +3362,11 @@ const tickFor = (dom, d, name, want) => {
 // Tick boxes on the add form, then fill the form and add. Names not listed
 // are unticked; passing nothing leaves every child ticked.
 const addTournFor = (dom, d, fields, names) => onSetup(dom, d, () => {
-  if (names) forTicks(d).map(cb => cb.closest('label').textContent.trim())
-    .forEach(n => tickFor(dom, d, n, names.includes(n)));
+  if (names) {
+    openFor(dom, d);
+    forTicks(d).map(cb => cb.closest('label').textContent.trim())
+      .forEach(n => tickFor(dom, d, n, names.includes(n)));
+  }
   input(dom, $(d, '#t-name'), fields.name);
   input(dom, $(d, '#t-start'), fields.start);
   if (fields.cat) input(dom, $(d, '#t-cat'), fields.cat);
@@ -3428,19 +3436,43 @@ group('the add form asks who it is for');
   const dom = boot();
   const d = dom.window.document;
   goSetup(dom, d);
-  ok('one child is asked nothing', $(d, '#forrow').hidden && $(d, '#forlab').hidden);
+  ok('one child is asked nothing', $(d, '#forfld').hidden);
 
   addKid(dom, d, 'Olivia');
   goSetup(dom, d);
-  ok('still nothing with one child', $(d, '#forrow').hidden);
+  ok('still nothing with one child', $(d, '#forfld').hidden);
 
   addKid(dom, d, 'Ian');
   goSetup(dom, d);
-  ok('two children and the question appears', !$(d, '#forrow').hidden && !$(d, '#forlab').hidden);
-  ok('a chip each', forTicks(d).length === 2, forTicks(d).length);
+  ok('two children and the field appears', !$(d, '#forfld').hidden);
+  ok('it sits in the row with the rest of the tournament',
+     $(d, '#forfld').parentElement === $(d, '.formgrid'), $(d, '#forfld').parentElement?.className);
+  ok('and before the button, which stays last',
+     [...$(d, '.formgrid').children].indexOf($(d, '#forfld')) ===
+     [...$(d, '.formgrid').children].indexOf($(d, '.addbtn')) - 1);
+  ok('it says Everyone until told otherwise', $(d, '#t-for').textContent === 'Everyone',
+     $(d, '#t-for').textContent);
+  ok('the panel is shut', $(d, '#forrow').hidden);
+
+  openFor(dom, d);
+  ok('the field opens it', !$(d, '#forrow').hidden);
+  ok('a tick box each', forTicks(d).length === 2, forTicks(d).length);
   ok('everyone ticked to start', forTicks(d).every(cb => cb.checked));
   ok('and it says what unticking means',
      $(d, '#fornote').textContent.includes('not the same as'), $(d, '#fornote').textContent);
+
+  tickFor(dom, d, 'Olivia', false);
+  ok('the field says who it is for now', $(d, '#t-for').textContent === 'Ian',
+     $(d, '#t-for').textContent);
+  tickFor(dom, d, 'Ian', false);
+  ok('nobody ticked reads as Everyone, because that is what it does',
+     $(d, '#t-for').textContent === 'Everyone', $(d, '#t-for').textContent);
+
+  // a click anywhere else puts it away
+  tickFor(dom, d, 'Olivia', true);
+  tickFor(dom, d, 'Ian', true);
+  click(dom, $(d, '#t-name'));
+  ok('a click outside shuts the panel', $(d, '#forrow').hidden);
 }
 
 group('a tournament added for one child only');
@@ -3474,7 +3506,11 @@ group('a tournament added for one child only');
 
   // and the form went back to asking the whole question
   goSetup(dom, d);
-  ok('the next add starts with everyone ticked again', forTicks(d).every(cb => cb.checked));
+  ok('the next add starts at Everyone again', $(d, '#t-for').textContent === 'Everyone',
+     $(d, '#t-for').textContent);
+  ok('with the panel shut', $(d, '#forrow').hidden);
+  openFor(dom, d);
+  ok('and everyone ticked', forTicks(d).every(cb => cb.checked));
 }
 
 group('every child ticked stores nothing');
