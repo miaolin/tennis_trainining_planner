@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.10.0** · [Changelog](CHANGELOG.md)
+**Version 2.11.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -176,6 +176,17 @@ of its own, and nothing on it is ever read-only.
 - **Every tournament there is**, whoever can enter it, each with a **×**. This is
   the only place one can be deleted: removing a tournament is setting up, not
   running a season.
+- **Who each tournament is for.** The age group is a guess — it says which events
+  a child is old enough for, not which ones are theirs. **For** on the add form
+  ticks every child by default, which leaves the age groups to decide as before;
+  untick one and the tournament never reaches their tab. The same chips sit on
+  every row, so it can be changed later, and pressing a name puts a child on an
+  event their age group would have excluded. Not being on a tournament is not the
+  same as **Skipping** one: a deadline you were never in the running for does not
+  nag you. A child with an entry cannot be taken off — the entry is the stronger
+  statement, and it is changed on Tournaments.
+- A tournament nobody is on says **on no one's list** on its row. Press a name to
+  fix it.
 - No statuses, no rewards, no results here — those belong to a child, on their
   own tab under Tournaments.
 
@@ -190,9 +201,12 @@ there, or already finished.
 
 With no children added yet, the import falls back to every junior age group.
 
-STA publishes no age-group field, so the group is derived from the title: the
-`Junior (U10)` level or a `U10` token, then `14&U` / `16&U` / `18&U` tokens,
-then anything else marked Junior, with the rest treated as adult.
+STA publishes no age-group field, so the group is derived from the words: the
+title and the category line are read together for an age cap written any of the
+ways it is written — `14&U`, `14U` or `U14` — and the youngest cap on a
+tournament wins. Anything else marked Junior is a junior event; the rest are
+treated as adult. A `12&U` cap has no bucket of its own and takes the nearest
+one above it, `14&U`.
 
 ### Adding a tournament from its link
 

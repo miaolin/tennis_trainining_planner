@@ -513,6 +513,12 @@ input[type=number]#days{width:74px}
 }
 .fld input{width:100%;min-width:0;max-width:100%}
 .agerow{display:flex;flex-wrap:wrap;gap:9px}
+/* The add form is one line; who it is for goes underneath, the same strip of
+   children the import box uses to answer the same question. */
+.forlab{
+  display:block;margin:13px 0 7px;
+  font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--mute);
+}
 .chk{
   display:flex;align-items:center;gap:8px;
   border:1px solid var(--hair);border-radius:3px;
@@ -587,6 +593,12 @@ input[type=number]#days{width:74px}
 .join.s-confirmed{border-color:var(--ok);background:rgba(79,169,124,.18);color:#9BD7B7}
 .join.s-confirmed .pip{opacity:1;background:var(--ok)}
 .join.s-skipped{opacity:.45;text-decoration:line-through}
+/* Setup asks whose list this is on, not how it is going, so its chips read as
+   on or off and carry no status colour. */
+.join.forpick{opacity:.45}
+.join.forpick.on{opacity:1;border-color:rgba(255,255,255,.4);color:var(--court-line)}
+.join.forpick.on .pip{opacity:1}
+.join.forpick:disabled{cursor:default}
 /* Locked, not unavailable: the status still has to read at a glance. */
 .join:disabled{cursor:default;opacity:1}
 .join.s-skipped:disabled{opacity:.45}
@@ -893,6 +905,12 @@ input[type=number]#days{width:74px}
       <div class="fld"><label for="t-deadline">Entry deadline</label><input type="date" id="t-deadline"></div>
       <div class="fld addbtn"><button id="t-add">Add tournament</button></div>
     </div>
+    <label class="forlab" id="forlab" hidden>For</label>
+    <div class="agerow" id="forrow" hidden></div>
+    <p class="hint" id="fornote" hidden>Leave everyone ticked and their age groups
+      decide, as before. Untick a child and this tournament is not on their tab at
+      all &mdash; which is not the same as <b>Skipping</b> it, and you can change it
+      on the row below.</p>
     <p class="hint" id="feednote"></p>
   </div>
 
@@ -1086,7 +1104,8 @@ function emptyState(){
   // updatedAt is what decides which device is ahead, so it travels with the
   // state — into localStorage, into a backup file, and up to the server.
   return {version:2, updatedAt:0, blocks:[], activeBlockId:null,
-          players:[], entries:[], trips:[], manualMatches:[], rewards:{}};
+          players:[], entries:[], trips:[], manualMatches:[], rewards:{},
+          forKids:{}};
 }
 // playerId is whose block this is. null means nobody has said yet — every
 // block written before there were two children is in that state, and so is one
@@ -1360,6 +1379,18 @@ function sanitiseState(raw, allowEmptyBlocks){
     for(const k in raw.rewards){
       const r = normRewards(raw.rewards[k]);
       if(r) st.rewards[k] = r;
+    }
+  }
+
+  // Whose list a tournament is on. Ids of children who are gone are dropped,
+  // and a list left empty by that is not kept: the tournament goes back to the
+  // age rule rather than becoming one nobody can see.
+  if(raw.forKids && typeof raw.forKids === 'object' && !Array.isArray(raw.forKids)){
+    const kids = new Set(st.players.map(p=>p.id));
+    for(const k in raw.forKids){
+      const ids = Array.isArray(raw.forKids[k])
+        ? raw.forKids[k].filter(x => typeof x === 'string' && kids.has(x)) : [];
+      if(ids.length) st.forKids[k] = [...new Set(ids)];
     }
   }
 
@@ -2198,16 +2229,31 @@ const DEFAULT_AGES = ['u10','u14','u16','junior'];
 const groupIdx = key => AGE_GROUPS.findIndex(g => g.key === key);
 const groupLabel = key => (AGE_GROUPS.find(g => g.key === key) || {}).label || '';
 
-// Singapore junior events are named by age cap, not by a field: "Junior (U10)"
-// as a level, or a 14&U / 16&U token in the title.
+/* Singapore junior events are named by age cap, not by a field. The cap can be
+   written three ways — 14&U, 14U, U14 — and it turns up in the title or in the
+   category line: "Junior (U10)" as a level, "12U Girls" as a category, an
+   "ATF 16&U" token in the name. One haystack, one pattern, both places.
+
+   Only the spaces around an & are closed up, so "14 & U" reads as one token
+   while "2016 U10" stays two: collapsing every space merged a season year into
+   the token after it and read 2016 U10 as a 16&U event.
+
+   The youngest cap found wins, which is the order the separate checks used to
+   run in — a title carrying two tokens is offering the younger of them. */
 function bucketOfText(title, level){
-  const name = String(title || '').toUpperCase().replace(/\s+/g,'');
   const lvl = String(level || '');
-  if(lvl === 'Junior (U10)' || /U10/.test(name) || /10&U/.test(name)) return 'u10';
-  if(/12&U/.test(name)) return 'u14';        // no 12&U bucket; 14&U is the nearest cap
-  if(/14&U/.test(name)) return 'u14';
-  if(/16&U/.test(name)) return 'u16';
-  if(/18&U/.test(name) || lvl === 'Junior' || /JUNIOR/.test(name)) return 'junior';
+  const hay = `${title || ''} ${lvl}`.toUpperCase().replace(/\s*&\s*/g, '&');
+  const caps = [...hay.matchAll(/\bU(\d{2})\b|\b(\d{2})&?U\b/g)]
+    .map(m => Number(m[1] || m[2]))
+    .filter(n => n >= 10 && n <= 18);
+  if(caps.length){
+    const cap = Math.min(...caps);
+    if(cap <= 10) return 'u10';
+    if(cap <= 14) return 'u14';             // no 12&U bucket; 14&U is the nearest cap
+    if(cap <= 16) return 'u16';
+    return 'junior';
+  }
+  if(lvl === 'Junior' || /JUNIOR/.test(hay)) return 'junior';
   return lvl ? 'open' : null;               // null = unknown, so show every kid
 }
 function ageBucket(t){
@@ -2244,10 +2290,62 @@ function kidFitsMatch(p, m, year){
   const own = groupIdx(primaryGroup(p, year));
   return idx <= own + 1;
 }
+/* ---- whose list a tournament is on ----
+   The age rule is a guess. It says which events a child is old enough for, not
+   which ones are theirs: a 12-year-old who can enter four events in a weekend
+   is not entering four events. state.forKids is the answer when someone has
+   actually said, keyed by match id like rewards so it survives on an imported
+   tournament that is read-only in every other respect.
+
+   No entry means nobody has narrowed it and the age rule still decides. An
+   empty one is never stored, so unticking the last child hands the tournament
+   back to the age rule instead of leaving one that appears on no tab at all. */
+function forKids(mId){
+  const l = state.forKids ? state.forKids[mId] : null;
+  return (Array.isArray(l) && l.length) ? l : null;
+}
+function setForKids(mId, ids){
+  if(!state.forKids) state.forKids = {};
+  if(ids && ids.length) state.forKids[mId] = [...new Set(ids)];
+  else delete state.forKids[mId];
+}
 // Never hide a kid who already has a status: whatever the rules say, a recorded
-// decision must stay reachable.
+// decision must stay reachable. A stated list beats the age guess; with no list
+// the age rule is all there is.
 function kidOnMatch(p, m, year){
-  return statusOf(m.id, p.id) !== null || kidFitsMatch(p, m, year);
+  if(statusOf(m.id, p.id) !== null) return true;
+  const named = forKids(m.id);
+  if(named) return named.includes(p.id);
+  return kidFitsMatch(p, m, year);
+}
+// Who is on it as things stand — the stated list, or whoever the age rule lets
+// in. This is what a tick starts from, so the first click narrows what is
+// already showing rather than emptying the row.
+function kidsOnMatch(m){
+  const year = Number(m.start.slice(0,4));
+  return state.players.filter(p => kidOnMatch(p, m, year));
+}
+// What the age rule alone would say. A stated list identical to it is not worth
+// keeping: it would say nothing extra today and the wrong thing tomorrow, the
+// first time a birth year is corrected.
+function ageEligible(m){
+  const year = Number(m.start.slice(0,4));
+  return state.players.filter(p => kidFitsMatch(p, m, year)).map(p=>p.id);
+}
+function sameKids(a, b){
+  return a.length === b.length && a.every(x => b.includes(x));
+}
+function toggleForKid(mId, playerId){
+  // An entry is the stronger statement. It keeps a child on a tournament
+  // whatever a list says, so it cannot be taken off one here either — the
+  // mutator checks, not only the disabled attribute on the button.
+  if(statusOf(mId, playerId) !== null) return;
+  const m = allMatches().find(x => x.id === mId);
+  if(!m) return;
+  const cur = forKids(mId) || kidsOnMatch(m).map(p=>p.id);
+  const next = cur.includes(playerId) ? cur.filter(x=>x!==playerId) : [...cur, playerId];
+  setForKids(mId, sameKids(next, ageEligible(m)) ? null : next);
+  render(); save();
 }
 function staToMatch(t){
   return {
@@ -2293,6 +2391,37 @@ function renderAgeRow(){
       impKidPick = cb.checked ? [...new Set([...cur, cb.dataset.impkid])]
                               : cur.filter(x => x !== cb.dataset.impkid);
       renderAgeRow();
+    }));
+}
+
+/* Who the tournament being added is for. null means nobody has narrowed it,
+   which shows as every child ticked and leaves the age rule to decide. The
+   import box asks the same question of a whole list; this asks it of one. */
+let addForPick = null;
+function addForKids(){
+  const ids = addForPick;
+  return state.players.filter(p => ids === null || ids.includes(p.id));
+}
+function renderForRow(){
+  const row = document.getElementById('forrow');
+  const show = state.players.length >= 2;
+  // With one child there is nothing to choose between, so the question is not
+  // asked at all — the same rule the tabs and strips already follow.
+  ['forlab','forrow','fornote'].forEach(id => document.getElementById(id).hidden = !show);
+  if(!show){ row.innerHTML = ''; return; }
+  const picked = addForKids().map(p=>p.id);
+  row.innerHTML = state.players.map(p=>{
+    const on = picked.includes(p.id);
+    return `<label class="chk${on ? ' on' : ''}" style="--c:${p.colour}">` +
+      `<input type="checkbox" data-forkid="${p.id}"${on ? ' checked' : ''}> ` +
+      `${escapeHtml(p.name)}</label>`;
+  }).join('');
+  row.querySelectorAll('input[data-forkid]').forEach(cb=>
+    cb.addEventListener('change', ()=>{
+      const cur = addForKids().map(p=>p.id);
+      addForPick = cb.checked ? [...new Set([...cur, cb.dataset.forkid])]
+                              : cur.filter(x => x !== cb.dataset.forkid);
+      renderForRow();
     }));
 }
 
@@ -2426,6 +2555,9 @@ function removePlayer(id){
   // Their training blocks are not deleted — the plans in them outlive the row
   // in the Kids box, so they go back to unassigned.
   state.blocks.forEach(b=>{ if(b.playerId === id) b.playerId = null; });
+  // A tournament kept only for them goes back to the age rule rather than
+  // staying on a list of nobody.
+  for(const k in state.forKids) setForKids(k, state.forKids[k].filter(x => x !== id));
   if(trainWho === id) trainWho = null;
   render(); save();
 }
@@ -2581,13 +2713,20 @@ function addTournament(){
     return false;
   }
   const end = /^\d{4}-\d{2}-\d{2}$/.test(g('t-end')) && g('t-end') >= start ? g('t-end') : start;
+  const id = 'm' + uid();
   state.manualMatches.push({
-    id: 'm' + uid(), source:'manual', name, start, end,
+    id, source:'manual', name, start, end,
     venue: g('t-venue'),
     categories: g('t-cat') ? g('t-cat').split(',').map(s=>s.trim()).filter(Boolean) : [],
     entryDeadline: /^\d{4}-\d{2}-\d{2}$/.test(g('t-deadline')) ? g('t-deadline') : null,
     url: safeUrl(g('t-url')), provisional:false
   });
+  // Every child ticked says the same thing as saying nothing, so nothing is
+  // stored: a list that merely repeats the age rule would go stale the moment a
+  // birth year is corrected.
+  const picked = addForKids().map(p=>p.id);
+  if(picked.length && picked.length < state.players.length) setForKids(id, picked);
+  addForPick = null;
   ['t-name','t-start','t-end','t-venue','t-cat','t-deadline','t-url'].forEach(id=>document.getElementById(id).value = '');
   lookupNote('Paste an STA tournament link and the details fill themselves in.');
   render(); save();
@@ -2599,6 +2738,7 @@ function removeTournament(id){
   state.manualMatches = state.manualMatches.filter(x=>x.id !== id);
   state.entries = state.entries.filter(e=>e.matchId !== id);
   delete state.rewards[id];
+  delete state.forKids[id];
   render(); save();
 }
 
@@ -2706,12 +2846,34 @@ function renderTournList(list, ms, {setup, locked, who}){
     }).join('');
 
     const mYear = Number(m.start.slice(0,4));
-    const joins = (setup ? [] : state.players.filter(p => kidOnMatch(p, m, mYear))).map(p=>{
-      const st = statusOf(m.id, p.id);
-      return `<button class="join${st ? ' s-'+st : ''}" data-m="${m.id}" data-p="${p.id}" style="--c:${p.colour}"` +
-             `${locked ? ' disabled' : ''}><span class="pip"></span>` +
-             `${escapeHtml(p.name)}${st ? ' · ' + STATUS_LABEL[st] : ''}</button>`;
-    }).join('') || (setup ? '' : '<span class="nokid">no age match</span>');
+    // Two questions, one strip of children. Setup asks whose list a tournament
+    // is on; the tournaments view asks how it is going for the children on it.
+    // A child with a status is not un-listable here — the entry is the stronger
+    // statement, and dropping them would strand it — so their chip is fixed on
+    // and the change has to be made where the entry lives.
+    // A tournament can sit on nobody's list — an event whose age group suits
+    // none of the children, or one narrowed down to a child who has since left.
+    // The tournaments page has always said "no age match"; here it has to say
+    // so too, because here it is fixable: press a name.
+    const onIt = state.players.filter(p => kidOnMatch(p, m, mYear)).length;
+    const joins = setup
+      ? (state.players.length < 2 ? '' :
+         (onIt ? '' : '<span class="nokid">on no one\u2019s list</span>') +
+         state.players.map(p=>{
+          const on = kidOnMatch(p, m, mYear);
+          const held = statusOf(m.id, p.id) !== null;
+          return `<button class="join forpick${on ? ' on' : ''}" data-mfor="${m.id}"` +
+                 ` data-p="${p.id}" style="--c:${p.colour}"${held ? ' disabled' : ''}` +
+                 ` title="${held ? escapeHtml(p.name) + ' has an entry — change it on Tournaments'
+                                 : (on ? 'On ' + escapeHtml(p.name) + '’s list' : 'Not on ' + escapeHtml(p.name) + '’s list')}"` +
+                 `><span class="pip"></span>${escapeHtml(p.name)}</button>`;
+         }).join(''))
+      : state.players.filter(p => kidOnMatch(p, m, mYear)).map(p=>{
+          const st = statusOf(m.id, p.id);
+          return `<button class="join${st ? ' s-'+st : ''}" data-m="${m.id}" data-p="${p.id}" style="--c:${p.colour}"` +
+                 `${locked ? ' disabled' : ''}><span class="pip"></span>` +
+                 `${escapeHtml(p.name)}${st ? ' · ' + STATUS_LABEL[st] : ''}</button>`;
+        }).join('') || '<span class="nokid">no age match</span>';
 
     html += `<div class="tourn${soon?' soon':''}${past?' past':''}">
       <div class="tdate">${spanLabel(m)}<small>${DOW[d.getDay()]}</small></div>
@@ -2729,23 +2891,10 @@ function renderTournList(list, ms, {setup, locked, who}){
 
   // Locked means no handler at all, not merely a disabled button: the attribute
   // stops a real click, but nothing should be listening in the first place.
-  if(!locked) list.querySelectorAll('.join').forEach(btn=>
+  if(!locked) list.querySelectorAll('.join:not(.forpick)').forEach(btn=>
     btn.addEventListener('click', ()=>cycleEntry(btn.dataset.m, btn.dataset.p)));
-  list.querySelectorAll('.tdel').forEach(btn=>
-    btn.addEventListener('click', ()=>removeTournament(btn.dataset.del)));
-  list.querySelectorAll('.trewbtn').forEach(btn=>
-    btn.addEventListener('click', ()=>openRewards('match', btn.dataset.rew)));
-  list.querySelectorAll('.rwin').forEach(inp=>
-    inp.addEventListener('change', ()=>setResult(inp.dataset.m, inp.dataset.p, 'wins', inp.value)));
-  list.querySelectorAll('.rpl').forEach(inp=>
-    inp.addEventListener('change', ()=>setResult(inp.dataset.m, inp.dataset.p, 'place', inp.value)));
-
-  list.innerHTML = html;
-
-  // Locked means no handler at all, not merely a disabled button: the attribute
-  // stops a real click, but nothing should be listening in the first place.
-  if(!locked) list.querySelectorAll('.join').forEach(btn=>
-    btn.addEventListener('click', ()=>cycleEntry(btn.dataset.m, btn.dataset.p)));
+  list.querySelectorAll('.forpick').forEach(btn=>
+    btn.addEventListener('click', ()=>toggleForKid(btn.dataset.mfor, btn.dataset.p)));
   list.querySelectorAll('.tdel').forEach(btn=>
     btn.addEventListener('click', ()=>removeTournament(btn.dataset.del)));
   list.querySelectorAll('.trewbtn').forEach(btn=>
@@ -2782,6 +2931,7 @@ function renderSetup(){
   document.getElementById('feednote').textContent = feedNote ||
     'No data/matches.json yet — tournaments added here are stored in this browser.';
   renderAgeRow();
+  renderForRow();
 
   renderTournList(document.getElementById('setuplist'), allMatches(),
                   {setup:true, locked:false, who:null});
@@ -2844,6 +2994,9 @@ function runSeasonChecks(ms){
     const d = daysBetween(today, m.entryDeadline);
     if(d < 0 || d > DEADLINE_WARN_DAYS) return false;
     return kids.some(p=>{
+      // Not on their list is not the same as not decided: a tournament nobody
+      // put on this child has no deadline to miss.
+      if(!kidOnMatch(p, m, Number(m.start.slice(0,4)))) return false;
       const st = statusOf(m.id, p.id);
       return st === 'planned' || st === null;
     });

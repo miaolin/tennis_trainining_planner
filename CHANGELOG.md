@@ -5,6 +5,53 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.0] — 2026-09-04
+
+### Added
+
+- **A tournament can say which children it is for.** The age group was only ever
+  a guess — it says which events a child is old enough for, not which ones are
+  theirs, and a 12-year-old who *could* enter four events in a weekend is not
+  entering four events. The add form now carries **For**: every child ticked by
+  default, which leaves the age groups deciding exactly as before, and unticking
+  one keeps the tournament off their tab entirely. The same chips sit on every
+  row on Setup, so it can be changed afterwards, and pressing a name puts a child
+  on an event their age group would have excluded — the stated answer beats the
+  guess in both directions.
+- **A tournament on nobody's list says so**, on its row, where pressing a name
+  fixes it. An adult event among the imports used to be a row that simply never
+  appeared on any tab.
+
+### Changed
+
+- **Not on it is no longer treated as not decided.** The entry-deadline warning
+  counted every child with no status, so an event none of them was ever in the
+  running for nagged all of them. It now asks only the children the tournament is
+  actually for. **Skipping** still means what it always did: it was theirs, and
+  they are not going.
+- **A child with an entry cannot be dropped from a tournament.** Their chip on
+  Setup is fixed on and says where to change it — an entry is a stronger
+  statement than a list, and stranding one behind a list nobody could see was the
+  way to lose it.
+- A list is stored only when it says something the age rule does not. Ticking
+  everyone back on drops it again, so a list cannot go stale the first time a
+  birth year is corrected, and a child who leaves takes their name out of every
+  list with them.
+
+### Fixed
+
+- **An age cap is read whichever way it is written, and wherever it is written.**
+  Only `14&U`-style tokens in the *title* counted, so `12U Girls` in the category
+  line — the add form's own placeholder — parsed as an adult event and reached no
+  child at all. The cap is now read from the title and the category line
+  together, as `14&U`, `14U` or `U14`, with the youngest cap on a tournament
+  winning. Closing up every space also joined a season year to the token after
+  it, reading `2016 U10` as a 16&U event; only the spaces around an `&` are
+  closed up now.
+- **The tournament list stopped rendering itself twice.** `renderTournList` ran
+  its whole write-and-wire tail twice over, so every row was built, wired, thrown
+  away and built again on each render.
+
 ## [2.10.0] — 2026-09-03
 
 ### Added
