@@ -98,13 +98,20 @@ h1 em{font-style:normal;color:var(--ball)}
 }
 .btab.on .bd{color:var(--ball)}
 .btab-add{border-style:dashed}
+/* Whose block this is. The same dot as the tournaments strip, so both pages
+   read alike: a colour is a child, a hollow ring is nobody yet. */
+.btab .bdot{
+  width:8px;height:8px;border-radius:50%;display:inline-block;
+  margin-right:7px;vertical-align:middle;box-sizing:border-box;
+  background:var(--c,transparent);border:1px solid var(--c,var(--mute));
+}
 
 /* ---------- controls ---------- */
 .bar{
   display:flex;flex-wrap:wrap;gap:12px;align-items:center;
   margin-bottom:20px;
 }
-button, input[type=date], input[type=time], input[type=text], input[type=number],
+button, select, input[type=date], input[type=time], input[type=text], input[type=number],
 input[type=url]{
   font-family:'Karla',sans-serif;font-size:13px;
   background:transparent;color:var(--court-line);
@@ -113,9 +120,10 @@ input[type=url]{
   transition:background .15s,border-color .15s;
 }
 button{cursor:pointer}
+select{cursor:pointer;color-scheme:dark}
 button:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.4)}
 button.danger:hover{background:rgba(217,96,63,.2);border-color:var(--bad)}
-button:focus-visible,input:focus-visible,.chip:focus-visible,.add:focus-visible,.btab:focus-visible{
+button:focus-visible,select:focus-visible,input:focus-visible,.chip:focus-visible,.add:focus-visible,.btab:focus-visible{
   outline:2px solid var(--ball);outline-offset:2px;
 }
 input[type=date],input[type=time]{
@@ -443,8 +451,6 @@ input[type=number]#days{width:74px}
 .whotab.on{color:var(--court-line);border-bottom-color:var(--c,var(--ball));background:rgba(255,255,255,.05)}
 .whotab .whodot{width:8px;height:8px;border-radius:50%;background:var(--c);display:block;opacity:.55}
 .whotab.on .whodot{opacity:1}
-.whotab.setup{margin-left:auto;color:var(--mute)}
-.whotab.setup.on{color:var(--ball);border-bottom-color:var(--ball)}
 .whotab .ct{
   font-family:'Karla',sans-serif;font-size:11.5px;font-weight:700;
   color:var(--mute);letter-spacing:.04em;
@@ -662,7 +668,7 @@ input[type=number]#days{width:74px}
 .cell.vac{background:rgba(79,169,124,.24);color:#CFEEDF}
 .cell.hol{background:rgba(232,163,61,.26);color:#F6DCB2}
 /* Left edge, so it cannot collide with the per-kid dots along the bottom. */
-.cell.blk{box-shadow:inset 3px 0 0 var(--ball)}
+.cell.blk{box-shadow:inset 3px 0 0 var(--blk,var(--ball))}
 /* NB: not ".tourn" — that class is the tournament rows in part 2, and reusing
    it here made every ".tourn" query match calendar day cells too.
    A tournament is a row of per-kid dots, not a fill: league events run for
@@ -739,7 +745,7 @@ input[type=number]#days{width:74px}
 }
 @media print{
   body{background:#fff;color:#000}
-  .palette,.bar,.blockbar,.hint,.mainnav,.modal-back,.syncrow,.syncqr{display:none}
+  .palette,.bar,.blockbar,.whotabs,.hint,.mainnav,.modal-back,.syncrow,.syncqr{display:none}
   .day{background:#f4f4f4;border:1px solid #999}
 }
 </style>
@@ -751,6 +757,7 @@ input[type=number]#days{width:74px}
   <button class="navbtn on" id="nav-calendar" data-view="calendar">Calendar</button>
   <button class="navbtn" id="nav-matches" data-view="matches">Tournaments<span class="ct" id="nav-ct"></span></button>
   <button class="navbtn" id="nav-training" data-view="training">Training</button>
+  <button class="navbtn" id="nav-setup" data-view="setup">Setup</button>
 </nav>
 
 <header>
@@ -773,6 +780,8 @@ input[type=number]#days{width:74px}
 
 <section class="view on" id="view-training">
 
+<div class="whotabs" id="trainwho"></div>
+
 <div class="blockbar" id="blockbar"></div>
 
 <div class="bar">
@@ -782,6 +791,8 @@ input[type=number]#days{width:74px}
   <input type="date" id="start">
   <label class="lab" for="days">Days</label>
   <input type="number" id="days" min="1" max="60" step="1">
+  <label class="lab" for="blockwho" id="blockwho-lab" hidden>Whose</label>
+  <select id="blockwho" hidden></select>
   <div class="spacer"></div>
   <button id="btn-reset">Load suggested plan</button>
   <button id="btn-clear">Clear all</button>
@@ -820,6 +831,25 @@ input[type=number]#days{width:74px}
   <div class="whotabs" id="whofilter"></div>
   <p class="hint" id="wholock" hidden></p>
 
+  <div class="kids" id="rewardsbox">
+    <h2>Rewards</h2>
+    <div class="rewrow" id="rewrow"></div>
+    <p class="hint">What each child plays for, at every tournament. One event can
+      pay something different &mdash; press <b>Rewards</b> on its row, and only that
+      row shows a line.</p>
+  </div>
+
+  <div id="tournlist"></div>
+
+  <div class="checks" id="checksbox">
+    <h2>Season check</h2>
+    <div id="mnotes"></div>
+  </div>
+
+</section>
+
+<section class="view" id="view-setup">
+
   <div class="kids" id="kidsbox">
     <h2>Kids</h2>
     <div class="kidrow" id="kidrow"></div>
@@ -829,16 +859,9 @@ input[type=number]#days{width:74px}
       <button id="kid-add">Add kid</button>
     </div>
     <p class="hint">A birth year sets each child's age group, so a tournament only
-      offers the children who can actually enter it. Click a child to cycle
-      planned &rarr; entered &rarr; confirmed &rarr; skipped &rarr; not going.</p>
-  </div>
-
-  <div class="kids" id="rewardsbox">
-    <h2>Rewards</h2>
-    <div class="rewrow" id="rewrow"></div>
-    <p class="hint">What each child plays for, at every tournament. One event can
-      pay something different &mdash; press <b>Rewards</b> on its row, and only that
-      row shows a line.</p>
+      offers the children who can actually enter it, and the training load checks
+      know how old they are. Every child gets a tab of their own on Tournaments
+      and on Training.</p>
   </div>
 
   <div class="addbox" id="importbox">
@@ -873,12 +896,7 @@ input[type=number]#days{width:74px}
     <p class="hint" id="feednote"></p>
   </div>
 
-  <div id="tournlist"></div>
-
-  <div class="checks" id="checksbox">
-    <h2>Season check</h2>
-    <div id="mnotes"></div>
-  </div>
+  <div id="setuplist"></div>
 
 </section>
 
@@ -1018,6 +1036,25 @@ const MAX_PER_SLOT = 4;
 
 const DAY_CAP  = 3.5;      // sensible daily ceiling for a 9-year-old
 const WEEK_CAP = 13;       // per rolling 7-day week of a block
+/* The ceilings scale with age: the 3.5h that is a hard day at nine is an
+   ordinary one at fifteen, and a block that belongs to a named child knows
+   which of the two it is. The nine-year-old figures above are the anchor; a
+   block with nobody attached keeps them. */
+function capsFor(age){
+  if(age === null || age === undefined) return {day:DAY_CAP, week:WEEK_CAP};
+  if(age <= 8)  return {day:3.0,     week:11};
+  if(age <= 10) return {day:DAY_CAP, week:WEEK_CAP};
+  if(age <= 12) return {day:4.0,     week:15};
+  if(age <= 14) return {day:4.5,     week:17};
+  return {day:5.0, week:20};
+}
+// A block runs inside one year, so the owner's age on it is the age they reach
+// that season — the same reckoning the tournament age groups use.
+function blockAge(b){
+  const p = blockOwner(b);
+  return p ? ageInYear(p, Number(b.start.slice(0,4))) : null;
+}
+function blockCaps(b){ return capsFor(blockAge(b)); }
 const DEFAULT_DAYS = 14;
 const MAX_DAYS = 60;
 
@@ -1051,13 +1088,39 @@ function emptyState(){
   return {version:2, updatedAt:0, blocks:[], activeBlockId:null,
           players:[], entries:[], trips:[], manualMatches:[], rewards:{}};
 }
-function newBlock(name, start, days){
+// playerId is whose block this is. null means nobody has said yet — every
+// block written before there were two children is in that state, and so is one
+// added on the Everyone tab.
+function newBlock(name, start, days, playerId){
   return {id:uid(), name:name || 'Training block', start:start || DEFAULT_START,
-          days:days || DEFAULT_DAYS, anchorMatchId:null, plan:{}};
+          days:days || DEFAULT_DAYS, playerId:playerId || null,
+          anchorMatchId:null, plan:{}};
+}
+/* ---- whose training ----
+   One child at a time is how a training block is read: the hours, the rest
+   days and every load check are judgements about one body, and averaging two
+   children's weeks together would say nothing true about either. The strip
+   only exists once there are two children to tell apart.
+
+   Unlike the tournaments strip, Everyone stays editable: a block names its own
+   owner, so an edit made from the overview is never ambiguous about who it is
+   for. */
+let trainWho = null;         // null = everyone; otherwise a player id
+function trainStrip(){ return state.players.length >= 2; }
+// A child's tab shows their blocks plus the unassigned ones, so a block nobody
+// has claimed can never become unreachable.
+function blocksFor(who){
+  if(who === null) return state.blocks;
+  return state.blocks.filter(b => !b.playerId || b.playerId === who);
+}
+function shownBlocks(){ return trainStrip() ? blocksFor(trainWho) : state.blocks; }
+function blockOwner(b){
+  return (b && b.playerId && state.players.find(p => p.id === b.playerId)) || null;
 }
 function active(){
-  if(!state.blocks.length) return null;
-  return state.blocks.find(b => b.id === state.activeBlockId) || state.blocks[0];
+  const list = shownBlocks();
+  if(!list.length) return null;
+  return list.find(b => b.id === state.activeBlockId) || list[0];
 }
 function planAt(b, i){
   const d = b.plan[i];
@@ -1221,6 +1284,7 @@ function sanitiseBlock(raw){
   const b = newBlock(typeof raw.name === 'string' ? raw.name : 'Training block', start, days);
   if(typeof raw.id === 'string' && raw.id) b.id = raw.id;
   if(typeof raw.anchorMatchId === 'string') b.anchorMatchId = raw.anchorMatchId;
+  if(typeof raw.playerId === 'string' && raw.playerId) b.playerId = raw.playerId;
   const p = raw.plan;
   if(p && typeof p === 'object'){
     for(const k in p){
@@ -1257,6 +1321,11 @@ function sanitiseState(raw, allowEmptyBlocks){
                                ? p.birthYear : null,
                     colour: /^#[0-9a-f]{6}$/i.test(p.colour) ? p.colour : KID_COLOURS[i % KID_COLOURS.length],
                     rewards: normRewards(p.rewards)}));
+
+  // A block whose child is gone goes back to unassigned rather than vanishing:
+  // the plan in it is real work, and it stays reachable on every tab.
+  const kidIds = new Set(st.players.map(p=>p.id));
+  st.blocks.forEach(b=>{ if(b.playerId && !kidIds.has(b.playerId)) b.playerId = null; });
 
   // Locally held matches keep whichever source they came from — an imported STA
   // tournament must not lose its badge just because we store it alongside the
@@ -1651,16 +1720,61 @@ function weekChunks(b){
 function isRestDay(b, i){ return dayHours(b, i) === 0; }
 
 /* ------------------------------------------------------------- render --- */
+function renderTrainWho(){
+  const row = document.getElementById('trainwho');
+  // A restore or a sync can swap the whole state out from under the strip, so
+  // a tab pointing at a child who is no longer here falls back to Everyone.
+  if(trainWho && !state.players.some(p => p.id === trainWho)) trainWho = null;
+  row.hidden = !trainStrip();
+  if(!trainStrip()){ row.innerHTML = ''; return; }
+  const tab = (id, label, colour) => {
+    const n = blocksFor(id).length;
+    return `<button class="whotab${trainWho === id ? ' on' : ''}"` +
+      (colour ? ` style="--c:${colour}"` : '') + ` data-who="${id === null ? '' : id}">` +
+      (colour ? '<i class="whodot"></i>' : '') + escapeHtml(label) +
+      (n ? `<span class="ct">${n}</span>` : '') + '</button>';
+  };
+  row.innerHTML = tab(null, 'Everyone', null) +
+    state.players.map(p => tab(p.id, p.name, p.colour)).join('');
+  row.querySelectorAll('button[data-who]').forEach(el=>
+    el.addEventListener('click', ()=>{
+      trainWho = el.dataset.who || null;
+      // Land on a block this tab actually shows, rather than leaving the grid
+      // on one that has just been filtered out from under it.
+      const list = shownBlocks();
+      if(!list.some(b => b.id === state.activeBlockId))
+        state.activeBlockId = list.length ? list[0].id : null;
+      render(); save();
+    }));
+}
+// Whose block this is, set from the block's own bar. Only worth asking once
+// there are two children; below that every block is simply theirs.
+function renderBlockWho(b){
+  const sel = document.getElementById('blockwho');
+  const lab = document.getElementById('blockwho-lab');
+  const on = trainStrip() && !!b;
+  sel.hidden = lab.hidden = !on;
+  if(!on) return;
+  sel.innerHTML = '<option value="">Nobody yet</option>' +
+    state.players.map(p=>
+      `<option value="${p.id}"${b.playerId === p.id ? ' selected' : ''}>${escapeHtml(p.name)}</option>`).join('');
+  sel.value = b.playerId || '';
+}
 function renderBlockBar(){
   const bar = document.getElementById('blockbar');
   bar.innerHTML = '';
   const cur = active();
-  state.blocks.forEach(b=>{
+  shownBlocks().forEach(b=>{
     const el = document.createElement('button');
     el.className = 'btab' + (cur && b.id === cur.id ? ' on' : '');
     el.dataset.id = b.id;
     const d0 = dateFor(b, 0), d1 = dateFor(b, b.days-1);
-    el.innerHTML = `<span>${escapeHtml(b.name)}</span><span class="bd">${fmt(d0)} – ${fmt(d1)}</span>`;
+    const own = blockOwner(b);
+    // The dot only earns its place once two children share the page.
+    const dot = trainStrip()
+      ? `<i class="bdot"${own ? ` style="--c:${own.colour}"` : ''}></i>` : '';
+    el.innerHTML = `<span>${dot}${escapeHtml(b.name)}</span>` +
+                   `<span class="bd">${fmt(d0)} – ${fmt(d1)}</span>`;
     el.addEventListener('click', ()=>{ state.activeBlockId = b.id; render(); save(); });
     bar.appendChild(el);
   });
@@ -1681,19 +1795,24 @@ function renderTraining(){
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
 
+  renderTrainWho();
   renderBlockBar();
+  renderBlockWho(b);
 
   if(!b){
+    const who = state.players.find(p => p.id === trainWho);
     document.getElementById('title').textContent = 'No blocks';
-    document.getElementById('range').textContent = '';
+    document.getElementById('range').textContent = who ? who.name : '';
     ['tot','ondays','restdays'].forEach(id=>document.getElementById(id).textContent = '0');
     document.getElementById('weekcaps').innerHTML = '';
     document.getElementById('notes').innerHTML =
-      '<div class="note warn"><span class="dot"></span><div><b>No training blocks.</b> ' +
+      '<div class="note warn"><span class="dot"></span><div><b>' +
+      (who ? 'No blocks for ' + escapeHtml(who.name) + '.' : 'No training blocks.') + '</b> ' +
       '<span>Add one to start planning.</span></div></div>';
     return;
   }
 
+  const caps = blockCaps(b);
   document.getElementById('title').textContent = b.name;
   document.getElementById('range').textContent = `${fmt(dateFor(b,0))} – ${fmt(dateFor(b,b.days-1))}`;
   const nameEl = document.getElementById('blockname');
@@ -1780,8 +1899,8 @@ function renderTraining(){
     d.appendChild(slots);
 
     const hrs = dayHours(b, i);
-    const pct = Math.min(100, hrs/DAY_CAP*100);
-    const cls = hrs > DAY_CAP ? 'over' : (hrs >= 3 ? 'hot' : '');
+    const pct = Math.min(100, hrs/caps.day*100);
+    const cls = hrs > caps.day ? 'over' : (hrs >= caps.day * 0.85 ? 'hot' : '');
     const foot = document.createElement('div');
     foot.className = 'day-foot';
     foot.innerHTML = `<div class="load-bar"><i class="${cls}" style="width:${pct}%"></i></div>
@@ -1795,7 +1914,7 @@ function renderTraining(){
 
   const weeks = weekChunks(b);
   document.getElementById('weekcaps').innerHTML = weeks.map((w,i)=>
-    `<span class="wcap${w.hrs > WEEK_CAP ? ' over' : ''}"><small>Week ${i+1}</small><b>${w.hrs.toFixed(1)}</b>h</span>`
+    `<span class="wcap${w.hrs > caps.week ? ' over' : ''}"><small>Week ${i+1}</small><b>${w.hrs.toFixed(1)}</b>h</span>`
   ).join('') + `<span class="wcap"><small>Block</small><b>${totalHours(b).toFixed(1)}</b>h</span>`;
 
   let on = 0, rest = 0;
@@ -1826,25 +1945,35 @@ function wireDrop(el, day, slot){
 function runChecks(b){
   const out = [];
   const total = totalHours(b);
+  // Every check below is a judgement about one child, so it is worth saying
+  // whose. With nobody attached the wording falls back to the neutral form.
+  const own = blockOwner(b);
+  const age = blockAge(b);
+  const caps = blockCaps(b);
+  const who = own ? own.name : 'they';
+  const their = own ? own.name + '\u2019s' : 'their';
+  const atAge = age === null ? 'this age' : age;
 
   const heavy = [];
-  for(let i=0;i<b.days;i++) if(dayHours(b,i) > DAY_CAP) heavy.push(i+1);
+  for(let i=0;i<b.days;i++) if(dayHours(b,i) > caps.day) heavy.push(i+1);
   if(heavy.length) out.push(['bad','Heavy days',
-    `Day ${heavy.join(', ')} exceed ${DAY_CAP}h. That is past the useful ceiling for a 9-year-old — she will stop learning and start surviving the session.`]);
+    `Day ${heavy.join(', ')} exceed ${caps.day}h. That is past the useful ceiling for ` +
+    (age === null ? 'a junior' : 'a ' + age + '-year-old') +
+    ` \u2014 ${who} will stop learning and start surviving the session.`]);
 
   let run = 0, worst = 0;
   for(let i=0;i<b.days;i++){ if(isRestDay(b,i)) run = 0; else { run++; worst = Math.max(worst, run); } }
   if(worst >= 6) out.push(['bad','No rest day',
     `${worst} days in a row on court. Put a full rest day in — off court means off court, not a light hit.`]);
   else if(worst === 5) out.push(['warn','Long run',
-    `${worst} days in a row. Workable, but watch her energy on the last two.`]);
+    `${worst} days in a row. Workable, but watch ${their} energy on the last two.`]);
 
   let groups = 0;
   for(let i=0;i<b.days;i++) groups += dayEntries(b,i).filter(e=>e.type === 'g2').length;
   if(groups === 0) out.push(['bad','No peer time',
     'No group sessions. Weeks of drilling with no other children means technique that never gets tested and a child who gets bored.']);
   else if(groups <= 2) out.push(['warn','Thin peer time',
-    `Only ${groups} group session${groups>1?'s':''}. Ask the club to pair her with another junior for some privates, and end every private with live points.`]);
+    `Only ${groups} group session${groups>1?'s':''}. Ask the club to pair ${own ? own.name : 'them'} with another junior for some privates, and end every private with live points.`]);
 
   const twoPriv = [];
   for(let i=0;i<b.days;i++){
@@ -1867,11 +1996,11 @@ function runChecks(b){
   let phys = 0;
   for(let i=0;i<b.days;i++) phys += dayEntries(b,i).filter(e=>e.type === 'phys').length;
   if(phys > 5) out.push(['warn','Heavy on physical',
-    `${phys} physical sessions. At 9, movement work belongs mostly in the warm-up — court time teaches more.`]);
+    `${phys} physical sessions. At ${atAge}, movement work belongs mostly in the warm-up \u2014 court time teaches more.`]);
 
   weekChunks(b).forEach((w,i)=>{
     // Only judge a full week — a 3-day tail is not "under target", it is short.
-    if(w.days === 7 && w.hrs > WEEK_CAP) out.push(['bad',`Week ${i+1} too heavy`,
+    if(w.days === 7 && w.hrs > caps.week) out.push(['bad',`Week ${i+1} too heavy`,
       `${w.hrs.toFixed(1)}h. Trim a second session or two — private hours are far denser than group hours.`]);
   });
 
@@ -2172,8 +2301,7 @@ function renderAgeRow(){
    whose money is that. Everyone stays first, because the travel window and the
    clash checks are family-wide facts that cannot be worked out one child at a
    time. With one child there is nothing to choose between, so no strip. */
-const SETUP_TAB = 'setup';   // not a uid, so it can never collide with a child
-let whoFilter = null;        // null = everyone, SETUP_TAB, otherwise a player id
+let whoFilter = null;        // null = everyone, otherwise a player id
 function whoShown(){
   return state.players.find(p => p.id === whoFilter) || null;
 }
@@ -2181,7 +2309,6 @@ function whoShown(){
 // child there is nothing to choose between, so the page stays as it was: one
 // view, everything on it.
 function hasStrip(){ return state.players.length >= 2; }
-function onSetup(){ return whoFilter === SETUP_TAB; }
 // Everyone reads the whole season at once, and every edit on this page belongs
 // to whichever child it is about, so it changes nothing — it is the overview.
 // With one child there is no strip and nothing to choose between, so the view
@@ -2191,11 +2318,6 @@ function onSetup(){ return whoFilter === SETUP_TAB; }
 // control stops a person, and stopping the write is what stops everything else.
 function viewLocked(){
   return hasStrip() && whoFilter === null;
-}
-// Which children there are, and which tournaments exist, are not any one
-// child's business — they are the family's, and they are settled on Setup.
-function setupBarred(){
-  return hasStrip() && !onSetup();
 }
 // The tournaments one child could enter — the same rule the list itself uses.
 function matchesFor(p){
@@ -2212,8 +2334,7 @@ function renderWhoFilter(){
       (n ? `<span class="ct">${n}</span>` : '') + '</button>';
   };
   row.innerHTML = tab(null, 'Everyone', null) +
-    state.players.map(p => tab(p.id, p.name, p.colour)).join('') +
-    `<button class="whotab setup${onSetup() ? ' on' : ''}" data-who="${SETUP_TAB}">Setup</button>`;
+    state.players.map(p => tab(p.id, p.name, p.colour)).join('');
   row.querySelectorAll('button[data-who]').forEach(el=>
     el.addEventListener('click', ()=>{
       whoFilter = el.dataset.who || null;
@@ -2277,7 +2398,6 @@ async function importFromSta(){
 
 /* ---- players ---- */
 function addPlayer(name, birthYear){
-  if(setupBarred()) return false;
   const n = (name || '').trim();
   if(!n) return false;
   const y = parseInt(birthYear, 10);
@@ -2290,7 +2410,6 @@ function addPlayer(name, birthYear){
   return true;
 }
 function setPlayerYear(id, value){
-  if(setupBarred()) return;
   const p = state.players.find(x => x.id === id);
   if(!p) return;
   const y = parseInt(value, 10);
@@ -2298,11 +2417,16 @@ function setPlayerYear(id, value){
   render(); save();
 }
 function removePlayer(id){
-  if(setupBarred()) return;
   const p = state.players.find(x=>x.id===id);
-  if(p && !window.confirm(`Remove ${p.name}? Their tournament entries go too.`)) return;
+  if(p && !window.confirm(
+      `Remove ${p.name}? Their tournament entries go too. `
+      + `Their training blocks stay, with nobody attached.`)) return;
   state.players = state.players.filter(x=>x.id !== id);
   state.entries = state.entries.filter(e=>e.playerId !== id);
+  // Their training blocks are not deleted — the plans in them outlive the row
+  // in the Kids box, so they go back to unassigned.
+  state.blocks.forEach(b=>{ if(b.playerId === id) b.playerId = null; });
+  if(trainWho === id) trainWho = null;
   render(); save();
 }
 
@@ -2450,7 +2574,6 @@ function payout(m, p){
 
 /* ---- manual tournaments ---- */
 function addTournament(){
-  if(setupBarred()) return false;
   const g = id => document.getElementById(id).value.trim();
   const name = g('t-name'), start = g('t-start');
   if(!name || !/^\d{4}-\d{2}-\d{2}$/.test(start)){
@@ -2471,7 +2594,6 @@ function addTournament(){
   return true;
 }
 function removeTournament(id){
-  if(setupBarred()) return;
   const m = (state.manualMatches || []).find(x=>x.id===id);
   if(m && !window.confirm(`Delete “${m.name}”?`)) return;
   state.manualMatches = state.manualMatches.filter(x=>x.id !== id);
@@ -2493,94 +2615,32 @@ function spanLabel(m){
   return `${fmt(a)} – ${fmt(b)}`;
 }
 // A tournament sitting inside a training block is the useful case: that block
-// is its build-up.
-function blockCovering(m){
-  return state.blocks.find(b=>{
+// is its build-up. Whose build-up matters once blocks belong to a child, so on
+// one child's tab their own block wins over a sibling's.
+function blockCovering(m, who){
+  const hits = state.blocks.filter(b=>{
     const s = b.start, e = iso(dateFor(b, b.days - 1));
     return m.start <= e && m.end >= s;
-  }) || null;
+  });
+  if(!hits.length) return null;
+  if(who) return hits.find(b => b.playerId === who) ||
+                hits.find(b => !b.playerId) || hits[0];
+  return hits[0];
 }
 
 /* ---- render part 2 ---- */
-function renderMatches(){
-  const thisYear = new Date().getFullYear();
-  const locked = viewLocked();
-  const setup = onSetup();
-  const strip = hasStrip();
-  const kidrow = document.getElementById('kidrow');
-  kidrow.innerHTML = state.players.map(p=>{
-    const grp = primaryGroup(p, thisYear);
-    return `<span class="kid" style="--c:${p.colour}"><span class="knm">${escapeHtml(p.name)}</span>` +
-      (locked
-        ? `<span class="kyrv">${p.birthYear || '—'}</span>`
-        : `<input class="kyr" type="number" min="1990" max="2030" step="1" data-kid="${p.id}"` +
-          ` value="${p.birthYear || ''}" placeholder="year" aria-label="${escapeHtml(p.name)} birth year">`) +
-      `<span class="kgrp">${grp ? escapeHtml(groupLabel(grp)) : 'no age group'}</span>` +
-      (locked ? ''
-              : `<button class="kx" data-kid="${p.id}" aria-label="Remove ${escapeHtml(p.name)}">&times;</button>`) +
-      '</span>';
-  }).join('') || '<span class="hint" style="margin:0">No kids yet — add one to start tracking entries.</span>';
-  kidrow.querySelectorAll('.kx').forEach(btn=>
-    btn.addEventListener('click', ()=>removePlayer(btn.dataset.kid)));
-  kidrow.querySelectorAll('.kyr').forEach(inp=>
-    inp.addEventListener('change', ()=>setPlayerYear(inp.dataset.kid, inp.value)));
-
-  // On a child's tab, their rewards are the only ones worth showing.
-  const rewrow = document.getElementById('rewrow');
-  const rewkids = whoShown() ? [whoShown()] : state.players;
-  rewrow.innerHTML = rewkids.map(p=>{
-    const r = kidScheme(p);
-    return `<div class="rewkid" style="--c:${p.colour}"><span class="rknm">${escapeHtml(p.name)}</span>` +
-      (r ? `<span class="rkline">${escapeHtml(rewardsLine(r))}</span>`
-         : '<span class="rknone">nothing set — every tournament pays nothing</span>') +
-      (locked ? ''
-              : `<button data-rewkid="${p.id}" aria-label="${r ? 'Edit' : 'Set'} ${escapeHtml(p.name)} rewards"` +
-                `>${r ? 'Edit' : 'Set rewards'}</button>`) +
-      '</div>';
-  }).join('') || '<span class="hint" style="margin:0">Add a child above and you can say what they play for.</span>';
-
-  // Who the children are and which tournaments exist live on Setup. Everyone
-  // and the children's tabs are the season; Setup is what the season is made
-  // of. With one child there is no strip, so it all stays on the one page.
-  const onlySetup = strip && !setup;
-  document.getElementById('kidsbox').hidden = onlySetup;
-  document.getElementById('kidaddrow').hidden = false;
-  document.getElementById('importbox').hidden = onlySetup;
-  document.getElementById('addbox').hidden = onlySetup;
-  // Rewards are the child's, so they are not part of setting up.
-  document.getElementById('rewardsbox').hidden = setup;
-  document.getElementById('checksbox').hidden = setup;
-  const lock = document.getElementById('wholock');
-  lock.hidden = !locked && !setup;
-  if(locked) lock.textContent =
-    'Everyone is the whole season, read only. Pick a child above to change anything — ' +
-    'their entries, their rewards, their results.';
-  else if(setup) lock.textContent =
-    'Setup is what the season is made of: which children, which tournaments. ' +
-    'Entries, rewards and results belong to a child, on their own tab.';
-  rewrow.querySelectorAll('[data-rewkid]').forEach(btn=>
-    btn.addEventListener('click', ()=>openRewards('kid', btn.dataset.rewkid)));
-
-  document.getElementById('feednote').textContent = feedNote ||
-    'No data/matches.json yet — tournaments added here are stored in this browser.';
-
-  renderAgeRow();
-
-  renderWhoFilter();
-
-  const list = document.getElementById('tournlist');
-  const who = whoShown();
-  const ms = matchesFor(who);
+/* One row renderer, two lists. Setup asks what exists — no statuses, no
+   results, no rewards, and the × that removes one. The tournaments page asks
+   how the season is going, for whoever's tab you are on. */
+function renderTournList(list, ms, {setup, locked, who}){
   // Anything we hold locally can be deleted, however it got here. Only the
   // generated feed is read-only.
   const editable = new Set((state.manualMatches || []).map(m=>m.id));
-  document.getElementById('nav-ct').textContent = ms.length ? ms.length : '';
 
   if(!ms.length){
-    list.innerHTML = `<div class="empty">${strip && !setup
-      ? 'No tournaments yet. Add them on the Setup tab.'
-      : 'No tournaments yet. Import from STA above, paste a tournament link, or add one by hand.'}</div>`;
-    runSeasonChecks(ms);
+    list.innerHTML = `<div class="empty">${setup
+      ? 'No tournaments yet. Import from STA above, paste a tournament link, or add one by hand.'
+      : 'No tournaments yet. Add them on Setup.'}</div>`;
     return;
   }
 
@@ -2603,8 +2663,14 @@ function renderMatches(){
     if(m.venue) meta.push(escapeHtml(m.venue));
     if(m.categories.length) meta.push(escapeHtml(m.categories.join(', ')));
     if(m.entryDeadline) meta.push(`Entry by ${fmt(new Date(m.entryDeadline+'T00:00:00'))}${dl !== null && dl >= 0 && !past ? ` (${dl}d)` : ''}`);
-    const cover = blockCovering(m);
-    if(cover) meta.push(`During “${escapeHtml(cover.name)}”`);
+    const shownKid = who;
+    const cover = blockCovering(m, shownKid ? shownKid.id : null);
+    if(cover){
+      // On Everyone the block name alone is ambiguous between two children.
+      const cowner = blockOwner(cover);
+      meta.push(`During “${escapeHtml(cover.name)}”` +
+        (cowner && trainStrip() && !shownKid ? ` (${escapeHtml(cowner.name)})` : ''));
+    }
     if(m.url) meta.push(`<a class="tlink" href="${escapeHtml(m.url)}" target="_blank" rel="noopener noreferrer">Tournament page</a>`);
     if(m.note) meta.push(`<span class="tnote">${escapeHtml(m.note)}</span>`);
 
@@ -2620,7 +2686,7 @@ function renderMatches(){
     // whose season is being read.
     // Setup is what exists, not how it is going: no statuses, no results, no
     // rewards there — those all belong to a child.
-    const played = setup ? [] : (whoShown() ? [whoShown()] : state.players).filter(p =>
+    const played = setup ? [] : (who ? [who] : state.players).filter(p =>
       ['entered','confirmed'].includes(statusOf(m.id, p.id)) && hasRewards(schemeFor(m, p)));
     const results = played.map(p=>{
       const res = resultOf(m.id, p.id) || {wins:null, place:null};
@@ -2654,7 +2720,7 @@ function renderMatches(){
         ${differs ? `<div class="trew"><span class="only">Only here</span>${escapeHtml(rewardsLine(own))}</div>` : ''}</div>
       <div class="joins">${joins}${locked || setup ? '' :
         `<button class="trewbtn${differs?' set':''}" data-rew="${m.id}"
-          aria-label="Rewards for ${escapeHtml(m.name)}">Rewards</button>`}${(!strip || setup) && editable.has(m.id)
+          aria-label="Rewards for ${escapeHtml(m.name)}">Rewards</button>`}${setup && editable.has(m.id)
         ? `<button class="tdel" data-del="${m.id}" aria-label="Delete">&times;</button>` : ''}</div>
       ${results ? `<div class="results">${results}</div>` : ''}
     </div>`;
@@ -2674,6 +2740,84 @@ function renderMatches(){
   list.querySelectorAll('.rpl').forEach(inp=>
     inp.addEventListener('change', ()=>setResult(inp.dataset.m, inp.dataset.p, 'place', inp.value)));
 
+  list.innerHTML = html;
+
+  // Locked means no handler at all, not merely a disabled button: the attribute
+  // stops a real click, but nothing should be listening in the first place.
+  if(!locked) list.querySelectorAll('.join').forEach(btn=>
+    btn.addEventListener('click', ()=>cycleEntry(btn.dataset.m, btn.dataset.p)));
+  list.querySelectorAll('.tdel').forEach(btn=>
+    btn.addEventListener('click', ()=>removeTournament(btn.dataset.del)));
+  list.querySelectorAll('.trewbtn').forEach(btn=>
+    btn.addEventListener('click', ()=>openRewards('match', btn.dataset.rew)));
+  list.querySelectorAll('.rwin').forEach(inp=>
+    inp.addEventListener('change', ()=>setResult(inp.dataset.m, inp.dataset.p, 'wins', inp.value)));
+  list.querySelectorAll('.rpl').forEach(inp=>
+    inp.addEventListener('change', ()=>setResult(inp.dataset.m, inp.dataset.p, 'place', inp.value)));
+}
+
+/* ---- render: Setup ----
+   Which children there are and which tournaments exist are the family's, not
+   any one child's — and now that Training splits by child too, they are not
+   the tournaments page's either. They live on their own view, reachable from
+   anywhere, and nothing here is ever read-only: setting up is the one thing
+   you always came to do. */
+function renderSetup(){
+  const thisYear = new Date().getFullYear();
+  const kidrow = document.getElementById('kidrow');
+  kidrow.innerHTML = state.players.map(p=>{
+    const grp = primaryGroup(p, thisYear);
+    return `<span class="kid" style="--c:${p.colour}"><span class="knm">${escapeHtml(p.name)}</span>` +
+      `<input class="kyr" type="number" min="1990" max="2030" step="1" data-kid="${p.id}"` +
+      ` value="${p.birthYear || ''}" placeholder="year" aria-label="${escapeHtml(p.name)} birth year">` +
+      `<span class="kgrp">${grp ? escapeHtml(groupLabel(grp)) : 'no age group'}</span>` +
+      `<button class="kx" data-kid="${p.id}" aria-label="Remove ${escapeHtml(p.name)}">&times;</button>` +
+      '</span>';
+  }).join('') || '<span class="hint" style="margin:0">No kids yet — add one to start tracking entries.</span>';
+  kidrow.querySelectorAll('.kx').forEach(btn=>
+    btn.addEventListener('click', ()=>removePlayer(btn.dataset.kid)));
+  kidrow.querySelectorAll('.kyr').forEach(inp=>
+    inp.addEventListener('change', ()=>setPlayerYear(inp.dataset.kid, inp.value)));
+
+  document.getElementById('feednote').textContent = feedNote ||
+    'No data/matches.json yet — tournaments added here are stored in this browser.';
+  renderAgeRow();
+
+  renderTournList(document.getElementById('setuplist'), allMatches(),
+                  {setup:true, locked:false, who:null});
+}
+
+function renderMatches(){
+  const locked = viewLocked();
+
+  // On a child's tab, their rewards are the only ones worth showing.
+  const rewrow = document.getElementById('rewrow');
+  const rewkids = whoShown() ? [whoShown()] : state.players;
+  rewrow.innerHTML = rewkids.map(p=>{
+    const r = kidScheme(p);
+    return `<div class="rewkid" style="--c:${p.colour}"><span class="rknm">${escapeHtml(p.name)}</span>` +
+      (r ? `<span class="rkline">${escapeHtml(rewardsLine(r))}</span>`
+         : '<span class="rknone">nothing set — every tournament pays nothing</span>') +
+      (locked ? ''
+              : `<button data-rewkid="${p.id}" aria-label="${r ? 'Edit' : 'Set'} ${escapeHtml(p.name)} rewards"` +
+                `>${r ? 'Edit' : 'Set rewards'}</button>`) +
+      '</div>';
+  }).join('') || '<span class="hint" style="margin:0">Add a child on Setup and you can say what they play for.</span>';
+  rewrow.querySelectorAll('[data-rewkid]').forEach(btn=>
+    btn.addEventListener('click', ()=>openRewards('kid', btn.dataset.rewkid)));
+
+  const lock = document.getElementById('wholock');
+  lock.hidden = !locked;
+  if(locked) lock.textContent =
+    'Everyone is the whole season, read only. Pick a child above to change anything — ' +
+    'their entries, their rewards, their results.';
+
+  renderWhoFilter();
+
+  const who = whoShown();
+  const ms = matchesFor(who);
+  document.getElementById('nav-ct').textContent = ms.length ? ms.length : '';
+  renderTournList(document.getElementById('tournlist'), ms, {setup:false, locked, who});
   runSeasonChecks(ms);
 }
 
@@ -2821,8 +2965,10 @@ function calendarIndex(year){
     if(p.type === 'vacation'){ if(!c.vac) c.vac = p.name; }
     else if(!c.hol) c.hol = p.name;
   }));
+  // The whole block, not just its name: the year view has to be able to say
+  // which child is training, the same way it already does for tournaments.
   state.blocks.forEach(b=>eachDay(b.start, iso(dateFor(b, b.days - 1)), k=>{
-    if(inYear(k)) at(k).blocks.push(b.name);
+    if(inYear(k)) at(k).blocks.push(b);
   }));
   allMatches().forEach(m=>eachDay(m.start, m.end, k=>{
     if(inYear(k)) at(k).matches.push(m);
@@ -2881,11 +3027,25 @@ function renderCalendar(){
       const c = idx.get(k);
       const cls = ['cell'];
       const tip = [];
-      let dots = '';
+      let dots = '', style = '';
       if(c){
         if(c.vac){ cls.push('vac'); tip.push(c.vac); }
         else if(c.hol){ cls.push('hol'); tip.push(c.hol); }
-        if(c.blocks.length){ cls.push('blk'); tip.push('Training: ' + c.blocks.join(', ')); }
+        if(c.blocks.length){
+          cls.push('blk');
+          tip.push('Training: ' + c.blocks.map(bl=>{
+            const own = blockOwner(bl);
+            return bl.name + (own ? ' (' + own.name + ')' : '');
+          }).join(', '));
+          // One child training that day colours the edge as theirs. Two at
+          // once, or nobody named, keeps the neutral marker — a single stripe
+          // cannot honestly stand for both.
+          const owners = new Set(c.blocks.map(bl=>bl.playerId).filter(Boolean));
+          if(owners.size === 1 && owners.size === c.blocks.length){
+            const own = blockOwner(c.blocks[0]);
+            if(own) style = ` style="--blk:${own.colour}"`;
+          }
+        }
         if(c.matches.length){
           cls.push('ev');
           if(c.matches.some(anyoneEntered)) cls.push('ent');
@@ -2899,7 +3059,7 @@ function renderCalendar(){
         }
       }
       if(k === today) cls.push('today');
-      cells += `<span class="${cls.join(' ')}"${tip.length ? ` title="${escapeHtml(tip.join(' · '))}"` : ''}>${dots}${d}</span>`;
+      cells += `<span class="${cls.join(' ')}"${style}${tip.length ? ` title="${escapeHtml(tip.join(' · '))}"` : ''}>${dots}${d}</span>`;
     }
     html += `<div class="mon"><h3>${MON[m]}</h3>` +
             `<div class="dows">${DOW.map(x=>`<span>${x[0]}</span>`).join('')}</div>` +
@@ -3008,7 +3168,7 @@ function renderDataBar(){
 let view = 'calendar';
 
 function setView(v){
-  view = ['matches','calendar'].includes(v) ? v : 'training';
+  view = ['matches','calendar','setup'].includes(v) ? v : 'training';
   render();
 }
 function renderHeader(){
@@ -3035,12 +3195,10 @@ function renderHeader(){
     document.getElementById('range').textContent = upcoming.length
       ? `next ${spanLabel(upcoming[0])}` : 'season';
     // The line has to describe the tab you are on: telling someone to click a
-    // child on a row is wrong on the two tabs where clicking does nothing.
-    sub.textContent = onSetup()
-      ? 'Which children, and which tournaments. What each of them is playing for lives on their own tab.'
-      : viewLocked()
-        ? 'Every tournament and who is going, across both children. Pick a child above to change anything.'
-        : 'Every tournament and who is going. Click a child on a row to cycle their status.';
+    // child on a row is wrong on the one tab where clicking does nothing.
+    sub.textContent = viewLocked()
+      ? 'Every tournament and who is going, across both children. Pick a child above to change anything.'
+      : 'Every tournament and who is going. Click a child on a row to cycle their status.';
     document.getElementById('tot').textContent = upcoming.length;
     document.getElementById('ondays').textContent = state.players.length;
     document.getElementById('restdays').textContent =
@@ -3048,16 +3206,31 @@ function renderHeader(){
     document.getElementById('lab1').textContent = 'Upcoming';
     document.getElementById('lab2').textContent = 'Kids';
     document.getElementById('lab3').textContent = 'Entered';
+  } else if(view === 'setup'){
+    const ms = allMatches();
+    document.getElementById('title').textContent = 'Setup';
+    document.getElementById('range').textContent = 'the whole family';
+    sub.textContent = 'Which children, and which tournaments. Both pages split by child ' +
+      'from here; what each of them plays for lives on their own tab under Tournaments.';
+    document.getElementById('tot').textContent = state.players.length;
+    document.getElementById('ondays').textContent = ms.length;
+    document.getElementById('restdays').textContent = (state.manualMatches || []).length;
+    document.getElementById('lab1').textContent = 'Kids';
+    document.getElementById('lab2').textContent = 'Tournaments';
+    document.getElementById('lab3').textContent = 'Added here';
   } else {
-    sub.textContent = 'Drop a session on a morning, afternoon or evening slot and give it a start time — a slot takes more than one. On a phone, tap a session then tap the slot.';
+    const own = blockOwner(active());
+    // Hours and rest days are one child's, so the line names them: with two
+    // children on the page, "3 rest days" alone does not say whose week it is.
+    sub.textContent = (own && trainStrip() ? own.name + '\u2019s block. ' : '') +
+      'Drop a session on a morning, afternoon or evening slot and give it a start time — a slot takes more than one. On a phone, tap a session then tap the slot.';
     document.getElementById('lab1').textContent = 'Total hrs';
     document.getElementById('lab2').textContent = 'On-court days';
     document.getElementById('lab3').textContent = 'Rest days';
   }
-  ['training','matches','calendar'].forEach(v=>{
+  ['training','matches','calendar','setup'].forEach(v=>{
     document.getElementById('view-' + v).classList.toggle('on', view === v);
-    document.getElementById('nav-' + (v === 'training' ? 'training' : v === 'matches' ? 'matches' : 'calendar'))
-      .classList.toggle('on', view === v);
+    document.getElementById('nav-' + v).classList.toggle('on', view === v);
   });
 }
 
@@ -3065,6 +3238,7 @@ function renderHeader(){
 // keeps all the existing render() call sites correct.
 function render(){
   renderTraining();
+  renderSetup();
   renderMatches();
   renderCalendar();
   renderHeader();
@@ -3655,7 +3829,8 @@ function renderSync(note, bad){
 function asText(){
   const b = active();
   if(!b) return 'No training blocks.\n';
-  let s = `${b.name.toUpperCase()}\n\n`;
+  const own = blockOwner(b);
+  let s = `${b.name.toUpperCase()}${own ? ' \u2014 ' + own.name : ''}\n\n`;
   for(let i=0;i<b.days;i++){
     const dt = dateFor(b, i);
     const head = `${DOW[dt.getDay()]} ${fmt(dt)}`;
@@ -3682,7 +3857,7 @@ function addBlock(){
   const prev = active();
   let start = DEFAULT_START;
   if(prev) start = iso(dateFor(prev, prev.days));   // start the next block after this one
-  const b = newBlock(`Block ${state.blocks.length + 1}`, start, DEFAULT_DAYS);
+  const b = newBlock(`Block ${shownBlocks().length + 1}`, start, DEFAULT_DAYS, trainWho);
   state.blocks.push(b);
   state.activeBlockId = b.id;
   render(); save();
@@ -3692,7 +3867,9 @@ function deleteBlock(){
   if(!b) return;
   if(!window.confirm(`Delete “${b.name}”? This cannot be undone.`)) return;
   state.blocks = state.blocks.filter(x => x.id !== b.id);
-  state.activeBlockId = state.blocks.length ? state.blocks[0].id : null;
+  const left = shownBlocks();
+  state.activeBlockId = left.length ? left[0].id
+                      : (state.blocks.length ? state.blocks[0].id : null);
   render(); save();
 }
 
@@ -3740,6 +3917,16 @@ document.getElementById('start').addEventListener('change', e=>{
   if(/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) b.start = e.target.value;
   render(); save();
 });
+document.getElementById('blockwho').addEventListener('change', e=>{
+  const b = active(); if(!b) return;
+  const id = e.target.value;
+  b.playerId = state.players.some(p => p.id === id) ? id : null;
+  // Handing a block to the other child on their tab would file it out of
+  // sight; follow it there rather than leaving the grid on a stranger.
+  if(b.playerId && trainWho && b.playerId !== trainWho) trainWho = b.playerId;
+  state.activeBlockId = b.id;
+  render(); save();
+});
 document.getElementById('days').addEventListener('change', e=>{
   const b = active(); if(!b) return;
   const n = parseInt(e.target.value, 10);
@@ -3756,6 +3943,7 @@ document.getElementById('btn-copy').addEventListener('click', async ()=>{
 document.getElementById('nav-training').addEventListener('click', ()=>setView('training'));
 document.getElementById('nav-matches').addEventListener('click', ()=>setView('matches'));
 document.getElementById('nav-calendar').addEventListener('click', ()=>setView('calendar'));
+document.getElementById('nav-setup').addEventListener('click', ()=>setView('setup'));
 document.getElementById('cal-prev').addEventListener('click', ()=>{ calYear--; render(); });
 document.getElementById('cal-next').addEventListener('click', ()=>{ calYear++; render(); });
 

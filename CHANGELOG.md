@@ -5,6 +5,69 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.0] — 2026-09-03
+
+### Added
+
+- **A training tab per child, and a block that knows whose it is.** Hours, rest
+  days and every load check are judgements about one body, so averaging two
+  children's weeks together said nothing true about either. Training now carries
+  the same strip as Tournaments — **Everyone** and a tab per child — and each
+  block belongs to one of them, set from **Whose** on the block's own bar. A
+  block added on a child's tab is theirs; a child's tab shows their blocks and
+  any block nobody has claimed, so nothing can become unreachable. The block tab
+  carries their colour, a hollow ring where nobody is named yet.
+- **A Setup page.** Setting up moved out from under Tournaments and became a
+  fourth nav item beside Calendar, Tournaments and Training: Kids, Import from
+  STA, Add a tournament, and the list of every tournament with the **×** that
+  removes one. Both pages split by child now, so who the children are and which
+  tournaments exist belong to neither of them — they are the family's. It is
+  reachable with no children added at all, which the old tab, which only
+  appeared once there were two kids, was not.
+- **Load ceilings that know how old the child is.** The 3.5h that is a hard day
+  at nine is an ordinary one at fifteen. The daily and weekly caps — and the day
+  bars and week totals drawn from them — now scale with the owner's age in the
+  season the block runs in. A block with nobody attached keeps the original
+  figures.
+- **The load check names the child.** It said "past the useful ceiling for a
+  9-year-old — she will stop learning", which was one child's block hard-coded
+  into the page. It now gives the owner's real age and their name.
+
+### Changed
+
+- **Both child strips read the same:** Everyone, then a tab each. The
+  Tournaments strip has lost its Setup tab, and the tournaments page has lost
+  the Kids, Import and Add boxes with it. What is left there is the season —
+  rewards, statuses, results and the season check.
+- **Nothing on Setup is ever read-only.** The guards that kept those controls
+  off a child's tab are gone, because the controls are not there to guard:
+  setting up is the one thing you always came to do. Everyone stays read-only on
+  Tournaments, where an edit really does belong to one child.
+- **One row renderer, two lists.** Setup asks what exists — no statuses, no
+  results, no rewards. The tournaments page asks how the season is going, for
+  whoever's tab you are on, and no longer offers a delete.
+- **Everyone stays editable on Training**, unlike the tournaments overview: a
+  block names its own owner, so an edit made from the overview is never
+  ambiguous about who it is for.
+- **The year view says whose training week it is.** A day only one child trains
+  takes their colour on its left edge, and the tooltip names them:
+  `Training: Her block (Olivia)`. A day both train keeps the neutral marker — a
+  single stripe cannot honestly stand for two children.
+- **A tournament's build-up follows the tab.** "During *Her block*" now prefers
+  the block belonging to the child whose tab you are on, and names the owner on
+  Everyone where the block name alone is ambiguous.
+- **Copying a plan as text carries the name** — the text lands in a message with
+  no tab strip around it to say whose it is. The printed page drops the strip,
+  as it already drops the block bar.
+
+### Fixed
+
+- **Removing a child no longer takes their training with them.** Their blocks go
+  back to unassigned and stay on the page; the plans in them are real work.
+
+With one child there is still no strip on either page: Tournaments and Training
+each stay one view with everything on it, and Setup is where it always is.
+
 ## [2.9.1] — 2026-09-03
 
 ### Fixed

@@ -1,8 +1,8 @@
 # Tennis training planner
 
-**Version 2.9.1** · [Changelog](CHANGELOG.md)
+**Version 2.10.0** · [Changelog](CHANGELOG.md)
 
-A single-page planner for a junior tennis season, in three parts:
+A single-page planner for a junior tennis season, in four parts:
 
 1. **Calendar** (the landing view) — twelve months on one page: who is playing
    when (a coloured dot per child), where the training blocks sit, and the
@@ -16,6 +16,9 @@ A single-page planner for a junior tennis season, in three parts:
    all can be blocked out alongside. The page tallies daily and weekly hours and
    flags a plan that is too heavy, too relentless, or too solitary for a young
    player.
+4. **Setup** — who the children are and which tournaments exist. Tournaments and
+   Training both split by child, so neither of them owns these: they are the
+   family's, and they have a page of their own.
 
 The design and the source research behind it are in `task_plan.md` and
 `findings.md`.
@@ -41,6 +44,12 @@ tests/                          jsdom harness + api tests — dev only, never de
 - **Multiple training blocks.** Name them, give each a start date and a length
   (1–60 days), and switch between them from the tab row. A new block starts the
   day after the previous one ends.
+- **A block belongs to one child.** With two children on the page a strip appears
+  above the block row — **Everyone**, then a tab each — and **Whose** on the
+  block's bar says who a block is for. A block added on a child's tab is theirs;
+  their tab shows their blocks plus any block nobody has claimed yet. Everyone
+  lists them all and stays editable, because a block names its own owner. With
+  one child there is no strip and nothing changes.
 - **Calendar grid** laid out Sun–Sat, aligned to whatever weekday the block
   starts on. Each day has a morning, an afternoon and an evening slot.
 - **An exact start time on every session.** Placing one asks when it starts —
@@ -65,41 +74,40 @@ tests/                          jsdom harness + api tests — dev only, never de
 - **The palette stays with you**, pinned to the top of the window and shrunk to
   the chips once you scroll past it, so a session is always there to drag.
 - **Running totals** per day, per 7-day week, and across the block, with a
-  per-day load bar that turns amber at 3h and red past the daily cap.
+  per-day load bar that turns amber near the daily cap and red past it.
+- **Caps that scale with age.** The daily and weekly ceilings follow the age the
+  block's child reaches that season — 3h/11h at eight, 3.5h/13h at nine and ten,
+  up to 5h/20h at fifteen and over. A block with nobody attached keeps the
+  3.5h/13h defaults.
 - **Load checks** that re-evaluate on every edit: days over the cap, long runs
   without a rest day, too few group sessions, two private blocks stacked on one
   day, two things booked over the same hour, physical work crowding out court
-  time, and weeks over the weekly cap.
+  time, and weeks over the weekly cap. They are written about the block's child
+  by name and age.
 - **Export** the plan as plain text to the clipboard, or print it — the print
   stylesheet drops the controls and prints the grid on white.
 
 ## What it does — Tournaments
 
-- **Kids** — add each child with a birth year; they get their own colour and an
-  age group (U10, 14&U, 16&U, Junior). Ages follow the Singapore convention: the
-  age reached during the season year, so 10&U in 2026 means born 2016 or later.
 - **Only the children who can enter a tournament are offered on it.** A U10
   event shows the nine-year-old alone, a 16&U event the thirteen-year-old. Each
   child is offered their own group and one above it — juniors play up a group,
   but not into every event they are technically old enough for. A child with a
   status recorded is always shown regardless, and a child with no birth year is
   shown everywhere.
-- **Four tabs, once you have two kids** — **Everyone**, one per child, and
-  **Setup**:
+- **A tab per child, once you have two kids** — **Everyone**, then one each:
 
   | Tab | What it is |
   | --- | --- |
   | Everyone | the whole season, read only |
   | A child | their tournaments, their rewards, their results — theirs to edit |
-  | Setup | which children, which tournaments — nothing else |
 
   Every edit belongs somewhere. What is one child's is on that child's tab;
   what is the family's — who the children are, which tournaments exist — is on
-  Setup. Everyone changes nothing, so it can be read without care.
+  the Setup page. Everyone changes nothing, so it can be read without care.
 
   A child's row still shows who else is playing, because that is a fact about
-  the event. With one child there is no strip at all and everything stays on
-  the single page.
+  the event. With one child there is no strip at all.
 - **Tournaments** — name, dates, venue, categories and entry deadline, grouped
   by month. Past ones dim.
 - **Who's going** — one button per child per tournament, cycling
@@ -113,7 +121,8 @@ tests/                          jsdom harness + api tests — dev only, never de
   finished tournament whose result nobody has entered, and the season's running
   reward total.
 - A tournament falling inside a training block shows that block's name, so
-  build-up blocks are visible from the list.
+  build-up blocks are visible from the list. On a child's tab it prefers their
+  own block over a sibling's; on Everyone it names whose block it is.
 
 ### Rewards
 
@@ -152,6 +161,23 @@ does not pay. This is the reason results are stored at all.
 Nought wins is a real result and is kept as one; an empty box means *not yet
 entered*, which is what the season check chases after a tournament has
 finished.
+
+## What it does — Setup
+
+Who the children are and which tournaments exist. Tournaments and Training both
+split by child, so neither of them owns this — it is the family's, it has a page
+of its own, and nothing on it is ever read-only.
+
+- **Kids** — add each child with a birth year; they get their own colour and an
+  age group (U10, 14&U, 16&U, Junior). Ages follow the Singapore convention: the
+  age reached during the season year, so 10&U in 2026 means born 2016 or later.
+  The birth year is what lets a tournament offer only the children who can enter
+  it, and what the training load checks read to know how hard a day is.
+- **Every tournament there is**, whoever can enter it, each with a **×**. This is
+  the only place one can be deleted: removing a tournament is setting up, not
+  running a season.
+- No statuses, no rewards, no results here — those belong to a child, on their
+  own tab under Tournaments.
 
 ### Importing the STA calendar
 
@@ -219,7 +245,9 @@ Twelve months for one year, with arrows to move between years.
   can see who is competing when. Grey means a tournament nobody has committed
   to yet; a child who is skipping shows nothing. Hover a day for the names,
   statuses and holiday.
-- **Training blocks** as a yellow left edge.
+- **Training blocks** as a left edge — in the child's colour on a day only they
+  train, yellow where two of them do or where the block has no owner. Hover for
+  the block name and whose it is.
 - **School holidays** as the day background — vacations green, public holidays
   amber.
 - **Holidays this year**, longest first, each marked clear or with the number of
@@ -422,11 +450,14 @@ Two suites. `api.test.mjs` drives `api/plan.js` directly with a stubbed store �
 backend choice, key validation, the 409 refusal and the forced write, bodies
 that are not plans, junk in the store, and an unreachable one.
 
-The rest is 597 assertions driving the real page under jsdom: cold boot, the v1.0.0
+The rest is 663 assertions driving the real page under jsdom: cold boot, the v1.0.0
 migration, state round-trips, thirteen kinds of corrupt saved state, block
 create/rename/switch/delete, variable length and its clamps, calendar alignment
-for different start weekdays, the load checks, a timezone regression, view
-switching, kids, tournament add/delete, the entry-status cycle, the reward
+for different start weekdays, the load checks and the age they scale with, whose
+block is whose — the training strip, the owner picker, and a block outliving the
+child it belonged to — a timezone regression, view
+switching, Setup as a view of its own and its edits reaching both strips,
+kids, tournament add/delete, the entry-status cycle, the reward
 schemes — per child, per tournament, a feed's suggestion, and the order the
 three resolve in — the payout arithmetic behind them, and the season checks.
 
