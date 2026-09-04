@@ -2229,16 +2229,31 @@ const DEFAULT_AGES = ['u10','u14','u16','junior'];
 const groupIdx = key => AGE_GROUPS.findIndex(g => g.key === key);
 const groupLabel = key => (AGE_GROUPS.find(g => g.key === key) || {}).label || '';
 
-// Singapore junior events are named by age cap, not by a field: "Junior (U10)"
-// as a level, or a 14&U / 16&U token in the title.
+/* Singapore junior events are named by age cap, not by a field. The cap can be
+   written three ways — 14&U, 14U, U14 — and it turns up in the title or in the
+   category line: "Junior (U10)" as a level, "12U Girls" as a category, an
+   "ATF 16&U" token in the name. One haystack, one pattern, both places.
+
+   Only the spaces around an & are closed up, so "14 & U" reads as one token
+   while "2016 U10" stays two: collapsing every space merged a season year into
+   the token after it and read 2016 U10 as a 16&U event.
+
+   The youngest cap found wins, which is the order the separate checks used to
+   run in — a title carrying two tokens is offering the younger of them. */
 function bucketOfText(title, level){
-  const name = String(title || '').toUpperCase().replace(/\s+/g,'');
   const lvl = String(level || '');
-  if(lvl === 'Junior (U10)' || /U10/.test(name) || /10&U/.test(name)) return 'u10';
-  if(/12&U/.test(name)) return 'u14';        // no 12&U bucket; 14&U is the nearest cap
-  if(/14&U/.test(name)) return 'u14';
-  if(/16&U/.test(name)) return 'u16';
-  if(/18&U/.test(name) || lvl === 'Junior' || /JUNIOR/.test(name)) return 'junior';
+  const hay = `${title || ''} ${lvl}`.toUpperCase().replace(/\s*&\s*/g, '&');
+  const caps = [...hay.matchAll(/\bU(\d{2})\b|\b(\d{2})&?U\b/g)]
+    .map(m => Number(m[1] || m[2]))
+    .filter(n => n >= 10 && n <= 18);
+  if(caps.length){
+    const cap = Math.min(...caps);
+    if(cap <= 10) return 'u10';
+    if(cap <= 14) return 'u14';             // no 12&U bucket; 14&U is the nearest cap
+    if(cap <= 16) return 'u16';
+    return 'junior';
+  }
+  if(lvl === 'Junior' || /JUNIOR/.test(hay)) return 'junior';
   return lvl ? 'open' : null;               // null = unknown, so show every kid
 }
 function ageBucket(t){

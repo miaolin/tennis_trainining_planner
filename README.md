@@ -201,9 +201,12 @@ there, or already finished.
 
 With no children added yet, the import falls back to every junior age group.
 
-STA publishes no age-group field, so the group is derived from the title: the
-`Junior (U10)` level or a `U10` token, then `14&U` / `16&U` / `18&U` tokens,
-then anything else marked Junior, with the rest treated as adult.
+STA publishes no age-group field, so the group is derived from the words: the
+title and the category line are read together for an age cap written any of the
+ways it is written — `14&U`, `14U` or `U14` — and the youngest cap on a
+tournament wins. Anything else marked Junior is a junior event; the rest are
+treated as adult. A `12&U` cap has no bucket of its own and takes the nearest
+one above it, `14&U`.
 
 ### Adding a tournament from its link
 

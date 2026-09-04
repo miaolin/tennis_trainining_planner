@@ -40,6 +40,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **An age cap is read whichever way it is written, and wherever it is written.**
+  Only `14&U`-style tokens in the *title* counted, so `12U Girls` in the category
+  line — the add form's own placeholder — parsed as an adult event and reached no
+  child at all. The cap is now read from the title and the category line
+  together, as `14&U`, `14U` or `U14`, with the youngest cap on a tournament
+  winning. Closing up every space also joined a season year to the token after
+  it, reading `2016 U10` as a 16&U event; only the spaces around an `&` are
+  closed up now.
 - **The tournament list stopped rendering itself twice.** `renderTournList` ran
   its whole write-and-wire tail twice over, so every row was built, wired, thrown
   away and built again on each render.

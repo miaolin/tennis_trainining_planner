@@ -3366,6 +3366,63 @@ const addTournFor = (dom, d, fields, names) => onSetup(dom, d, () => {
   click(dom, $(d, '#t-add'));
 });
 
+group('an age cap written any of the ways it is written');
+{
+  const Y = new Date().getFullYear();
+  const rowNamed = (d, t) => $$(d, '#tournlist .tourn').find(r => r.textContent.includes(t));
+  const kidsOn = row => [...row.querySelectorAll('.join')].map(b => b.textContent.replace(/·.*/, '').trim());
+
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Olivia', Y - 9);    // U10
+  addKid(dom, d, 'Ian', Y - 13);      // 14&U
+
+  // The cap lives in the category line as often as in the title, and STA is not
+  // consistent about how it writes one. The add form's own placeholder is
+  // "12U Girls", which used to parse as an adult event and reach nobody.
+  addTourn(dom, d, { name: 'Club Meet', start: `${Y}-11-02`, cat: '12U Girls' });
+  addTourn(dom, d, { name: 'Autumn Cup', start: `${Y}-11-09`, cat: 'U12 Girls' });
+  addTourn(dom, d, { name: 'Winter Cup', start: `${Y}-11-16`, cat: '16U Boys' });
+  addTourn(dom, d, { name: 'Spring Cup', start: `${Y}-11-23`, cat: '10 & U Girls' });
+  addTourn(dom, d, { name: 'Adults Only', start: `${Y}-11-30`, cat: 'Open Singles' });
+
+  click(dom, $(d, '#nav-matches'));
+  ok('12U in the category reaches the children it is for',
+     kidsOn(rowNamed(d, 'Club Meet')).join(',') === 'Olivia,Ian',
+     kidsOn(rowNamed(d, 'Club Meet')));
+  ok('U12 written the other way round reads the same',
+     kidsOn(rowNamed(d, 'Autumn Cup')).join(',') === 'Olivia,Ian',
+     kidsOn(rowNamed(d, 'Autumn Cup')));
+  ok('16U is the 13-year-old’s, not the 9-year-old’s',
+     kidsOn(rowNamed(d, 'Winter Cup')).join(',') === 'Ian', kidsOn(rowNamed(d, 'Winter Cup')));
+  ok('spaces around the & do not hide the token',
+     kidsOn(rowNamed(d, 'Spring Cup')).join(',') === 'Olivia', kidsOn(rowNamed(d, 'Spring Cup')));
+  ok('an adult event still reaches nobody',
+     kidsOn(rowNamed(d, 'Adults Only')).length === 0, kidsOn(rowNamed(d, 'Adults Only')));
+}
+
+group('a year in the title is not an age cap');
+{
+  const Y = new Date().getFullYear();
+  const rowNamed = (d, t) => $$(d, '#tournlist .tourn').find(r => r.textContent.includes(t));
+  const kidsOn = row => [...row.querySelectorAll('.join')].map(b => b.textContent.replace(/·.*/, '').trim());
+
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Olivia', Y - 9);
+  addKid(dom, d, 'Ian', Y - 13);
+  // Closing up every space used to join the year to the token after it, so
+  // "2016 U10" read as a 16&U event and the U10 child lost her own tournament.
+  addTourn(dom, d, { name: 'Legacy 2016 U10 Red Competition', start: `${Y}-11-02` });
+  addTourn(dom, d, { name: 'Founders 2018 Trophy', start: `${Y}-11-09`, cat: 'Open' });
+
+  click(dom, $(d, '#nav-matches'));
+  ok('the U10 token wins over the year beside it',
+     kidsOn(rowNamed(d, 'Legacy')).join(',') === 'Olivia', kidsOn(rowNamed(d, 'Legacy')));
+  ok('and a bare year is no age group at all',
+     kidsOn(rowNamed(d, 'Founders')).length === 0, kidsOn(rowNamed(d, 'Founders')));
+}
+
 group('the add form asks who it is for');
 {
   const dom = boot();
