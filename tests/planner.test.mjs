@@ -3029,8 +3029,11 @@ group('Everyone changes nothing');
     ok('and the tournaments page is not', !$(d, '#view-matches').classList.contains('on'));
     ok('its list offers a delete', !!$(d, '#setuplist .tourn .tdel'));
     ok('but no rewards, statuses or results there',
-       !$(d, '#setuplist .tourn .trewbtn') && !$(d, '#setuplist .tourn .join') &&
+       !$(d, '#setuplist .tourn .trewbtn') && !$(d, '#setuplist .tourn .join:not(.forpick)') &&
        !$(d, '#setuplist .tourn .res'));
+    ok('what it does carry is who the tournament is for',
+       $$(d, '#setuplist .tourn .forpick').length === 2,
+       $$(d, '#setuplist .tourn .forpick').length);
     ok('it says what it is for',
        $(d, '#sub').textContent.includes('Which children, and which tournaments'),
        $(d, '#sub').textContent);
@@ -3298,7 +3301,8 @@ group('Setup is a view of its own');
      $$(d, '#setuplist .tourn').length === 1, $$(d, '#setuplist .tourn').length);
   ok('with a delete', !!$(d, '#setuplist .tourn .tdel'));
   ok('and no statuses, rewards or results',
-     !$(d, '#setuplist .join') && !$(d, '#setuplist .trewbtn') && !$(d, '#setuplist .res'));
+     !$(d, '#setuplist .join:not(.forpick)') && !$(d, '#setuplist .trewbtn') && !$(d, '#setuplist .res'));
+  ok('only who it is for', $$(d, '#setuplist .forpick').length === 2, $$(d, '#setuplist .forpick').length);
 
   // The tournaments page keeps the season and loses the setting up.
   click(dom, $(d, '#nav-matches'));
@@ -3333,6 +3337,249 @@ group('Setup edits reach both pages');
   ok('Training drops its strip', $$(d, '#trainwho button[data-who]').length === 0);
   click(dom, $(d, '#nav-matches'));
   ok('so does Tournaments', $$(d, '#whofilter button[data-who]').length === 0);
+}
+
+/* ------------------------------------------------------------------ */
+/* Saying who a tournament is for. The age rule is a guess about which
+   events a child could enter; this is the answer when a parent has
+   actually said which ones are theirs. */
+
+const forChips = d => $$(d, '#setuplist .tourn .forpick');
+const forTicks = d => $$(d, '#forrow input[data-forkid]');
+// The row redraws itself after every tick, so a box has to be found again each
+// time rather than held from before.
+const tickFor = (dom, d, name, want) => {
+  const cb = forTicks(d).find(x => x.closest('label').textContent.trim() === name);
+  if (!cb || cb.checked === want) return;
+  cb.checked = want;
+  cb.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+};
+// Tick boxes on the add form, then fill the form and add. Names not listed
+// are unticked; passing nothing leaves every child ticked.
+const addTournFor = (dom, d, fields, names) => onSetup(dom, d, () => {
+  if (names) forTicks(d).map(cb => cb.closest('label').textContent.trim())
+    .forEach(n => tickFor(dom, d, n, names.includes(n)));
+  input(dom, $(d, '#t-name'), fields.name);
+  input(dom, $(d, '#t-start'), fields.start);
+  if (fields.cat) input(dom, $(d, '#t-cat'), fields.cat);
+  if (fields.deadline) input(dom, $(d, '#t-deadline'), fields.deadline);
+  click(dom, $(d, '#t-add'));
+});
+
+group('the add form asks who it is for');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  goSetup(dom, d);
+  ok('one child is asked nothing', $(d, '#forrow').hidden && $(d, '#forlab').hidden);
+
+  addKid(dom, d, 'Olivia');
+  goSetup(dom, d);
+  ok('still nothing with one child', $(d, '#forrow').hidden);
+
+  addKid(dom, d, 'Ian');
+  goSetup(dom, d);
+  ok('two children and the question appears', !$(d, '#forrow').hidden && !$(d, '#forlab').hidden);
+  ok('a chip each', forTicks(d).length === 2, forTicks(d).length);
+  ok('everyone ticked to start', forTicks(d).every(cb => cb.checked));
+  ok('and it says what unticking means',
+     $(d, '#fornote').textContent.includes('not the same as'), $(d, '#fornote').textContent);
+}
+
+group('a tournament added for one child only');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Olivia');
+  addKid(dom, d, 'Ian');
+
+  addTournFor(dom, d, { name: 'Ian only', start: offset(40) }, ['Ian']);
+  const only = Object.values(saved(dom).forKids)[0];
+  ok('the pick is stored', Array.isArray(only) && only.length === 1, JSON.stringify(saved(dom).forKids));
+  ok('and it is Ian', only[0] === saved(dom).players.find(p => p.name === 'Ian').id);
+
+  goSetup(dom, d);
+  ok('both chips still show on Setup', forChips(d).length === 2, forChips(d).length);
+  ok('Ian on, Olivia off',
+     forChips(d).filter(b => b.className.includes('on')).length === 1,
+     forChips(d).map(b => b.className).join('|'));
+
+  // the tabs are the point: it is on his and not on hers
+  click(dom, $(d, '#nav-matches'));
+  goTab(dom, d, saved(dom).players.find(p => p.name === 'Ian').id);
+  ok('it is on Ian’s tab', $$(d, '#tournlist .tourn').length === 1);
+  goTab(dom, d, saved(dom).players.find(p => p.name === 'Olivia').id);
+  ok('and not on Olivia’s', $$(d, '#tournlist .tourn').length === 0,
+     $$(d, '#tournlist .tourn').length);
+  goTab(dom, d, '');
+  ok('Everyone still sees it — the season is the family’s',
+     $$(d, '#tournlist .tourn').length === 1, $$(d, '#tournlist .tourn').length);
+
+  // and the form went back to asking the whole question
+  goSetup(dom, d);
+  ok('the next add starts with everyone ticked again', forTicks(d).every(cb => cb.checked));
+}
+
+group('every child ticked stores nothing');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Olivia');
+  addKid(dom, d, 'Ian');
+  addTournFor(dom, d, { name: 'For anyone', start: offset(40) });
+  ok('no list is written', Object.keys(saved(dom).forKids || {}).length === 0,
+     JSON.stringify(saved(dom).forKids));
+
+  // unticking everyone is the same as saying nothing, not a tournament for
+  // nobody — one that appeared on no tab at all would be unreachable
+  addTournFor(dom, d, { name: 'For nobody', start: offset(41) }, []);
+  ok('unticking everyone stores nothing either',
+     Object.keys(saved(dom).forKids || {}).length === 0, JSON.stringify(saved(dom).forKids));
+  goSetup(dom, d);
+  ok('and both are still on both lists', forChips(d).filter(b => b.className.includes('on')).length === 4,
+     forChips(d).filter(b => b.className.includes('on')).length);
+}
+
+group('a tournament on nobody’s list says so');
+{
+  const Y = new Date().getFullYear();
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Olivia', Y - 9);
+  addKid(dom, d, 'Ian', Y - 13);
+  // an adult event: neither child's age group is anywhere near it
+  addTournFor(dom, d, { name: 'Advanced Singles', start: offset(40), cat: 'Open' });
+  goSetup(dom, d);
+  ok('every chip is off', forChips(d).filter(b => b.className.includes('on')).length === 0,
+     forChips(d).map(b => b.className).join('|'));
+  ok('and the row says nobody has it',
+     $(d, '#setuplist .tourn .nokid').textContent.includes('no one'),
+     $(d, '#setuplist .tourn .nokid')?.textContent);
+
+  click(dom, forChips(d)[1]);
+  ok('pressing a name puts them on it', forChips(d).filter(b => b.className.includes('on')).length === 1);
+  ok('and the warning goes', !$(d, '#setuplist .tourn .nokid'));
+  ok('which is a stated list, against the age rule',
+     Object.values(saved(dom).forKids)[0].length === 1, JSON.stringify(saved(dom).forKids));
+  click(dom, $(d, '#nav-matches'));
+  goTab(dom, d, saved(dom).players.find(p => p.name === 'Ian').id);
+  ok('so it reaches his tab despite his age', $$(d, '#tournlist .tourn').length === 1,
+     $$(d, '#tournlist .tourn').length);
+}
+
+group('changing who it is for, on the row');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Olivia');
+  addKid(dom, d, 'Ian');
+  addTournFor(dom, d, { name: 'Club Meet', start: offset(40) });
+  goSetup(dom, d);
+
+  ok('both on to begin with', forChips(d).filter(b => b.className.includes('on')).length === 2);
+  click(dom, forChips(d)[0]);
+  ok('a click drops that child', forChips(d).filter(b => b.className.includes('on')).length === 1,
+     forChips(d).map(b => b.className).join('|'));
+  ok('which is what got written', Object.values(saved(dom).forKids)[0].length === 1);
+
+  click(dom, forChips(d)[0]);
+  ok('clicking back puts them on', forChips(d).filter(b => b.className.includes('on')).length === 2);
+  ok('and a list that says what the age rule says is dropped',
+     Object.keys(saved(dom).forKids).length === 0, JSON.stringify(saved(dom).forKids));
+
+  // it has to survive a reload
+  click(dom, forChips(d)[1]);
+  const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
+  const d2 = dom2.window.document;
+  goSetup(dom2, d2);
+  ok('the pick survives a reload',
+     forChips(d2).filter(b => b.className.includes('on')).length === 1,
+     forChips(d2).map(b => b.className).join('|'));
+}
+
+group('an entry outranks the list');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Olivia');
+  addKid(dom, d, 'Ian');
+  addTournFor(dom, d, { name: 'Club Meet', start: offset(40) });
+
+  // Olivia is entered, so she stays on it whatever the list says
+  click(dom, $(d, '#nav-matches'));
+  const olivia = saved(dom).players.find(p => p.name === 'Olivia').id;
+  goTab(dom, d, olivia);
+  click(dom, $(d, '#tournlist .join'));
+  ok('she is planned', saved(dom).entries.length === 1);
+
+  goSetup(dom, d);
+  const hers = forChips(d).find(b => b.dataset.p === olivia);
+  ok('her chip is fixed on', hers.className.includes('on') && hers.disabled);
+  ok('and says where to change it', hers.title.includes('Tournaments'), hers.title);
+
+  click(dom, hers);
+  ok('clicking it does nothing', Object.keys(saved(dom).forKids || {}).length === 0,
+     JSON.stringify(saved(dom).forKids));
+  goTab(dom, d, olivia);
+  ok('she still has the tournament', $$(d, '#tournlist .tourn').length === 1);
+}
+
+group('a child who is not on it has no deadline to miss');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Olivia');
+  addKid(dom, d, 'Ian');
+  addTournFor(dom, d, { name: 'Ian only', start: offset(40), deadline: offset(5) }, ['Ian']);
+
+  click(dom, $(d, '#nav-matches'));
+  goTab(dom, d, saved(dom).players.find(p => p.name === 'Olivia').id);
+  ok('nothing nags Olivia', !$(d, '#mnotes').textContent.includes('Entry deadline closing'),
+     $(d, '#mnotes').textContent.slice(0, 90));
+  goTab(dom, d, saved(dom).players.find(p => p.name === 'Ian').id);
+  ok('it still nags Ian', $(d, '#mnotes').textContent.includes('Entry deadline closing'),
+     $(d, '#mnotes').textContent.slice(0, 90));
+}
+
+group('a child leaving takes their list with them');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Olivia');
+  addKid(dom, d, 'Ian');
+  addTournFor(dom, d, { name: 'Ian only', start: offset(40) }, ['Ian']);
+  ok('a list exists', Object.keys(saved(dom).forKids).length === 1);
+
+  dom.window.confirm = () => true;
+  goSetup(dom, d);
+  const ian = saved(dom).players.find(p => p.name === 'Ian').id;
+  click(dom, $$(d, '#kidrow .kx').find(b => b.dataset.kid === ian));
+  ok('Ian is gone', saved(dom).players.length === 1);
+  ok('and the list he was the whole of goes too',
+     Object.keys(saved(dom).forKids || {}).length === 0, JSON.stringify(saved(dom).forKids));
+  click(dom, $(d, '#nav-matches'));
+  ok('the tournament is still Olivia’s to see', $$(d, '#tournlist .tourn').length === 1);
+}
+
+group('a list of a child who is gone does not load');
+{
+  const Y = new Date().getFullYear();
+  const seed = JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [{ id: 'b1', name: 'Block', start: `${Y}-06-01`, days: 7, plan: {} }],
+    activeBlockId: 'b1',
+    players: [{ id: 'pa', name: 'Olivia', birthYear: Y - 9, colour: '#5B9BD5' }],
+    entries: [], manualMatches: [
+      { id: 'm1', source: 'manual', name: 'Club Meet', start: `${Y}-11-02`, end: `${Y}-11-02` }],
+    trips: [], rewards: {},
+    forKids: { m1: ['ghost'], m2: ['pa'] },
+  });
+  const dom = boot({ [KEY]: seed });
+  const d = dom.window.document;
+  ok('a list naming nobody real is dropped', !saved(dom).forKids.m1, JSON.stringify(saved(dom).forKids));
+  ok('a list naming a real child is kept', !!saved(dom).forKids.m2);
+  click(dom, $(d, '#nav-matches'));
+  ok('and the tournament is still readable', $$(d, '#tournlist .tourn').length === 1);
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

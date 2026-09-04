@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.10.0** · [Changelog](CHANGELOG.md)
+**Version 2.11.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -176,6 +176,17 @@ of its own, and nothing on it is ever read-only.
 - **Every tournament there is**, whoever can enter it, each with a **×**. This is
   the only place one can be deleted: removing a tournament is setting up, not
   running a season.
+- **Who each tournament is for.** The age group is a guess — it says which events
+  a child is old enough for, not which ones are theirs. **For** on the add form
+  ticks every child by default, which leaves the age groups to decide as before;
+  untick one and the tournament never reaches their tab. The same chips sit on
+  every row, so it can be changed later, and pressing a name puts a child on an
+  event their age group would have excluded. Not being on a tournament is not the
+  same as **Skipping** one: a deadline you were never in the running for does not
+  nag you. A child with an entry cannot be taken off — the entry is the stronger
+  statement, and it is changed on Tournaments.
+- A tournament nobody is on says **on no one's list** on its row. Press a name to
+  fix it.
 - No statuses, no rewards, no results here — those belong to a child, on their
   own tab under Tournaments.
 
