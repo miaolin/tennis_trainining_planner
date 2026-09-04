@@ -5,6 +5,36 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.2] — 2026-09-04
+
+### Fixed
+
+- **The same tournament could be added over and over through its own link.**
+  Only the bulk import ever checked for one it already had, and it checked on an
+  id — `sta-<tournamentId>` — that the link path never gave itself: **Look up**
+  read the STA id and threw it away, and **Add tournament** minted a fresh random
+  one. Two rows of one event, identical down to the link, and nothing able to
+  tell they were the same. A tournament added through its link now takes the id
+  the import would have given it, so adding it twice, or importing it after
+  adding it, is recognised. Those rows carry the STA badge now too, which they
+  should have all along.
+- **A tournament typed by hand is checked as well.** There is no id to match on,
+  so the test is the name and the start date, ignoring case and stray spaces —
+  coarse, but two events of one name on one day is not a thing that happens, and
+  the second is always the mistake. Either way the add is refused and says which
+  tournament it clashes with, rather than adding a second quietly.
+- **A refused add no longer hands its link's id to whatever is typed next.** The
+  link stays in the field after a failed add, so the id it resolved has to be
+  tied to the name and start it filled in as well — otherwise the next, quite
+  different tournament inherited it. Editing the link clears the resolution too.
+
+### Added
+
+- **Duplicates already on the list are badged on Setup**, where the **×** is.
+  Nothing is merged for you: each row can carry its own entries, rewards and
+  its own answer to who it is for, and which one to keep is not the program's
+  decision. Deleting either clears the badge from the other.
+
 ## [2.11.1] — 2026-09-04
 
 ### Changed

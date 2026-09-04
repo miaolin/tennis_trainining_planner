@@ -558,6 +558,14 @@ input[type=number]#days{width:74px}
 .linkrow button{white-space:nowrap}
 #lookupnote.busy{color:var(--ball)}
 #lookupnote.bad{color:var(--bad)}
+#addnote.bad{color:var(--bad)}
+/* A row that repeats one already on the list. Nothing is merged for you — the
+   entries and rewards on each are real — but the × beside it is the fix. */
+.tourn .dupe{
+  font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--warn);border:1px solid var(--warn);border-radius:2px;
+  padding:1px 5px;margin-right:7px;vertical-align:1px;
+}
 #lookupnote.good{color:var(--ok)}
 .tmeta a.tlink{color:#8FC0E6;text-decoration:none;border-bottom:1px dotted rgba(143,192,230,.5)}
 .tmeta a.tlink:hover{color:var(--court-line)}
@@ -935,6 +943,7 @@ input[type=number]#days{width:74px}
       </div>
       <div class="fld addbtn"><button id="t-add">Add tournament</button></div>
     </div>
+    <p class="hint" id="addnote"></p>
     <p class="hint" id="feednote"></p>
   </div>
 
@@ -2167,6 +2176,16 @@ const STA_API = 'https://api.singtennis.org.sg/web-api/Tournament/GetTournamentL
 // the venue, which the list does not carry.
 const STA_SLUG_API = 'https://api.singtennis.org.sg/web-api/Tournament/GetTournamentInfoBySlug';
 let staCache = null;
+/* What the last successful Look up resolved: the id, and enough of what it
+   filled in to know the form still describes that tournament. A tournament
+   added through its STA link is the same one the import would add, so it takes
+   the same id and the two paths recognise each other.
+
+   The link, name and start are all held because any of them can be edited
+   afterwards, and an id handed to a tournament it does not belong to is worse
+   than no id at all — a failed add leaves the link in the field, so without
+   this the next thing typed would inherit it. */
+let lookupHit = null;              // {tid, url, name, start}
 
 function slugFromUrl(raw){
   let u;
@@ -2195,6 +2214,14 @@ async function fetchStaList(){
   return staCache;
 }
 function setField(id, v){ if(v) document.getElementById(id).value = v; }
+// Says why an add did not happen. renderSetup does not write here, so the
+// reason survives the redraw that follows the attempt.
+function addNote(msg, cls){
+  const el = document.getElementById('addnote');
+  el.textContent = msg || '';
+  el.className = 'hint' + (cls ? ' ' + cls : '');
+  el.hidden = !msg;
+}
 function lookupNote(msg, cls){
   const el = document.getElementById('lookupnote');
   el.textContent = msg;
@@ -2202,6 +2229,7 @@ function lookupNote(msg, cls){
 }
 async function lookupLink(){
   const raw = document.getElementById('t-url').value.trim();
+  lookupHit = null;
   if(!raw){ lookupNote('Paste a tournament link first.', 'bad'); return false; }
   const slug = slugFromUrl(raw);
   if(!slug){
@@ -2221,6 +2249,9 @@ async function lookupLink(){
       return false;
     }
     const t = j.data;
+    if(t.tournamentId !== undefined && t.tournamentId !== null)
+      lookupHit = {tid: String(t.tournamentId), url: raw,
+                   name: t.tournamentName, start: dmyToIso(t.tournamentStartDate)};
     setField('t-name', t.tournamentName);
     setField('t-start', dmyToIso(t.tournamentStartDate));
     setField('t-end', dmyToIso(t.tournamentEndDate));
@@ -2752,6 +2783,14 @@ function payout(m, p){
 }
 
 /* ---- manual tournaments ---- */
+/* Two tournaments are the same one if they are named the same and start on the
+   same day. It is a coarse test and it is the only one available to a row typed
+   by hand — there is no id to match on — but two events of one name on one day
+   is not a thing that happens, and a second row of it is always the mistake. */
+const normName = s => String(s || '').toLowerCase().replace(/\s+/g,' ').trim();
+function sameTournament(m, name, start){
+  return m.start === start && normName(m.name) === normName(name);
+}
 function addTournament(){
   const g = id => document.getElementById(id).value.trim();
   const name = g('t-name'), start = g('t-start');
@@ -2760,9 +2799,21 @@ function addTournament(){
     return false;
   }
   const end = /^\d{4}-\d{2}-\d{2}$/.test(g('t-end')) && g('t-end') >= start ? g('t-end') : start;
-  const id = 'm' + uid();
+  // The link path takes the id the lookup resolved, which is the id the bulk
+  // import gives the same tournament. Adding it twice, or importing it after
+  // adding it, then collides here instead of making a second row.
+  const fromSta = !!lookupHit && lookupHit.url === g('t-url') &&
+                  normName(lookupHit.name) === normName(name) && lookupHit.start === start;
+  const id = fromSta ? 'sta-' + lookupHit.tid : 'm' + uid();
+
+  const clash = allMatches().find(m => m.id === id || sameTournament(m, name, start));
+  if(clash){
+    addNote(`“${clash.name}” on ${spanLabel(clash)} is already on the list. ` +
+            'Delete that one first if this is meant to replace it.', 'bad');
+    return false;
+  }
   state.manualMatches.push({
-    id, source:'manual', name, start, end,
+    id, source: fromSta ? 'sta' : 'manual', name, start, end,
     venue: g('t-venue'),
     categories: g('t-cat') ? g('t-cat').split(',').map(s=>s.trim()).filter(Boolean) : [],
     entryDeadline: /^\d{4}-\d{2}-\d{2}$/.test(g('t-deadline')) ? g('t-deadline') : null,
@@ -2775,6 +2826,8 @@ function addTournament(){
   if(picked.length && picked.length < state.players.length) setForKids(id, picked);
   addForPick = null;
   forOpen = false;
+  lookupHit = null;
+  addNote('');
   ['t-name','t-start','t-end','t-venue','t-cat','t-deadline','t-url'].forEach(id=>document.getElementById(id).value = '');
   lookupNote('Paste an STA tournament link and the details fill themselves in.');
   render(); save();
@@ -2824,6 +2877,12 @@ function renderTournList(list, ms, {setup, locked, who}){
   // Anything we hold locally can be deleted, however it got here. Only the
   // generated feed is read-only.
   const editable = new Set((state.manualMatches || []).map(m=>m.id));
+  // Duplicates that predate the check on the way in. They are pointed out
+  // rather than merged: each row may carry its own entries and rewards, and
+  // which of them to keep is not ours to decide.
+  const times = {};
+  ms.forEach(m => { const k = normName(m.name) + '|' + m.start; times[k] = (times[k] || 0) + 1; });
+  const isDupe = m => times[normName(m.name) + '|' + m.start] > 1;
 
   if(!ms.length){
     list.innerHTML = `<div class="empty">${setup
@@ -2925,7 +2984,9 @@ function renderTournList(list, ms, {setup, locked, who}){
 
     html += `<div class="tourn${soon?' soon':''}${past?' past':''}">
       <div class="tdate">${spanLabel(m)}<small>${DOW[d.getDay()]}</small></div>
-      <div><div class="tnm">${bits.join('')}${escapeHtml(m.name)}</div>
+      <div><div class="tnm">${bits.join('')}${setup && isDupe(m)
+          ? '<span class="dupe" title="Another row has this name and date">Duplicate</span>' : ''
+        }${escapeHtml(m.name)}</div>
         ${meta.length ? `<div class="tmeta">${meta.join(' · ')}</div>` : ''}
         ${differs ? `<div class="trew"><span class="only">Only here</span>${escapeHtml(rewardsLine(own))}</div>` : ''}</div>
       <div class="joins">${joins}${locked || setup ? '' :
@@ -4157,6 +4218,9 @@ document.getElementById('kid-name').addEventListener('keydown', e=>{
   if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('kid-add').click(); }
 });
 document.getElementById('t-add').addEventListener('click', addTournament);
+// A link that has been changed has not been looked up, so whatever it resolved
+// no longer stands.
+document.getElementById('t-url').addEventListener('input', ()=>{ lookupHit = null; });
 document.getElementById('t-for').addEventListener('click', e=>{
   e.stopPropagation();
   forOpen = !forOpen;

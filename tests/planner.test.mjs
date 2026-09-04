@@ -3675,5 +3675,154 @@ group('a list of a child who is gone does not load');
   ok('and the tournament is still readable', $$(d, '#tournlist .tourn').length === 1);
 }
 
+/* ------------------------------------------------------------------ */
+/* The same tournament, twice. Only the bulk import ever checked, and it
+   checked on an id the link path did not give itself — so an event added
+   through its own STA link could be added again and again. */
+
+group('the same tournament does not go in twice');
+{
+  const SLUG = 'sta-spex-u10-red-competition-vi-2026';
+  const LINK = `https://www-new.singtennis.org.sg/tournaments/${SLUG}?type=information`;
+  const BY_SLUG = {
+    status: 'Success', message: '', data: {
+      tournamentId: 297, slug: SLUG,
+      tournamentName: 'STA SPEX U10 Red Competition VI 2026',
+      tournamentLevelName: 'Junior (U10)', tournamentTypeName: 'STA', isU10: true,
+      venue: 'Yio Chu Kang Tennis Centre',
+      tournamentStartDate: '01/08/2026', tournamentEndDate: '09/08/2026',
+      closingDeadline: '17/07/2026',
+    },
+  };
+  const bootApi = () => new JSDOM(SRC, {
+    runScripts: 'dangerously', url: 'https://example.test/', pretendToBeVisual: true,
+    beforeParse(window) {
+      window.fetch = (url, opts) => {
+        if (!String(url).includes('singtennis.org.sg')) return Promise.resolve({ ok: false, status: 404 });
+        const body = opts && opts.body ? JSON.parse(opts.body) : null;
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(
+          body && body.slug === SLUG ? BY_SLUG : { status: 'Failed', message: '', data: null }) });
+      };
+    },
+  });
+  const settle = () => new Promise(r => setTimeout(r, 30));
+  const lookAdd = async (dom, d, link) => {
+    input(dom, $(d, '#t-url'), link);
+    click(dom, $(d, '#t-lookup'));
+    await settle();
+    click(dom, $(d, '#t-add'));
+  };
+
+  const dom = bootApi();
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-setup'));
+
+  await lookAdd(dom, d, LINK);
+  ok('a link-added tournament is in', $$(d, '#setuplist .tourn').length === 1,
+     $$(d, '#setuplist .tourn').length);
+  // sta-297 is the id the bulk import gives this same tournament, which is what
+  // lets the two paths recognise each other at all.
+  ok('and it takes the id the import would give it',
+     saved(dom).manualMatches[0].id === 'sta-297', saved(dom).manualMatches[0].id);
+  ok('so it is an STA tournament, badge and all',
+     saved(dom).manualMatches[0].source === 'sta' && !!$(d, '#setuplist .tourn .src.sta'),
+     saved(dom).manualMatches[0].source);
+
+  await lookAdd(dom, d, LINK);
+  ok('the same link a second time adds nothing', $$(d, '#setuplist .tourn').length === 1,
+     $$(d, '#setuplist .tourn').length);
+  ok('and says which one it is already', $(d, '#addnote').textContent.includes('already on the list'),
+     $(d, '#addnote').textContent);
+  ok('naming it', $(d, '#addnote').textContent.includes('Red Competition VI'), $(d, '#addnote').textContent);
+
+  // typed by hand, no id to match on: the name and the day are all there is
+  addTourn(dom, d, { name: 'sta spex u10 red competition vi 2026  ', start: '2026-08-01' });
+  ok('the same name and day typed by hand adds nothing too',
+     $$(d, '#setuplist .tourn').length === 1, $$(d, '#setuplist .tourn').length);
+  ok('case and stray spaces do not get past it',
+     $(d, '#addnote').textContent.includes('already on the list'), $(d, '#addnote').textContent);
+
+  // a real second event: same name, a different weekend
+  addTourn(dom, d, { name: 'STA SPEX U10 Red Competition VI 2026', start: '2026-09-05' });
+  ok('the same name on another day is a different tournament',
+     $$(d, '#setuplist .tourn').length === 2, $$(d, '#setuplist .tourn').length);
+  ok('and the note is cleared once one goes in', $(d, '#addnote').textContent === '',
+     $(d, '#addnote').textContent);
+}
+
+group('an edited link does not borrow the id');
+{
+  const SLUG = 'sta-spex-u10-red-competition-vi-2026';
+  const BY_SLUG = {
+    status: 'Success', message: '', data: {
+      tournamentId: 297, slug: SLUG, tournamentName: 'Red Competition VI',
+      tournamentLevelName: 'Junior (U10)', tournamentTypeName: 'STA',
+      venue: 'Yio Chu Kang', tournamentStartDate: '01/08/2026',
+      tournamentEndDate: '09/08/2026', closingDeadline: '17/07/2026',
+    },
+  };
+  const dom = new JSDOM(SRC, {
+    runScripts: 'dangerously', url: 'https://example.test/', pretendToBeVisual: true,
+    beforeParse(window) {
+      window.fetch = (url, opts) => {
+        if (!String(url).includes('singtennis.org.sg')) return Promise.resolve({ ok: false, status: 404 });
+        const body = opts && opts.body ? JSON.parse(opts.body) : null;
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(
+          body && body.slug === SLUG ? BY_SLUG : { status: 'Failed', message: '', data: null }) });
+      };
+    },
+  });
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-setup'));
+  input(dom, $(d, '#t-url'), `https://www-new.singtennis.org.sg/tournaments/${SLUG}`);
+  click(dom, $(d, '#t-lookup'));
+  await new Promise(r => setTimeout(r, 30));
+  // the link is changed after the lookup: whatever is added now is not the
+  // tournament that was resolved, so it must not carry its id
+  input(dom, $(d, '#t-url'), 'https://www-new.singtennis.org.sg/tournaments/something-else');
+  input(dom, $(d, '#t-name'), 'Something Else');
+  input(dom, $(d, '#t-start'), '2026-08-01');
+  click(dom, $(d, '#t-add'));
+  ok('it is added', saved(dom).manualMatches.length === 1);
+  ok('but with an id of its own, not the resolved one',
+     saved(dom).manualMatches[0].id !== 'sta-297' && saved(dom).manualMatches[0].source === 'manual',
+     saved(dom).manualMatches[0].id + '/' + saved(dom).manualMatches[0].source);
+}
+
+group('duplicates already on the list are pointed out');
+{
+  const Y = new Date().getFullYear();
+  const twice = n => ({ id: n, source: 'manual', name: 'Red Competition VI',
+                        start: `${Y}-08-01`, end: `${Y}-08-09` });
+  const seed = JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [{ id: 'b1', name: 'Block', start: `${Y}-06-01`, days: 7, plan: {} }],
+    activeBlockId: 'b1', players: [], entries: [],
+    manualMatches: [twice('m1'), twice('m2'),
+                    { id: 'm3', source: 'manual', name: 'Something Else',
+                      start: `${Y}-09-05`, end: `${Y}-09-05` }],
+    trips: [], rewards: {},
+  });
+  const dom = boot({ [KEY]: seed });
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-setup'));
+  ok('both copies are still there — nothing is merged behind your back',
+     $$(d, '#setuplist .tourn').length === 3, $$(d, '#setuplist .tourn').length);
+  ok('and both are badged', $$(d, '#setuplist .tourn .dupe').length === 2,
+     $$(d, '#setuplist .tourn .dupe').length);
+  ok('the one that is not a duplicate is not badged',
+     $$(d, '#setuplist .tourn').filter(r => r.textContent.includes('Something Else'))
+       .every(r => !r.querySelector('.dupe')));
+
+  // deleting one clears the badge from the other
+  dom.window.confirm = () => true;
+  click(dom, $(d, '#setuplist .tourn .tdel'));
+  ok('one delete is the whole fix', $$(d, '#setuplist .tourn').length === 2 &&
+     $$(d, '#setuplist .tourn .dupe').length === 0,
+     $$(d, '#setuplist .tourn .dupe').length);
+  ok('the tournaments page never badged anything',
+     (click(dom, $(d, '#nav-matches')), !$(d, '#tournlist .dupe')));
+}
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('failed: ' + failures.join(' | ')); process.exit(1); }
