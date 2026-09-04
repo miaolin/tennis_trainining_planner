@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.11.1** · [Changelog](CHANGELOG.md)
+**Version 2.11.2** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -175,7 +175,9 @@ of its own, and nothing on it is ever read-only.
   it, and what the training load checks read to know how hard a day is.
 - **Every tournament there is**, whoever can enter it, each with a **×**. This is
   the only place one can be deleted: removing a tournament is setting up, not
-  running a season.
+  running a season. A tournament that repeats one already on the list is badged
+  **Duplicate**; nothing is merged for you, because each row can carry its own
+  entries, rewards and answer to who it is for.
 - **Who each tournament is for.** The age group is a guess — it says which events
   a child is old enough for, not which ones are theirs. **For** is a field in the
   add row like any other, between the entry deadline and the button. It reads
