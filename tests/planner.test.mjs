@@ -2680,8 +2680,12 @@ group('rewards belong to the child');
     enter(dom, d, 'Series One', 1);          // Olivia
     tabTo(dom, d, 'Ian');
     ok('the child with a standard gets result boxes', !!resRow(d, 'Series One', 'Ian'));
-    tabTo(dom, d, 'Olivia');   // on her own tab, so absence means she has no scheme
-    ok('the child without one does not', !resRow(d, 'Series One', 'Olivia'));
+    tabTo(dom, d, 'Olivia');   // on her own tab, so what is missing is hers
+    ok('the child without one still gets them — how she did is her own fact',
+       !!resRow(d, 'Series One', 'Olivia'));
+    ok('but nothing is said about money', paid(d, 'Series One', 'Olivia') === null &&
+       !resRow(d, 'Series One', 'Olivia').textContent.includes('No result yet'),
+       resRow(d, 'Series One', 'Olivia').textContent);
     setRes(dom, d, 'Series One', 'Ian', 'wins', '3');
     ok('and the standard is what pays out', paid(d, 'Series One', 'Ian') === '$15',
        paid(d, 'Series One', 'Ian'));
@@ -2723,7 +2727,9 @@ group('rewards belong to the child');
 
     // an empty exception means this one pays nothing
     setMatchRew(dom, d, 'Series Two', {});
-    ok('an emptied tournament pays nothing at all', !resRow(d, 'Series Two', 'Ian'));
+    ok('an emptied tournament pays nothing at all', paid(d, 'Series Two', 'Ian') === null,
+       paid(d, 'Series Two', 'Ian'));
+    ok('though what he did there is still on the row', !!resRow(d, 'Series Two', 'Ian'));
     ok('and the standard still pays everywhere else',
        paid(d, 'Series One', 'Ian') === '$15', paid(d, 'Series One', 'Ian'));
   }
@@ -2749,8 +2755,11 @@ group('rewards belong to the child');
        $(d2, '#r-clear').textContent === 'Clear', $(d2, '#r-clear').textContent);
     click(dom2, $(d2, '#r-clear'));
     ok('clearing the standard stops everything paying',
-       kidRow(d2, 'Ian').textContent.includes('nothing set') && !resRow(d2, 'Series One', 'Ian'),
-       kidRow(d2, 'Ian').textContent);
+       kidRow(d2, 'Ian').textContent.includes('nothing set') &&
+       paid(d2, 'Series One', 'Ian') === null, kidRow(d2, 'Ian').textContent);
+    ok('and the six wins he recorded are untouched',
+       resRow(d2, 'Series One', 'Ian').querySelector('.rwin').value === '6',
+       resRow(d2, 'Series One', 'Ian')?.querySelector('.rwin').value);
   }
 
   {
@@ -3822,6 +3831,125 @@ group('duplicates already on the list are pointed out');
      $$(d, '#setuplist .tourn .dupe').length);
   ok('the tournaments page never badged anything',
      (click(dom, $(d, '#nav-matches')), !$(d, '#tournlist .dupe')));
+}
+
+/* ------------------------------------------------------------------ */
+/* A result is a fact about the afternoon, not about money, and a season
+   is worth keeping somewhere that is not one browser. */
+
+group('results do not wait on rewards');
+{
+  const Y = new Date().getFullYear();
+  const rowNamed = (d, t) => $$(d, '#tournlist .tourn').find(r => r.textContent.includes(t));
+  const resOf = (d, t, kid) => {
+    const box = rowNamed(d, t).querySelector('.results');
+    return box ? [...box.querySelectorAll('.res')].find(r => r.textContent.trim().startsWith(kid)) : null;
+  };
+
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Ian', Y - 13);
+  addTourn(dom, d, { name: 'Club Meet', start: `${Y}-03-07` });
+  click(dom, $(d, '#nav-matches'));
+
+  ok('nothing to record before he is in it', !resOf(d, 'Club Meet', 'Ian'));
+  click(dom, $(d, '#tournlist .join'));            // planned
+  ok('planned is not being in it either', !resOf(d, 'Club Meet', 'Ian'));
+  click(dom, $(d, '#tournlist .join'));            // entered
+  ok('entered, and the boxes are there with nothing set to pay',
+     !!resOf(d, 'Club Meet', 'Ian'));
+  ok('and the row says nothing about money',
+     !resOf(d, 'Club Meet', 'Ian').querySelector('.rpay') &&
+     !resOf(d, 'Club Meet', 'Ian').textContent.includes('No result yet'),
+     resOf(d, 'Club Meet', 'Ian').textContent);
+
+  change(dom, resOf(d, 'Club Meet', 'Ian').querySelector('.rwin'), '3');
+  change(dom, resOf(d, 'Club Meet', 'Ian').querySelector('.rpl'), '2');
+  const e = saved(dom).entries[0];
+  ok('the wins are kept', e.wins === 3, JSON.stringify(e));
+  ok('so is the place', e.place === 2, JSON.stringify(e));
+  ok('still no money on a tournament that pays none',
+     !resOf(d, 'Club Meet', 'Ian').querySelector('.rpay'));
+
+  const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
+  const d2 = dom2.window.document;
+  click(dom2, $(d2, '#nav-matches'));
+  ok('and they survive a reload',
+     resOf(d2, 'Club Meet', 'Ian').querySelector('.rwin').value === '3',
+     resOf(d2, 'Club Meet', 'Ian').querySelector('.rwin').value);
+}
+
+group('the season as a spreadsheet');
+{
+  const Y = new Date().getFullYear();
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Ian', Y - 13);
+  addKid(dom, d, 'Olivia', Y - 9);
+  addTourn(dom, d, { name: 'Club "Open", Kallang', start: `${Y}-03-07`, venue: 'Kallang' });
+  addTourn(dom, d, { name: 'Winter Cup', start: `${Y}-05-16` });
+  click(dom, $(d, '#nav-matches'));
+
+  // Ian is entered for the first with a result; Olivia is skipping it; nobody
+  // has touched the second
+  // The list redraws on every click, so the row is found again each time — and
+  // a row carries a chip for every child, not only the one whose tab it is, so
+  // the chip is picked by who it belongs to rather than by position.
+  const club = () => $$(d, '#tournlist .tourn').find(r => r.textContent.includes('Club'));
+  const idOf = name => saved(dom).players.find(p => p.name === name).id;
+  const chip = name => club().querySelector(`.join[data-p="${idOf(name)}"]`);
+
+  goTab(dom, d, idOf('Ian'));
+  click(dom, chip('Ian'));
+  click(dom, chip('Ian'));                         // entered
+  change(dom, club().querySelector('.rwin'), '4');
+  change(dom, club().querySelector('.rpl'), '1');
+
+  goTab(dom, d, idOf('Olivia'));
+  for (let i = 0; i < 4; i++) click(dom, chip('Olivia'));   // skipping
+
+  let captured = null, filename = null;
+  dom.window.URL.createObjectURL = blob => { captured = blob; return 'blob:x'; };
+  dom.window.URL.revokeObjectURL = () => {};
+  dom.window.HTMLAnchorElement.prototype.click = function () { filename = this.download; };
+  click(dom, $(d, '#btn-results'));
+
+  ok('it reports what it saved', $(d, '#datanote').textContent.includes('2 rows'),
+     $(d, '#datanote').textContent);
+  ok('the file is a dated csv', /^tennis-results-\d{4}-\d{2}-\d{2}\.csv$/.test(filename || ''), filename);
+  ok('and is typed as one', captured && captured.type.startsWith('text/csv'),
+     captured && captured.type);
+
+  const csv = dom.window.resultsCsv();
+  const lines = csv.trim().split('\r\n');
+  ok('a header and a row per child per tournament', lines.length === 3, lines.length);
+  ok('the header names the columns',
+     lines[0] === 'Tournament,Starts,Ends,Venue,Categories,Source,Child,Status,Wins,Place,Earned,How',
+     lines[0]);
+  // a name with a comma and quotes in it must not break the record apart
+  ok('a comma in a name is quoted', lines[1].startsWith('"Club ""Open"", Kallang",'), lines[1]);
+  ok('Ian’s result is on his row', /,Ian,Entered,4,1,/.test(lines[1]), lines[1]);
+  ok('a tournament that pays nothing leaves the money columns empty',
+     lines[1].endsWith(',,'), lines[1]);
+  ok('skipping is a row too, and says so', /,Olivia,Skipping,,,/.test(lines[2]), lines[2]);
+  ok('a tournament nobody has a status on is no row at all',
+     !csv.includes('Winter Cup'), csv);
+  ok('records end CRLF, as a spreadsheet expects', csv.endsWith('\r\n'));
+}
+
+group('nothing to save yet says so');
+{
+  const Y = new Date().getFullYear();
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Ian', Y - 13);
+  addTourn(dom, d, { name: 'Club Meet', start: `${Y}-03-07` });
+  let made = false;
+  dom.window.URL.createObjectURL = () => { made = true; return 'blob:x'; };
+  click(dom, $(d, '#btn-results'));
+  ok('it says there is nothing yet',
+     $(d, '#datanote').textContent.includes('No results to save yet'), $(d, '#datanote').textContent);
+  ok('and downloads nothing', !made);
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

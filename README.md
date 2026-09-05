@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.11.2** · [Changelog](CHANGELOG.md)
+**Version 2.12.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -147,11 +147,13 @@ Schemes resolve in one order, most specific first:
 
     tournament exception  →  the child's standard  →  a data/matches.json suggestion
 
-Each child who is **entered** or **confirmed** on a paying tournament gets a
-**Wins** and **Place** box under it, and the page adds the payout up in front of
-them: *$55 · 4 wins $20 · 2nd $30 · beat 3 $5*. The sum is always shown in full,
-so a child can see how the number was reached. Two children on the same draw are
-each paid their own way.
+Each child who is **entered** or **confirmed** gets a **Wins** and **Place** box
+under the tournament, whether or not it pays anything — how a child did is worth
+recording on its own, and most tournaments pay nothing. Where a scheme does
+apply, the page adds the payout up in front of them: *$55 · 4 wins $20 · 2nd $30
+· beat 3 $5*. The sum is always shown in full, so a child can see how the number
+was reached. Two children on the same draw are each paid their own way, and a
+tournament that pays nothing simply says nothing about money.
 
 "Beat last" measures against that child's most recent *earlier* tournament with
 a win count recorded — not simply the previous tournament, which they may not
@@ -456,6 +458,17 @@ without touching what you already have.
 
 That file is also how you move a plan from laptop to phone without turning sync
 on at all.
+
+### The season as a spreadsheet
+
+**Download results** writes a dated `.csv` — one row per child per tournament
+they have a status on, with the dates, venue, categories, status, wins, place,
+what it earned and how that was made up. It opens in Excel, Numbers or Sheets,
+and the earnings column is a bare number so a column of them adds up.
+
+It is a copy to read, sort and keep, not a backup: nothing reads it back in.
+**Download backup** is what restores. CSV rather than `.xlsx` because a real
+workbook is a zip of XML, and this page carries no dependencies at all.
 
 ## Tests
 

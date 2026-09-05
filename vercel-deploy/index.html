@@ -977,6 +977,7 @@ input[type=number]#days{width:74px}
     <span class="dstat" id="dstat"></span>
   </div>
   <div class="spacer"></div>
+  <button id="btn-results">Download results</button>
   <button id="btn-export">Download backup</button>
   <label class="filebtn" for="file-import" tabindex="0">Restore backup</label>
   <input type="file" id="file-import" accept="application/json,.json">
@@ -2931,22 +2932,31 @@ function renderTournList(list, ms, {setup, locked, who}){
     // On a child's tab it is their money alone — the buttons above still say who
     // else is playing, because that is a fact about the event rather than about
     // whose season is being read.
+    //
+    // Whether it pays anything is a separate question. How a child did is worth
+    // recording on its own — most tournaments pay nothing and are still the
+    // season — so the boxes follow the entry, and the money follows the scheme.
+    //
     // Setup is what exists, not how it is going: no statuses, no results, no
     // rewards there — those all belong to a child.
     const played = setup ? [] : (who ? [who] : state.players).filter(p =>
-      ['entered','confirmed'].includes(statusOf(m.id, p.id)) && hasRewards(schemeFor(m, p)));
+      ['entered','confirmed'].includes(statusOf(m.id, p.id)));
     const results = played.map(p=>{
       const res = resultOf(m.id, p.id) || {wins:null, place:null};
       const pay = payout(m, p);
+      const pays = hasRewards(schemeFor(m, p));
       const box = (cls, field, val, lo, hi, lab) => locked
         ? `<span>${lab} <span class="rv">${val === null ? '—' : val}</span></span>`
         : `<label>${lab} <input type="number" class="${cls}" min="${lo}" max="${hi}" step="1"` +
           ` data-m="${m.id}" data-p="${p.id}" value="${val === null ? '' : val}"` +
           ` aria-label="${escapeHtml(p.name)} ${field} at ${escapeHtml(m.name)}"></label>`;
+      // Nothing is said about money on a tournament that pays none: an empty
+      // amount and "no result yet" both read as something missing, and neither
+      // is. A blank line here means the numbers are the whole of it.
       const sum = pay
         ? `<span class="rpay">${money(pay.total)}</span>` +
           (pay.parts.length ? `<span class="rwhy">${escapeHtml(pay.parts.join(' · '))}</span>` : '')
-        : '<span class="rtodo">No result yet</span>';
+        : pays ? '<span class="rtodo">No result yet</span>' : '';
       return `<div class="res" style="--c:${p.colour}"><span class="rnm">${escapeHtml(p.name)}</span>` +
              box('rwin', 'wins', res.wins, 0, MAX_WINS, 'Wins') +
              box('rpl', 'final place', res.place, 1, MAX_PLACE, 'Place') + sum + '</div>';
@@ -3368,6 +3378,75 @@ function backupPayload(){
     state: state
   };
 }
+/* ---- the season as a spreadsheet ----
+   A backup is for putting back; this is for reading. One row per child per
+   tournament they have a status on, so a season opens in Excel or Numbers and
+   can be sorted, totalled and kept somewhere that is not one browser.
+
+   CSV rather than .xlsx: a real workbook is a zip of XML and would mean
+   shipping a library into a page that has no dependencies at all. Every
+   spreadsheet opens this. */
+const CSV_COLUMNS = ['Tournament','Starts','Ends','Venue','Categories','Source',
+                     'Child','Status','Wins','Place','Earned','How'];
+// A field is quoted whenever it could be read as anything but text — Excel
+// splits on the comma, ends the record at the newline, and a quote inside a
+// quoted field has to be doubled.
+function csvCell(v){
+  const t = v === null || v === undefined ? '' : String(v);
+  return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+}
+function resultRows(){
+  const rows = [];
+  allMatches().forEach(m=>{
+    state.players.forEach(p=>{
+      const st = statusOf(m.id, p.id);
+      if(!st) return;                       // no status is not a row
+      const res = resultOf(m.id, p.id) || {wins:null, place:null};
+      const pay = payout(m, p);
+      rows.push([
+        m.name, m.start, m.end, m.venue, (m.categories || []).join(' · '), m.source,
+        p.name, STATUS_LABEL[st],
+        res.wins === null ? '' : res.wins,
+        res.place === null ? '' : res.place,
+        // A bare number, so a column of them adds up in the spreadsheet.
+        pay ? (Math.round(pay.total * 100) / 100) : '',
+        pay ? pay.parts.join(' · ') : ''
+      ]);
+    });
+  });
+  return rows;
+}
+function resultsCsv(){
+  return [CSV_COLUMNS, ...resultRows()]
+    .map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+}
+function exportResults(){
+  const rows = resultRows();
+  if(!rows.length){
+    dataNote('No results to save yet — a child has to be entered for something first.', 'bad');
+    return false;
+  }
+  const name = `tennis-results-${iso(new Date())}.csv`;
+  try{
+    // The BOM is what tells Excel the file is UTF-8. Without it a name with an
+    // accent in it opens as mojibake on Windows.
+    const blob = new Blob(['\ufeff' + resultsCsv()], {type:'text/csv;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 0);
+    dataNote(`Saved ${name} — ${rows.length} row${rows.length === 1 ? '' : 's'}, ` +
+             'one per child per tournament. Opens in Excel or Numbers.', 'good');
+    return true;
+  }catch(e){
+    dataNote('Could not start the download (' + e.message + ').', 'bad');
+    return false;
+  }
+}
+
 function exportBackup(){
   const json = JSON.stringify(backupPayload(), null, 2);
   const name = `tennis-season-${iso(new Date())}.json`;
@@ -4235,6 +4314,7 @@ document.addEventListener('keydown', e=>{ if(e.key === 'Escape') closeForPanel()
 document.getElementById('t-lookup').addEventListener('click', lookupLink);
 document.getElementById('imp-run').addEventListener('click', importFromSta);
 
+document.getElementById('btn-results').addEventListener('click', exportResults);
 document.getElementById('btn-export').addEventListener('click', exportBackup);
 document.getElementById('file-import').addEventListener('change', async e=>{
   const f = e.target.files && e.target.files[0];
