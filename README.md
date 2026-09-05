@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.12.0** · [Changelog](CHANGELOG.md)
+**Version 2.13.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -142,6 +142,33 @@ shows a rewards line only when that event pays something different, badged
 **Only here**. Press **Rewards** on a row to make one an exception; press **Use
 standard** in that dialog to drop the exception again. Saving an exception with
 every line blank is how you say *this one pays nothing*.
+
+### The two shapes a junior tournament is run in
+
+**Start from** at the top of the dialog fills the boxes with one of them. Nothing
+is written until **Save**, and both are only a starting point — change any line.
+
+| | Group | Knock-out |
+|---|---|---|
+| To play | — | $10 |
+| Per win | $5 | $10 |
+| 1st / 2nd / 3rd | $20 / $10 / $5 | $20 / — / — |
+| Beat last | $5 | $5 |
+| Best ever | $20 | $20 |
+
+A **group** is played to a table: every match is worth the same and the finish is
+what the placings pay for.
+
+A **knock-out** pays by the round reached — which here is simply the number of
+matches won, so a fixed amount per win *is* a linear ladder. The ATP and WTA
+roughly double at each round; these steps are even, and **To play** is the floor,
+what a first-round loss is worth. With 10 and 10, a 16-draw runs $10, $20, $30,
+$40, and $70 for the title with the winner's bonus on top.
+
+**To play** is paid whenever a result is recorded, whatever it says. **Best ever**
+pays when the win count beats every earlier tournament, where **Beat last**
+compares only with the most recent one — both can land on the same afternoon,
+and neither pays at a child's first tournament, which has nothing behind it.
 
 Schemes resolve in one order, most specific first:
 

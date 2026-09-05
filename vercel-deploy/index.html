@@ -341,6 +341,11 @@ input[type=number]#days{width:74px}
 .mrow[hidden]{display:none}
 .mrow .lab{min-width:58px}
 .mrow input{flex:1;min-width:0}
+/* A shape to start from, not a setting: pressing one fills the boxes below and
+   nothing is saved until Save is. */
+.tmplrow{margin-bottom:14px}
+.tmpls{display:flex;gap:7px;flex:1}
+.tmpls button{flex:1;font-size:12px;padding:6px 8px}
 .mfoot{display:flex;justify-content:flex-end;gap:9px;margin-top:16px}
 .mfoot button.go{border-color:var(--ball);color:var(--ball)}
 .mfoot button.go:hover{background:rgba(214,230,75,.16)}
@@ -1008,6 +1013,13 @@ input[type=number]#days{width:74px}
 <div class="modal-back" id="rmodal" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="r-title">
     <h3 id="r-title">Rewards</h3>
+    <div class="mrow tmplrow"><span class="lab">Start from</span>
+      <span class="tmpls">
+        <button type="button" data-tmpl="group">Group</button>
+        <button type="button" data-tmpl="knockout">Knock-out</button>
+      </span></div>
+    <div class="mrow"><label class="lab" for="r-base">To play</label>
+      <input type="number" id="r-base" min="0" max="10000" step="1" placeholder="0"></div>
     <div class="mrow"><label class="lab" for="r-win">Per win</label>
       <input type="number" id="r-win" min="0" max="10000" step="1" placeholder="5"></div>
     <div class="mrow"><label class="lab" for="r-p1">1st place</label>
@@ -1016,8 +1028,12 @@ input[type=number]#days{width:74px}
       <input type="number" id="r-p2" min="0" max="10000" step="1" placeholder="30"></div>
     <div class="mrow"><label class="lab" for="r-p3">3rd place</label>
       <input type="number" id="r-p3" min="0" max="10000" step="1"></div>
+    <div class="mrow"><label class="lab" for="r-p4">4th place</label>
+      <input type="number" id="r-p4" min="0" max="10000" step="1"></div>
     <div class="mrow"><label class="lab" for="r-imp">Beat last</label>
       <input type="number" id="r-imp" min="0" max="10000" step="1" placeholder="5"></div>
+    <div class="mrow"><label class="lab" for="r-best">Best ever</label>
+      <input type="number" id="r-best" min="0" max="10000" step="1" placeholder="20"></div>
     <div class="mrow"><label class="lab" for="r-note">Format</label>
       <input type="text" id="r-note" maxlength="80" placeholder="Red ball, played in group"></div>
     <p class="hint" id="r-hint"></p>
@@ -1614,25 +1630,69 @@ function openRewards(kind, id){
   // what to open on: accepting it is then one press of Save.
   const r = (kind === 'kid' ? kidScheme(subject)
                             : matchScheme(subject) || feedScheme(subject))
-            || {perWin:0, places:[], improve:0, note:''};
+            || {base:0, perWin:0, places:[], improve:0, bestEver:0, note:''};
   document.getElementById('r-title').textContent =
     (kind === 'kid' ? 'Rewards — ' : 'Rewards, only here — ') + (subject.name || '');
   document.getElementById('r-clear').textContent =
     kind === 'kid' ? 'Clear' : 'Use standard';
   document.getElementById('r-hint').textContent = kind === 'kid'
     ? 'What this child plays for at every tournament. Leave a line blank to drop it. ' +
-      '“Beat last” pays out when they win more matches than at their previous tournament.'
+      '“To play” is paid whatever happens, so a knock-out ladder climbs from it in ' +
+      'even steps. “Beat last” pays when they win more matches than at their previous ' +
+      'tournament, “Best ever” when they beat every tournament before it — both can ' +
+      'land on the same day.'
     : 'This tournament only. Save it with every line blank to say it pays nothing, ' +
       'or press Use standard to go back to what the child normally plays for.';
   const put = (el, v) => { document.getElementById(el).value = v ? v : ''; };
+  put('r-base', r.base);
   put('r-win', r.perWin);
   put('r-p1', r.places[0]);
   put('r-p2', r.places[1]);
   put('r-p3', r.places[2]);
+  put('r-p4', r.places[3]);
   put('r-imp', r.improve);
+  put('r-best', r.bestEver);
   document.getElementById('r-note').value = r.note || '';
   document.getElementById('rmodal').hidden = false;
   document.getElementById('r-win').focus();
+}
+/* Two shapes a junior tournament is actually run in, as somewhere to start.
+   Pressing one fills the boxes; nothing is written until Save.
+
+   A group is played to a table: every match is worth the same, and the finish
+   is what the placings pay for.
+
+   A knock-out pays by the round reached, which in this app is simply the number
+   of matches won — so a fixed amount per win *is* a linear ladder. The ATP and
+   WTA roughly double at each round; these steps are even, and the floor is the
+   To play amount, which is what a first-round loss is worth. With 10 and 10, a
+   16-draw runs $10, $20, $30, $40 and $70 for the title. */
+const REWARD_TEMPLATES = {
+  group: {base:0, perWin:5, places:[20,10,5,0], improve:5, bestEver:20,
+          note:'Group — every match counts'},
+  knockout: {base:10, perWin:10, places:[20,0,0,0], improve:5, bestEver:20,
+             note:'Knock-out — paid by the round reached'}
+};
+function applyTemplate(key){
+  const t = REWARD_TEMPLATES[key];
+  if(!t) return;
+  const put = (el, v) => { document.getElementById(el).value = v ? v : ''; };
+  put('r-base', t.base);
+  put('r-win', t.perWin);
+  put('r-p1', t.places[0]);
+  put('r-p2', t.places[1]);
+  put('r-p3', t.places[2]);
+  put('r-p4', t.places[3]);
+  put('r-imp', t.improve);
+  put('r-best', t.bestEver);
+  // The note describes the shape, so switching shapes rewrites it — but only
+  // ever over a blank or over what another template put there. Words of the
+  // person's own are theirs.
+  const note = document.getElementById('r-note');
+  const written = note.value.trim();
+  const theirs = written && !Object.values(REWARD_TEMPLATES).some(x => x.note === written);
+  if(!theirs) note.value = t.note;
+  document.getElementById('r-base').focus();
 }
 function closeRewards(){
   document.getElementById('rmodal').hidden = true;
@@ -1642,9 +1702,11 @@ function commitRewards(){
   if(!rewardTarget || viewLocked()) return;
   const v = id => document.getElementById(id).value;
   const r = normRewards({
+    base: v('r-base'),
     perWin: v('r-win'),
-    places: [v('r-p1'), v('r-p2'), v('r-p3')],
+    places: [v('r-p1'), v('r-p2'), v('r-p3'), v('r-p4')],
     improve: v('r-imp'),
+    bestEver: v('r-best'),
     note: v('r-note')
   });
   if(rewardTarget.kind === 'kid'){
@@ -2090,7 +2152,7 @@ const KID_COLOURS = ['#5B9BD5','#D6E64B','#9B87D4','#4FA97C','#E8A33D','#D9603F'
 const DEADLINE_WARN_DAYS = 21;
 // Rewards. A junior draw is a handful of matches, so the ceilings are only
 // there to stop a mistyped figure becoming a five-digit promise.
-const MAX_WINS = 99, MAX_PLACE = 64, MAX_MONEY = 10000, MAX_PLACES = 3;
+const MAX_WINS = 99, MAX_PLACE = 64, MAX_MONEY = 10000, MAX_PLACES = 4;
 const ORDINAL = ['1st','2nd','3rd','4th','5th','6th','7th','8th'];
 
 let feed = [];            // from data/matches.json, read-only
@@ -2680,14 +2742,23 @@ function normRewards(r){
   const places = (Array.isArray(r.places) ? r.places : []).slice(0, MAX_PLACES).map(normMoney);
   while(places.length && !places[places.length - 1]) places.pop();   // no trailing empties
   return {
+    // Paid for playing at all, whatever happens after. A knock-out draw is the
+    // reason it exists: everyone below the last round is paid something, and
+    // multiplying by rounds won cannot express a floor.
+    base: normMoney(r.base),
     perWin: normMoney(r.perWin),
     places,
     improve: normMoney(r.improve),
+    // A personal best in matches won, against every earlier tournament rather
+    // than only the last one. Both can pay on the same afternoon: beating last
+    // time is the week-to-week nudge, beating everything is the rarer thing.
+    bestEver: normMoney(r.bestEver),
     note: typeof r.note === 'string' ? r.note.trim().slice(0, 80) : ''
   };
 }
 function hasRewards(r){
-  return !!r && (r.perWin > 0 || r.improve > 0 || r.places.some(v => v > 0) || !!r.note);
+  return !!r && (r.base > 0 || r.perWin > 0 || r.improve > 0 || r.bestEver > 0 ||
+                 r.places.some(v => v > 0) || !!r.note);
 }
 // A scheme is normally the child's, because the bargain is with the child and
 // not with any one draw. A tournament only carries its own when it pays
@@ -2717,9 +2788,11 @@ function schemeFor(m, p){
 }
 function rewardsLine(r){
   const bits = [];
+  if(r.base) bits.push(`${money(r.base)} to play`);
   if(r.perWin) bits.push(`${money(r.perWin)} a win`);
   r.places.forEach((v, i) => { if(v) bits.push(`${ORDINAL[i]} ${money(v)}`); });
   if(r.improve) bits.push(`${money(r.improve)} for beating last count`);
+  if(r.bestEver) bits.push(`${money(r.bestEver)} for a personal best`);
   if(r.note) bits.push(r.note);
   return bits.join(' · ');
 }
@@ -2747,6 +2820,17 @@ function setResult(matchId, playerId, field, raw){
 // "The last one" is that child's most recent earlier tournament with a win
 // count on it — not simply the previous tournament, which they may not have
 // played. Nothing earlier means nothing to beat, so no bonus.
+// The most matches this child has won at any tournament before this one. Like
+// prevWins it looks only backwards: a first tournament has nothing to beat, so
+// it does not pay a personal-best bonus for turning up once.
+function bestWins(m, playerId){
+  let best = null, name = '';
+  allMatches().filter(x => x.start < m.start).forEach(x=>{
+    const r = resultOf(x.id, playerId);
+    if(r && r.wins !== null && (best === null || r.wins > best)){ best = r.wins; name = x.name; }
+  });
+  return best === null ? null : {wins:best, name};
+}
 function prevWins(m, playerId){
   const earlier = allMatches().filter(x => x.start < m.start);
   for(let i = earlier.length - 1; i >= 0; i--){
@@ -2763,7 +2847,14 @@ function payout(m, p){
   if(!hasRewards(r) || !res || (res.wins === null && res.place === null)) return null;
   const parts = [];
   let total = 0;
-  if(res.wins !== null && r.perWin){
+  // Paid for being there, before anything is won. In a knock-out it is what a
+  // first-round loss is worth, and the per-win amount climbs from it in equal
+  // steps rather than doubling.
+  if(r.base){
+    total += r.base;
+    parts.push(`playing ${money(r.base)}`);
+  }
+  if(res.wins > 0 && r.perWin){
     const v = r.perWin * res.wins;
     total += v;
     parts.push(`${res.wins} win${res.wins === 1 ? '' : 's'} ${money(v)}`);
@@ -2778,6 +2869,15 @@ function payout(m, p){
     if(prev && res.wins > prev.wins){
       total += r.improve;
       parts.push(`beat ${prev.wins} ${money(r.improve)}`);
+    }
+  }
+  // Both bonuses can land on one afternoon: beating last time and beating
+  // everything are different achievements, and the second is the rarer.
+  if(r.bestEver && res.wins !== null){
+    const best = bestWins(m, p.id);
+    if(best && res.wins > best.wins){
+      total += r.bestEver;
+      parts.push(`best yet, over ${best.wins} ${money(r.bestEver)}`);
     }
   }
   return {total, parts};
@@ -4237,6 +4337,8 @@ document.getElementById('modal').addEventListener('keydown', e=>{
 });
 
 document.getElementById('r-ok').addEventListener('click', commitRewards);
+document.querySelectorAll('#rmodal [data-tmpl]').forEach(b=>
+  b.addEventListener('click', ()=>applyTemplate(b.dataset.tmpl)));
 document.getElementById('r-cancel').addEventListener('click', closeRewards);
 document.getElementById('r-clear').addEventListener('click', clearRewards);
 document.getElementById('rmodal').addEventListener('click', e=>{
