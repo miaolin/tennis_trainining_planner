@@ -5,6 +5,65 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.0] — 2026-09-05
+
+### Added
+
+- **Two shapes to start a scheme from.** **Start from** at the top of the rewards
+  dialog fills the boxes for a **Group** or a **Knock-out** and writes nothing
+  until Save, so both are a starting point rather than a setting. A group is
+  played to a table — every match worth the same, the finish paid by the
+  placings. A knock-out pays by the round reached, which here is the number of
+  matches won, so a fixed amount per win already *is* a ladder; the ATP and WTA
+  roughly double at each round, these steps are even. Switching shape rewrites
+  the format note, unless the words in it are your own.
+- **To play** — an amount paid whatever happens, once a result is recorded. It is
+  the floor a knock-out ladder climbs from, and there was no way to say it
+  before: everything was multiplied by wins, so a first-round loss was worth
+  nothing however the draw was paid. With $10 to play and $10 a win, a 16-draw
+  runs $10, $20, $30, $40, and $70 for the title.
+- **Best ever** — a bonus for beating every earlier tournament, where **Beat
+  last** compares only with the most recent one. Both can land on the same
+  afternoon: beating last time is the week-to-week nudge, beating everything is
+  the rarer thing. Neither pays at a child's first tournament, which has nothing
+  behind it to beat.
+- **4th place** joins 1st through 3rd. `ORDINAL` already carried eight; only the
+  cap held it to three.
+
+### Fixed
+
+- **A breakdown no longer says "0 wins $0".** Nothing was earned per win, so
+  nothing is said about it. The line was always wrong and rarely seen — with no
+  floor to pay, a result with no wins was worth nothing at all and the row said
+  so instead.
+
+## [2.12.0] — 2026-09-05
+
+### Changed
+
+- **A result is a fact about the afternoon, not about money.** The Wins and Place
+  boxes only appeared on a tournament that paid something, so a child entered for
+  an event with no scheme on it had nowhere to record how they did — and most
+  tournaments pay nothing. The boxes now follow the entry: any child **Entered**
+  or **Confirmed** gets them. The money still follows the scheme, and a
+  tournament that pays none says nothing about money at all rather than showing
+  an empty amount or *No result yet*, both of which read as something missing.
+
+### Added
+
+- **Download results**, beside Download backup, writes the season as a dated
+  `.csv`: one row per child per tournament they have a status on, carrying the
+  dates, venue, categories, source, status, wins, place, what it earned and how
+  that sum was made up. It opens in Excel, Numbers or Sheets, and the earnings
+  column is a bare number so a column of them totals. Written UTF-8 with a BOM,
+  so a name with an accent in it opens correctly on Windows, and quoted properly
+  so a comma in a tournament name cannot break the record apart.
+
+  It is a copy to read and keep, not a backup — nothing reads it back in, and
+  **Restore backup** is still the way back. CSV rather than `.xlsx` because a
+  real workbook is a zip of XML and would mean shipping a library into a page
+  that has no dependencies at all.
+
 ## [2.11.2] — 2026-09-04
 
 ### Fixed

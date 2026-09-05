@@ -2680,8 +2680,12 @@ group('rewards belong to the child');
     enter(dom, d, 'Series One', 1);          // Olivia
     tabTo(dom, d, 'Ian');
     ok('the child with a standard gets result boxes', !!resRow(d, 'Series One', 'Ian'));
-    tabTo(dom, d, 'Olivia');   // on her own tab, so absence means she has no scheme
-    ok('the child without one does not', !resRow(d, 'Series One', 'Olivia'));
+    tabTo(dom, d, 'Olivia');   // on her own tab, so what is missing is hers
+    ok('the child without one still gets them — how she did is her own fact',
+       !!resRow(d, 'Series One', 'Olivia'));
+    ok('but nothing is said about money', paid(d, 'Series One', 'Olivia') === null &&
+       !resRow(d, 'Series One', 'Olivia').textContent.includes('No result yet'),
+       resRow(d, 'Series One', 'Olivia').textContent);
     setRes(dom, d, 'Series One', 'Ian', 'wins', '3');
     ok('and the standard is what pays out', paid(d, 'Series One', 'Ian') === '$15',
        paid(d, 'Series One', 'Ian'));
@@ -2723,7 +2727,9 @@ group('rewards belong to the child');
 
     // an empty exception means this one pays nothing
     setMatchRew(dom, d, 'Series Two', {});
-    ok('an emptied tournament pays nothing at all', !resRow(d, 'Series Two', 'Ian'));
+    ok('an emptied tournament pays nothing at all', paid(d, 'Series Two', 'Ian') === null,
+       paid(d, 'Series Two', 'Ian'));
+    ok('though what he did there is still on the row', !!resRow(d, 'Series Two', 'Ian'));
     ok('and the standard still pays everywhere else',
        paid(d, 'Series One', 'Ian') === '$15', paid(d, 'Series One', 'Ian'));
   }
@@ -2749,8 +2755,11 @@ group('rewards belong to the child');
        $(d2, '#r-clear').textContent === 'Clear', $(d2, '#r-clear').textContent);
     click(dom2, $(d2, '#r-clear'));
     ok('clearing the standard stops everything paying',
-       kidRow(d2, 'Ian').textContent.includes('nothing set') && !resRow(d2, 'Series One', 'Ian'),
-       kidRow(d2, 'Ian').textContent);
+       kidRow(d2, 'Ian').textContent.includes('nothing set') &&
+       paid(d2, 'Series One', 'Ian') === null, kidRow(d2, 'Ian').textContent);
+    ok('and the six wins he recorded are untouched',
+       resRow(d2, 'Series One', 'Ian').querySelector('.rwin').value === '6',
+       resRow(d2, 'Series One', 'Ian')?.querySelector('.rwin').value);
   }
 
   {
@@ -3822,6 +3831,295 @@ group('duplicates already on the list are pointed out');
      $$(d, '#setuplist .tourn .dupe').length);
   ok('the tournaments page never badged anything',
      (click(dom, $(d, '#nav-matches')), !$(d, '#tournlist .dupe')));
+}
+
+/* ------------------------------------------------------------------ */
+/* A result is a fact about the afternoon, not about money, and a season
+   is worth keeping somewhere that is not one browser. */
+
+group('results do not wait on rewards');
+{
+  const Y = new Date().getFullYear();
+  const rowNamed = (d, t) => $$(d, '#tournlist .tourn').find(r => r.textContent.includes(t));
+  const resOf = (d, t, kid) => {
+    const box = rowNamed(d, t).querySelector('.results');
+    return box ? [...box.querySelectorAll('.res')].find(r => r.textContent.trim().startsWith(kid)) : null;
+  };
+
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Ian', Y - 13);
+  addTourn(dom, d, { name: 'Club Meet', start: `${Y}-03-07` });
+  click(dom, $(d, '#nav-matches'));
+
+  ok('nothing to record before he is in it', !resOf(d, 'Club Meet', 'Ian'));
+  click(dom, $(d, '#tournlist .join'));            // planned
+  ok('planned is not being in it either', !resOf(d, 'Club Meet', 'Ian'));
+  click(dom, $(d, '#tournlist .join'));            // entered
+  ok('entered, and the boxes are there with nothing set to pay',
+     !!resOf(d, 'Club Meet', 'Ian'));
+  ok('and the row says nothing about money',
+     !resOf(d, 'Club Meet', 'Ian').querySelector('.rpay') &&
+     !resOf(d, 'Club Meet', 'Ian').textContent.includes('No result yet'),
+     resOf(d, 'Club Meet', 'Ian').textContent);
+
+  change(dom, resOf(d, 'Club Meet', 'Ian').querySelector('.rwin'), '3');
+  change(dom, resOf(d, 'Club Meet', 'Ian').querySelector('.rpl'), '2');
+  const e = saved(dom).entries[0];
+  ok('the wins are kept', e.wins === 3, JSON.stringify(e));
+  ok('so is the place', e.place === 2, JSON.stringify(e));
+  ok('still no money on a tournament that pays none',
+     !resOf(d, 'Club Meet', 'Ian').querySelector('.rpay'));
+
+  const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
+  const d2 = dom2.window.document;
+  click(dom2, $(d2, '#nav-matches'));
+  ok('and they survive a reload',
+     resOf(d2, 'Club Meet', 'Ian').querySelector('.rwin').value === '3',
+     resOf(d2, 'Club Meet', 'Ian').querySelector('.rwin').value);
+}
+
+group('the season as a spreadsheet');
+{
+  const Y = new Date().getFullYear();
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Ian', Y - 13);
+  addKid(dom, d, 'Olivia', Y - 9);
+  addTourn(dom, d, { name: 'Club "Open", Kallang', start: `${Y}-03-07`, venue: 'Kallang' });
+  addTourn(dom, d, { name: 'Winter Cup', start: `${Y}-05-16` });
+  click(dom, $(d, '#nav-matches'));
+
+  // Ian is entered for the first with a result; Olivia is skipping it; nobody
+  // has touched the second
+  // The list redraws on every click, so the row is found again each time — and
+  // a row carries a chip for every child, not only the one whose tab it is, so
+  // the chip is picked by who it belongs to rather than by position.
+  const club = () => $$(d, '#tournlist .tourn').find(r => r.textContent.includes('Club'));
+  const idOf = name => saved(dom).players.find(p => p.name === name).id;
+  const chip = name => club().querySelector(`.join[data-p="${idOf(name)}"]`);
+
+  goTab(dom, d, idOf('Ian'));
+  click(dom, chip('Ian'));
+  click(dom, chip('Ian'));                         // entered
+  change(dom, club().querySelector('.rwin'), '4');
+  change(dom, club().querySelector('.rpl'), '1');
+
+  goTab(dom, d, idOf('Olivia'));
+  for (let i = 0; i < 4; i++) click(dom, chip('Olivia'));   // skipping
+
+  let captured = null, filename = null;
+  dom.window.URL.createObjectURL = blob => { captured = blob; return 'blob:x'; };
+  dom.window.URL.revokeObjectURL = () => {};
+  dom.window.HTMLAnchorElement.prototype.click = function () { filename = this.download; };
+  click(dom, $(d, '#btn-results'));
+
+  ok('it reports what it saved', $(d, '#datanote').textContent.includes('2 rows'),
+     $(d, '#datanote').textContent);
+  ok('the file is a dated csv', /^tennis-results-\d{4}-\d{2}-\d{2}\.csv$/.test(filename || ''), filename);
+  ok('and is typed as one', captured && captured.type.startsWith('text/csv'),
+     captured && captured.type);
+
+  const csv = dom.window.resultsCsv();
+  const lines = csv.trim().split('\r\n');
+  ok('a header and a row per child per tournament', lines.length === 3, lines.length);
+  ok('the header names the columns',
+     lines[0] === 'Tournament,Starts,Ends,Venue,Categories,Source,Child,Status,Wins,Place,Earned,How',
+     lines[0]);
+  // a name with a comma and quotes in it must not break the record apart
+  ok('a comma in a name is quoted', lines[1].startsWith('"Club ""Open"", Kallang",'), lines[1]);
+  ok('Ian’s result is on his row', /,Ian,Entered,4,1,/.test(lines[1]), lines[1]);
+  ok('a tournament that pays nothing leaves the money columns empty',
+     lines[1].endsWith(',,'), lines[1]);
+  ok('skipping is a row too, and says so', /,Olivia,Skipping,,,/.test(lines[2]), lines[2]);
+  ok('a tournament nobody has a status on is no row at all',
+     !csv.includes('Winter Cup'), csv);
+  ok('records end CRLF, as a spreadsheet expects', csv.endsWith('\r\n'));
+}
+
+group('nothing to save yet says so');
+{
+  const Y = new Date().getFullYear();
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Ian', Y - 13);
+  addTourn(dom, d, { name: 'Club Meet', start: `${Y}-03-07` });
+  let made = false;
+  dom.window.URL.createObjectURL = () => { made = true; return 'blob:x'; };
+  click(dom, $(d, '#btn-results'));
+  ok('it says there is nothing yet',
+     $(d, '#datanote').textContent.includes('No results to save yet'), $(d, '#datanote').textContent);
+  ok('and downloads nothing', !made);
+}
+
+/* ------------------------------------------------------------------ */
+/* A shape for the prize money: what a tournament pays for turning up,
+   what a personal best is worth, and the two shapes to start from. */
+
+group('paid for turning up');
+{
+  const Y = new Date().getFullYear();
+  const PAST = Y - 1;
+  const rowNamed = (d, t) => $$(d, '#tournlist .tourn').find(r => r.textContent.includes(t));
+  const resOf = (d, t) => {
+    const box = rowNamed(d, t).querySelector('.results');
+    return box ? box.querySelector('.res') : null;
+  };
+  const setRew = (dom, d, fields) => {
+    click(dom, $(d, '.rewkid button'));
+    Object.entries(fields).forEach(([k, v]) => input(dom, $(d, '#r-' + k), String(v)));
+    click(dom, $(d, '#r-ok'));
+  };
+
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Ian', Y - 13);
+  addTourn(dom, d, { name: 'Knock Out', start: `${PAST}-03-07` });
+  click(dom, $(d, '#nav-matches'));
+  setRew(dom, d, { base: 10, win: 10, p1: 20 });
+
+  ok('the line leads with what it pays to play',
+     $(d, '.rewkid .rkline').textContent === '$10 to play · $10 a win · 1st $20',
+     $(d, '.rewkid .rkline').textContent);
+
+  click(dom, $(d, '#tournlist .join'));
+  click(dom, $(d, '#tournlist .join'));            // entered
+  change(dom, resOf(d, 'Knock Out').querySelector('.rwin'), '0');
+  ok('a first-round loss is still worth something',
+     resOf(d, 'Knock Out').querySelector('.rpay').textContent === '$10',
+     resOf(d, 'Knock Out').querySelector('.rpay').textContent);
+  ok('and it says what for', resOf(d, 'Knock Out').querySelector('.rwhy').textContent === 'playing $10',
+     resOf(d, 'Knock Out').querySelector('.rwhy').textContent);
+
+  // the ladder climbs in even steps: 10, 20, 30, 40 — and 70 with the title
+  change(dom, resOf(d, 'Knock Out').querySelector('.rwin'), '3');
+  ok('three rounds won is the floor plus three steps',
+     resOf(d, 'Knock Out').querySelector('.rpay').textContent === '$40',
+     resOf(d, 'Knock Out').querySelector('.rpay').textContent);
+  change(dom, resOf(d, 'Knock Out').querySelector('.rwin'), '4');
+  change(dom, resOf(d, 'Knock Out').querySelector('.rpl'), '1');
+  ok('the title is the ladder and the winner’s bonus',
+     resOf(d, 'Knock Out').querySelector('.rpay').textContent === '$70',
+     resOf(d, 'Knock Out').querySelector('.rpay').textContent);
+}
+
+group('a personal best, against everything before it');
+{
+  const Y = new Date().getFullYear();
+  const P = Y - 1;
+  const rowNamed = (d, t) => $$(d, '#tournlist .tourn').find(r => r.textContent.includes(t));
+  const res = (d, t) => rowNamed(d, t).querySelector('.results .res');
+  const payOf = (d, t) => (res(d, t).querySelector('.rpay') || {}).textContent || null;
+  const whyOf = (d, t) => (res(d, t).querySelector('.rwhy') || {}).textContent || '';
+  const enterWith = (dom, d, t, wins) => {
+    const row = () => rowNamed(d, t);
+    click(dom, row().querySelector('.join'));
+    click(dom, row().querySelector('.join'));      // entered
+    change(dom, res(d, t).querySelector('.rwin'), String(wins));
+  };
+
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Ian', Y - 13);
+  addTourn(dom, d, { name: 'One', start: `${P}-01-10` });
+  addTourn(dom, d, { name: 'Two', start: `${P}-02-10` });
+  addTourn(dom, d, { name: 'Three', start: `${P}-03-10` });
+  addTourn(dom, d, { name: 'Four', start: `${P}-04-10` });
+  click(dom, $(d, '#nav-matches'));
+  click(dom, $(d, '.rewkid button'));
+  input(dom, $(d, '#r-win'), '1');
+  input(dom, $(d, '#r-imp'), '5');
+  input(dom, $(d, '#r-best'), '20');
+  click(dom, $(d, '#r-ok'));
+
+  // 3 wins, then 2, then 5, then 4
+  enterWith(dom, d, 'One', 3);
+  ok('the first tournament has nothing to beat', payOf(d, 'One') === '$3', payOf(d, 'One'));
+  ok('so neither bonus pays', !whyOf(d, 'One').includes('best yet') && !whyOf(d, 'One').includes('beat'),
+     whyOf(d, 'One'));
+
+  enterWith(dom, d, 'Two', 2);
+  ok('a worse day pays only the wins', payOf(d, 'Two') === '$2', payOf(d, 'Two'));
+
+  enterWith(dom, d, 'Three', 5);
+  ok('beating last time and beating everything both land',
+     payOf(d, 'Three') === '$30', payOf(d, 'Three'));
+  ok('and the line says so, separately',
+     whyOf(d, 'Three').includes('beat 2 $5') && whyOf(d, 'Three').includes('best yet, over 3 $20'),
+     whyOf(d, 'Three'));
+
+  enterWith(dom, d, 'Four', 4);
+  ok('four beats the last count of five? no — so nothing extra',
+     payOf(d, 'Four') === '$4', payOf(d, 'Four'));
+  ok('a personal best is measured against the best, not the last',
+     !whyOf(d, 'Four').includes('best yet'), whyOf(d, 'Four'));
+}
+
+group('a shape to start from');
+{
+  const Y = new Date().getFullYear();
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Ian', Y - 13);
+  click(dom, $(d, '#nav-matches'));
+  click(dom, $(d, '.rewkid button'));
+
+  ok('both shapes are offered', $$(d, '#rmodal [data-tmpl]').length === 2);
+  ok('and 4th place is a field now', !!$(d, '#r-p4'));
+
+  click(dom, $$(d, '#rmodal [data-tmpl]').find(b => b.dataset.tmpl === 'group'));
+  ok('a group pays per match and by placing',
+     $(d, '#r-win').value === '5' && $(d, '#r-p1').value === '20' && $(d, '#r-p2').value === '10',
+     [$(d, '#r-win').value, $(d, '#r-p1').value, $(d, '#r-p2').value].join('/'));
+  ok('and nothing merely for being there', $(d, '#r-base').value === '');
+  ok('it names the shape it filled in', $(d, '#r-note').value.startsWith('Group'),
+     $(d, '#r-note').value);
+
+  click(dom, $$(d, '#rmodal [data-tmpl]').find(b => b.dataset.tmpl === 'knockout'));
+  ok('a knock-out has a floor', $(d, '#r-base').value === '10', $(d, '#r-base').value);
+  ok('climbing in even steps', $(d, '#r-win').value === '10', $(d, '#r-win').value);
+  ok('with a bonus for the title and nothing for 2nd',
+     $(d, '#r-p1').value === '20' && $(d, '#r-p2').value === '',
+     $(d, '#r-p1').value + '/' + $(d, '#r-p2').value);
+  ok('the note follows the shape', $(d, '#r-note').value.startsWith('Knock-out'), $(d, '#r-note').value);
+
+  // a note of your own is not overwritten
+  input(dom, $(d, '#r-note'), 'Ian’s own words');
+  click(dom, $$(d, '#rmodal [data-tmpl]').find(b => b.dataset.tmpl === 'group'));
+  ok('what you wrote yourself stands', $(d, '#r-note').value === 'Ian’s own words', $(d, '#r-note').value);
+
+  ok('nothing is saved until Save is', !kidLineOf(d) || kidLineOf(d).includes('nothing set'), kidLineOf(d));
+  function kidLineOf(dd) {
+    const el = dd.querySelector('.rewkid');
+    return el ? el.textContent : '';
+  }
+  click(dom, $(d, '#r-ok'));
+  ok('and then it is', saved(dom).players[0].rewards.perWin === 5,
+     JSON.stringify(saved(dom).players[0].rewards));
+  ok('four place tiers are stored', saved(dom).players[0].rewards.places.length <= 4);
+}
+
+group('an older scheme still loads');
+{
+  const Y = new Date().getFullYear();
+  const seed = JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [{ id: 'b1', name: 'Block', start: `${Y}-06-01`, days: 7, plan: {} }],
+    activeBlockId: 'b1',
+    // written before there was a floor or a personal best
+    players: [{ id: 'p1', name: 'Ian', birthYear: Y - 13, colour: '#5B9BD5',
+                rewards: { perWin: 5, places: [20, 10], improve: 5, note: 'old' } }],
+    entries: [], manualMatches: [], trips: [], rewards: {},
+  });
+  const dom = boot({ [KEY]: seed });
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-matches'));
+  ok('it reads as it always did',
+     $(d, '.rewkid .rkline').textContent === '$5 a win · 1st $20 · 2nd $10 · $5 for beating last count · old',
+     $(d, '.rewkid .rkline').textContent);
+  ok('with the new fields at nothing',
+     saved(dom).players[0].rewards.base === 0 && saved(dom).players[0].rewards.bestEver === 0,
+     JSON.stringify(saved(dom).players[0].rewards));
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
