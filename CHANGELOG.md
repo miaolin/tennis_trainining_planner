@@ -5,6 +5,59 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.0] — 2026-09-06
+
+### Added
+
+- **A reward scheme now starts by asking the shape of the draw.** *Group* or
+  *Knockout*, and each brings its own lines and its own figures to start from.
+  A group is priced per match won and down the podium, which is what the dialog
+  has always offered. A knockout opens with an **Initial prize** for turning up
+  and playing at all, is then priced per **round** won, and stacks bonuses on
+  the rungs above that: **Quarterfinal**, **2nd place**, **1st place** — shown
+  in that order, bottom rung first, the way the draw is actually played.
+
+  The bonuses stack rather than replace one another, so a child who wins the
+  thing is paid the starting money, the round money, the quarterfinal money —
+  they went through it — and the 1st place money on top. The quarterfinal pays
+  on any finish of 8th or better, since a recorded place is the only evidence on
+  hand that they reached the last eight.
+
+  The sum reads back in the child's own words: *$230 · played $20 · 4 rounds
+  $80 · quarterfinal $30 · 1st $100*. A knockout counts the same matches a group
+  does, but a child who played one talks about rounds, so the breakdown and the
+  rewards line both say rounds. It reaches the results `.csv` unchanged.
+
+- **Best ever** joins **Beat last** as a second improvement line. Beat last
+  pays for beating their previous tournament; Best ever pays for beating *every*
+  tournament before it. They are different achievements and both can land on one
+  afternoon — beating last time is the week-to-week nudge, beating everything is
+  the rarer thing. Neither pays at a child's first tournament, which has nothing
+  behind it to beat, the rule Beat last already followed.
+- **4th place** joins 1st through 3rd on a group draw. `ORDINAL` already listed
+  eight; only `MAX_PLACES` held it to three. A knockout still awards 1st and 2nd
+  and nothing below it, having no way to tell third from fourth.
+
+### Changed
+
+- **A knockout has an initial prize and a quarterfinal a group has not, and a
+  group has a third and fourth place a knockout cannot award**, so switching
+  shape empties those lines where you can watch them go, rather than leaving
+  them filled in and dropping them without a word at **Save**. Every line the
+  two shapes share — per win, 1st, 2nd, beat last, best ever, format — keeps
+  whatever has been typed into it.
+- **The figures each shape offers are placeholders, not values.** A grey *15*
+  beside Quarterfinal says what the rung is usually worth without quietly
+  promising to pay it — the same bargain the group lines have always struck. A
+  scheme still pays only what was actually typed.
+- **Nought wins no longer adds a line to the sum.** A child who turned up and
+  lost the first round read *0 rounds $0*, which is a line that earned nothing
+  and said nothing. It is dropped, and with an initial prize set the sum now
+  reads simply *played $20*.
+- Every scheme saved before there was a choice reads as a group one, which is
+  what it was. An unreadable shape in a stored or imported file is treated the
+  same way rather than being trusted.
+
 ## [2.12.0] — 2026-09-05
 
 ### Changed

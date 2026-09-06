@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.12.0** · [Changelog](CHANGELOG.md)
+**Version 2.13.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -127,15 +127,49 @@ tests/                          jsdom harness + api tests — dev only, never de
 ### Rewards
 
 The bargain is with the child, not with any one draw, so it is set once per
-child in the **Rewards** box at the top of the tournaments view. Five lines, any
-of which can be left blank:
+child in the **Rewards** box at the top of the tournaments view.
+
+The dialog asks the shape of the draw first, because the two shapes pay for
+different things and each brings its own lines and its own figures to start
+from. Any line can be left blank to drop it.
+
+**Group** — everyone plays the same handful of matches, so the wins carry it:
 
 | Line | Pays |
 | --- | --- |
 | Per win | that much for every match won |
-| 1st / 2nd / 3rd place | that much for finishing there |
-| Beat last | that much for winning more matches than last time |
+| 1st / 2nd / 3rd / 4th place | that much for finishing there |
+| Beat last | that much for winning more matches than at their previous tournament |
+| Best ever | that much for winning more than at *every* tournament before it |
 | Format | free text, e.g. *Red ball, played in group* — shown, never paid |
+
+**Knockout** — how far up the draw they got is the story, so the rungs carry it:
+
+| Line | Pays |
+| --- | --- |
+| Initial prize | that much for turning up and playing, whatever happens after |
+| Per round | that much for every round won |
+| Quarterfinal | that much for reaching the last eight — a finish of 8th or better |
+| 2nd place | that much for losing the final |
+| 1st place | that much for winning it |
+| Beat last | that much for winning more rounds than at their previous tournament |
+| Best ever | that much for winning more than at *every* tournament before it |
+| Format | free text, e.g. *Red ball, knockout draw* — shown, never paid |
+
+The knockout bonuses **stack**: a child who wins the thing is paid the starting
+money, the round money, the quarterfinal money — they went through it — and the
+1st place money. The lines are shown in that order, bottom rung first, the way
+the draw is played.
+
+*Beat last* and *Best ever* are different achievements and can both land on the
+same afternoon: beating last time is the week-to-week nudge, beating everything
+is the rarer thing. Neither pays at a child's first tournament, which has
+nothing behind it to beat.
+
+A knockout has two lines a group does not — the initial prize and the
+quarterfinal — and a group has a third and fourth place a knockout cannot
+award, so switching shape empties those lines where you can see them go; every
+line the two shapes share keeps whatever you typed.
 
 That standard then applies everywhere, and **no tournament repeats it**. A row
 shows a rewards line only when that event pays something different, badged
@@ -151,14 +185,16 @@ Each child who is **entered** or **confirmed** gets a **Wins** and **Place** box
 under the tournament, whether or not it pays anything — how a child did is worth
 recording on its own, and most tournaments pay nothing. Where a scheme does
 apply, the page adds the payout up in front of them: *$55 · 4 wins $20 · 2nd $30
-· beat 3 $5*. The sum is always shown in full, so a child can see how the number
+· beat 3 $5*, or on a knockout *$230 · played $20 · 4 rounds $80 · quarterfinal
+$30 · 1st $100*. The sum is always shown in full, so a child can see how the number
 was reached. Two children on the same draw are each paid their own way, and a
 tournament that pays nothing simply says nothing about money.
 
 "Beat last" measures against that child's most recent *earlier* tournament with
 a win count recorded — not simply the previous tournament, which they may not
-have played. With nothing earlier on file there is nothing to beat, so the bonus
-does not pay. This is the reason results are stored at all.
+have played. "Best ever" measures against the highest count on any earlier
+tournament. With nothing earlier on file there is nothing to beat, so neither
+bonus pays. This is the reason results are stored at all.
 
 Nought wins is a real result and is kept as one; an empty box means *not yet
 entered*, which is what the season check chases after a tournament has
@@ -249,9 +285,12 @@ Two places, merged:
   `categories`, `entryDeadline`, `url`, `source` (`sta` / `jttl` / `manual`),
   `provisional`, `note` and `rewards` are optional. A `provisional: true` entry
   is badged as an estimate, and its `note` explains why. A `rewards` object
-  (`perWin`, `places`, `improve`, `note`) is the weakest suggestion there is: a
+  (`kind`, `initial`, `perWin`, `places`, `qf`, `improve`, `bestEver`, `note`)
+  is the weakest suggestion there is: a
   tournament exception set in the browser beats it, and so does the child's own
-  standard.
+  standard. `kind` is `group` or `knockout` and defaults to `group`; `initial`
+  and `qf` are the starting money and the quarterfinal bonus, and are only read
+  on a knockout.
 
 See `findings.md` for the full trace of what each source does and does not
 expose.
