@@ -138,8 +138,9 @@ from. Any line can be left blank to drop it.
 | Line | Pays |
 | --- | --- |
 | Per win | that much for every match won |
-| 1st / 2nd / 3rd place | that much for finishing there |
-| Beat last | that much for winning more matches than last time |
+| 1st / 2nd / 3rd / 4th place | that much for finishing there |
+| Beat last | that much for winning more matches than at their previous tournament |
+| Best ever | that much for winning more than at *every* tournament before it |
 | Format | free text, e.g. *Red ball, played in group* — shown, never paid |
 
 **Knockout** — how far up the draw they got is the story, so the rungs carry it:
@@ -151,7 +152,8 @@ from. Any line can be left blank to drop it.
 | Quarterfinal | that much for reaching the last eight — a finish of 8th or better |
 | 2nd place | that much for losing the final |
 | 1st place | that much for winning it |
-| Beat best | that much for winning more rounds than last time |
+| Beat last | that much for winning more rounds than at their previous tournament |
+| Best ever | that much for winning more than at *every* tournament before it |
 | Format | free text, e.g. *Red ball, knockout draw* — shown, never paid |
 
 The knockout bonuses **stack**: a child who wins the thing is paid the starting
@@ -159,12 +161,15 @@ money, the round money, the quarterfinal money — they went through it — and 
 1st place money. The lines are shown in that order, bottom rung first, the way
 the draw is played.
 
-*Beat best* and *Beat last* are one line under two names, and the rule behind
-both is the same: their most recent earlier tournament. A knockout has two lines
-a group does not — the initial prize and the quarterfinal — and a group has a
-third place a knockout cannot award, so switching shape empties those lines
-where you can see them go; every line the two shapes share keeps whatever you
-typed.
+*Beat last* and *Best ever* are different achievements and can both land on the
+same afternoon: beating last time is the week-to-week nudge, beating everything
+is the rarer thing. Neither pays at a child's first tournament, which has
+nothing behind it to beat.
+
+A knockout has two lines a group does not — the initial prize and the
+quarterfinal — and a group has a third and fourth place a knockout cannot
+award, so switching shape empties those lines where you can see them go; every
+line the two shapes share keeps whatever you typed.
 
 That standard then applies everywhere, and **no tournament repeats it**. A row
 shows a rewards line only when that event pays something different, badged
@@ -187,8 +192,9 @@ tournament that pays nothing simply says nothing about money.
 
 "Beat last" measures against that child's most recent *earlier* tournament with
 a win count recorded — not simply the previous tournament, which they may not
-have played. With nothing earlier on file there is nothing to beat, so the bonus
-does not pay. This is the reason results are stored at all.
+have played. "Best ever" measures against the highest count on any earlier
+tournament. With nothing earlier on file there is nothing to beat, so neither
+bonus pays. This is the reason results are stored at all.
 
 Nought wins is a real result and is kept as one; an empty box means *not yet
 entered*, which is what the season check chases after a tournament has
@@ -279,8 +285,8 @@ Two places, merged:
   `categories`, `entryDeadline`, `url`, `source` (`sta` / `jttl` / `manual`),
   `provisional`, `note` and `rewards` are optional. A `provisional: true` entry
   is badged as an estimate, and its `note` explains why. A `rewards` object
-  (`kind`, `initial`, `perWin`, `places`, `qf`, `improve`, `note`) is the
-  weakest suggestion there is: a
+  (`kind`, `initial`, `perWin`, `places`, `qf`, `improve`, `bestEver`, `note`)
+  is the weakest suggestion there is: a
   tournament exception set in the browser beats it, and so does the child's own
   standard. `kind` is `group` or `knockout` and defaults to `group`; `initial`
   and `qf` are the starting money and the quarterfinal bonus, and are only read

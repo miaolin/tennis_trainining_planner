@@ -705,8 +705,10 @@ input[type=number]#days{width:74px}
 #r-row-p1{order:3}
 #r-row-p2{order:4}
 #r-row-p3{order:5}
-#r-row-imp{order:6}
-#r-row-note{order:7}
+#r-row-p4{order:6}
+#r-row-imp{order:7}
+#r-row-best{order:8}
+#r-row-note{order:9}
 #r-rows.ko #r-row-p2{order:3}
 #r-rows.ko #r-row-p1{order:4}
 /* ---------- year calendar ---------- */
@@ -1058,8 +1060,12 @@ input[type=number]#days{width:74px}
         <input type="number" id="r-p2" min="0" max="10000" step="1" placeholder="30"></div>
       <div class="mrow" id="r-row-p3"><label class="lab" for="r-p3">3rd place</label>
         <input type="number" id="r-p3" min="0" max="10000" step="1"></div>
-      <div class="mrow" id="r-row-imp"><label class="lab" for="r-imp" id="r-implab">Beat last</label>
+      <div class="mrow" id="r-row-p4"><label class="lab" for="r-p4">4th place</label>
+        <input type="number" id="r-p4" min="0" max="10000" step="1"></div>
+      <div class="mrow" id="r-row-imp"><label class="lab" for="r-imp">Beat last</label>
         <input type="number" id="r-imp" min="0" max="10000" step="1" placeholder="5"></div>
+      <div class="mrow" id="r-row-best"><label class="lab" for="r-best">Best ever</label>
+        <input type="number" id="r-best" min="0" max="10000" step="1" placeholder="20"></div>
       <div class="mrow" id="r-row-note"><label class="lab" for="r-note">Format</label>
         <input type="text" id="r-note" maxlength="80" placeholder="Red ball, played in group"></div>
     </div>
@@ -1652,10 +1658,10 @@ let rewardKind = 'group';  // which shape the open dialog is currently written f
    grey 15 says what a quarterfinal is usually worth without quietly promising
    to pay it, which is the same bargain the group lines have always struck. */
 const KIND_TEMPLATE = {
-  group:    {init:'',   win:'5',  qf:'',   p1:'50',  p2:'30', p3:'', imp:'5',
-             note:'Red ball, played in group'},
-  knockout: {init:'20', win:'20', qf:'30', p1:'100', p2:'50', p3:'', imp:'30',
-             note:'Red ball, knockout draw'}
+  group:    {init:'',   win:'5',  qf:'',   p1:'50',  p2:'30', p3:'', p4:'',
+             imp:'5',  best:'20', note:'Red ball, played in group'},
+  knockout: {init:'20', win:'20', qf:'30', p1:'100', p2:'50', p3:'', p4:'',
+             imp:'30', best:'50', note:'Red ball, knockout draw'}
 };
 
 // Two sentences: what this shape of draw pays for, then whose figures these are.
@@ -1668,11 +1674,9 @@ function rewardHint(){
     : 'A group pays for every match they win, and for where they finish in the group. ';
   return shape + (rewardTarget && rewardTarget.kind === 'kid'
     ? 'This is what the child plays for at every tournament. Leave a line blank to ' +
-      'drop it. ' + (rewardKind === 'knockout'
-        ? '“Beat best” pays out when they win more rounds than at their previous ' +
-          'tournament.'
-        : '“Beat last” pays out when they win more matches than at their previous ' +
-          'tournament.')
+      'drop it. “Beat last” pays when they beat their previous tournament, “Best ' +
+      'ever” when they beat every tournament before it — both can land on the ' +
+      'same afternoon.'
     : 'This tournament only. Save it with every line blank to say it pays nothing, ' +
       'or press Use standard to go back to what the child normally plays for.');
 }
@@ -1689,14 +1693,14 @@ function setRewardKind(kind){
   document.getElementById('r-row-init').hidden = !ko;
   document.getElementById('r-row-qf').hidden = !ko;
   document.getElementById('r-row-p3').hidden = ko;
+  document.getElementById('r-row-p4').hidden = ko;
   document.getElementById('r-winlab').textContent = ko ? 'Per round' : 'Per win';
-  // The rule behind it does not change with the shape, only the word for it.
-  document.getElementById('r-implab').textContent = ko ? 'Beat best' : 'Beat last';
   for(const [el, v] of [['r-init', tpl.init], ['r-win', tpl.win], ['r-qf', tpl.qf],
                         ['r-p1', tpl.p1], ['r-p2', tpl.p2], ['r-p3', tpl.p3],
-                        ['r-imp', tpl.imp], ['r-note', tpl.note]])
+                        ['r-p4', tpl.p4], ['r-imp', tpl.imp], ['r-best', tpl.best],
+                        ['r-note', tpl.note]])
     document.getElementById(el).placeholder = v;
-  (ko ? ['r-p3'] : ['r-init', 'r-qf'])
+  (ko ? ['r-p3', 'r-p4'] : ['r-init', 'r-qf'])
     .forEach(el => { document.getElementById(el).value = ''; });
   document.querySelectorAll('.kindpick button').forEach(b =>
     b.setAttribute('aria-checked', String(b.dataset.kind === rewardKind)));
@@ -1713,7 +1717,8 @@ function openRewards(kind, id){
   // what to open on: accepting it is then one press of Save.
   const r = (kind === 'kid' ? kidScheme(subject)
                             : matchScheme(subject) || feedScheme(subject))
-            || {kind:'group', initial:0, perWin:0, places:[], qf:0, improve:0, note:''};
+            || {kind:'group', initial:0, perWin:0, places:[], qf:0, improve:0,
+                bestEver:0, note:''};
   document.getElementById('r-title').textContent =
     (kind === 'kid' ? 'Rewards — ' : 'Rewards, only here — ') + (subject.name || '');
   document.getElementById('r-clear').textContent =
@@ -1728,7 +1733,9 @@ function openRewards(kind, id){
   put('r-p1', r.places[0]);
   put('r-p2', r.places[1]);
   put('r-p3', r.places[2]);
+  put('r-p4', r.places[3]);
   put('r-imp', r.improve);
+  put('r-best', r.bestEver);
   document.getElementById('r-note').value = r.note || '';
   document.getElementById('rmodal').hidden = false;
   document.getElementById('r-win').focus();
@@ -1744,9 +1751,10 @@ function commitRewards(){
     kind: rewardKind,
     initial: v('r-init'),
     perWin: v('r-win'),
-    places: [v('r-p1'), v('r-p2'), v('r-p3')],
+    places: [v('r-p1'), v('r-p2'), v('r-p3'), v('r-p4')],
     qf: v('r-qf'),
     improve: v('r-imp'),
+    bestEver: v('r-best'),
     note: v('r-note')
   });
   if(rewardTarget.kind === 'kid'){
@@ -2192,7 +2200,7 @@ const KID_COLOURS = ['#5B9BD5','#D6E64B','#9B87D4','#4FA97C','#E8A33D','#D9603F'
 const DEADLINE_WARN_DAYS = 21;
 // Rewards. A junior draw is a handful of matches, so the ceilings are only
 // there to stop a mistyped figure becoming a five-digit promise.
-const MAX_WINS = 99, MAX_PLACE = 64, MAX_MONEY = 10000, MAX_PLACES = 3;
+const MAX_WINS = 99, MAX_PLACE = 64, MAX_MONEY = 10000, MAX_PLACES = 4;
 // A knockout has no third place to play for, so its scheme carries two.
 const KO_PLACES = 2;
 // The first rung a knockout pays for is the last eight, and a recorded finish
@@ -2803,12 +2811,16 @@ function normRewards(r){
     places,
     qf: kind === 'knockout' ? normMoney(r.qf) : 0,
     improve: normMoney(r.improve),
+    // A personal best in matches won, against every earlier tournament rather
+    // than only the last one. Both can pay on the same afternoon: beating last
+    // time is the week-to-week nudge, beating everything is the rarer thing.
+    bestEver: normMoney(r.bestEver),
     note: typeof r.note === 'string' ? r.note.trim().slice(0, 80) : ''
   };
 }
 function hasRewards(r){
   return !!r && (r.perWin > 0 || r.improve > 0 || r.qf > 0 || r.initial > 0 ||
-                 r.places.some(v => v > 0) || !!r.note);
+                 r.bestEver > 0 || r.places.some(v => v > 0) || !!r.note);
 }
 // A scheme is normally the child's, because the bargain is with the child and
 // not with any one draw. A tournament only carries its own when it pays
@@ -2847,9 +2859,8 @@ function rewardsLine(r){
   const rungs = r.places.map((v, i) => [v, i]);
   if(ko) rungs.reverse();
   rungs.forEach(([v, i]) => { if(v) bits.push(`${ORDINAL[i]} ${money(v)}`); });
-  // The rule is the same on both — their previous tournament — so only the word
-  // the parent chose to label it with changes.
-  if(r.improve) bits.push(`${money(r.improve)} for beating ${ko ? 'best' : 'last'} count`);
+  if(r.improve) bits.push(`${money(r.improve)} for beating last count`);
+  if(r.bestEver) bits.push(`${money(r.bestEver)} for a personal best`);
   if(r.note) bits.push(r.note);
   return bits.join(' · ');
 }
@@ -2873,6 +2884,17 @@ function setResult(matchId, playerId, field, raw){
   if(Number.isInteger(v) && v >= lo && v <= hi) e[field] = v;
   else delete e[field];
   render(); save();
+}
+// The most matches this child has won at any tournament before this one. Like
+// prevWins it looks only backwards: a first tournament has nothing to beat, so
+// it does not pay a personal-best bonus for turning up once.
+function bestWins(m, playerId){
+  let best = null, name = '';
+  allMatches().filter(x => x.start < m.start).forEach(x=>{
+    const r = resultOf(x.id, playerId);
+    if(r && r.wins !== null && (best === null || r.wins > best)){ best = r.wins; name = x.name; }
+  });
+  return best === null ? null : {wins:best, name};
 }
 // "The last one" is that child's most recent earlier tournament with a win
 // count on it — not simply the previous tournament, which they may not have
@@ -2925,6 +2947,15 @@ function payout(m, p){
     if(prev && res.wins > prev.wins){
       total += r.improve;
       parts.push(`beat ${prev.wins} ${money(r.improve)}`);
+    }
+  }
+  // Both bonuses can land on one afternoon: beating last time and beating
+  // everything are different achievements, and the second is the rarer.
+  if(r.bestEver && res.wins !== null){
+    const best = bestWins(m, p.id);
+    if(best && res.wins > best.wins){
+      total += r.bestEver;
+      parts.push(`best yet, over ${best.wins} ${money(r.bestEver)}`);
     }
   }
   return {total, parts};

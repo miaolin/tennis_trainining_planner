@@ -28,17 +28,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   does, but a child who played one talks about rounds, so the breakdown and the
   rewards line both say rounds. It reaches the results `.csv` unchanged.
 
-- **Beat last** is called **Beat best** on a knockout. One line under two names:
-  the rule behind both is unchanged and is still their most recent earlier
-  tournament, which is what the dialog's own note says.
+- **Best ever** joins **Beat last** as a second improvement line. Beat last
+  pays for beating their previous tournament; Best ever pays for beating *every*
+  tournament before it. They are different achievements and both can land on one
+  afternoon — beating last time is the week-to-week nudge, beating everything is
+  the rarer thing. Neither pays at a child's first tournament, which has nothing
+  behind it to beat, the rule Beat last already followed.
+- **4th place** joins 1st through 3rd on a group draw. `ORDINAL` already listed
+  eight; only `MAX_PLACES` held it to three. A knockout still awards 1st and 2nd
+  and nothing below it, having no way to tell third from fourth.
 
 ### Changed
 
 - **A knockout has an initial prize and a quarterfinal a group has not, and a
-  group has a third place a knockout cannot award**, so switching shape empties
-  those lines where you can watch them go, rather than leaving them filled in
-  and dropping them without a word at **Save**. Every line the two shapes share
-  — per win, 1st, 2nd, beat, format — keeps whatever has been typed into it.
+  group has a third and fourth place a knockout cannot award**, so switching
+  shape empties those lines where you can watch them go, rather than leaving
+  them filled in and dropping them without a word at **Save**. Every line the
+  two shapes share — per win, 1st, 2nd, beat last, best ever, format — keeps
+  whatever has been typed into it.
 - **The figures each shape offers are placeholders, not values.** A grey *15*
   beside Quarterfinal says what the rung is usually worth without quietly
   promising to pay it — the same bargain the group lines have always struck. A
