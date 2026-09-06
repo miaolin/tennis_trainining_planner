@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.12.0** · [Changelog](CHANGELOG.md)
+**Version 2.13.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -127,8 +127,13 @@ tests/                          jsdom harness + api tests — dev only, never de
 ### Rewards
 
 The bargain is with the child, not with any one draw, so it is set once per
-child in the **Rewards** box at the top of the tournaments view. Five lines, any
-of which can be left blank:
+child in the **Rewards** box at the top of the tournaments view.
+
+The dialog asks the shape of the draw first, because the two shapes pay for
+different things and each brings its own lines and its own figures to start
+from. Any line can be left blank to drop it.
+
+**Group** — everyone plays the same handful of matches, so the wins carry it:
 
 | Line | Pays |
 | --- | --- |
@@ -136,6 +141,24 @@ of which can be left blank:
 | 1st / 2nd / 3rd place | that much for finishing there |
 | Beat last | that much for winning more matches than last time |
 | Format | free text, e.g. *Red ball, played in group* — shown, never paid |
+
+**Knockout** — how far up the draw they got is the story, so the rungs carry it:
+
+| Line | Pays |
+| --- | --- |
+| Per round | that much for every round won |
+| Quarterfinal | that much for reaching the last eight — a finish of 8th or better |
+| 2nd place | that much for losing the final |
+| 1st place | that much for winning it |
+| Beat last | that much for winning more rounds than last time |
+| Format | free text, e.g. *Red ball, knockout draw* — shown, never paid |
+
+The knockout bonuses **stack**: a child who wins the thing is paid the round
+money, the quarterfinal money — they went through it — and the 1st place money.
+The lines are shown in that order, bottom rung first, the way the draw is
+played. A knockout has no third place to award and a group has no quarterfinal
+rung, so switching shape empties that one line where you can see it go; every
+line the two shapes share keeps whatever you typed.
 
 That standard then applies everywhere, and **no tournament repeats it**. A row
 shows a rewards line only when that event pays something different, badged
@@ -151,7 +174,8 @@ Each child who is **entered** or **confirmed** gets a **Wins** and **Place** box
 under the tournament, whether or not it pays anything — how a child did is worth
 recording on its own, and most tournaments pay nothing. Where a scheme does
 apply, the page adds the payout up in front of them: *$55 · 4 wins $20 · 2nd $30
-· beat 3 $5*. The sum is always shown in full, so a child can see how the number
+· beat 3 $5*, or on a knockout *$105 · 4 rounds $40 · quarterfinal $15 · 1st
+$50*. The sum is always shown in full, so a child can see how the number
 was reached. Two children on the same draw are each paid their own way, and a
 tournament that pays nothing simply says nothing about money.
 
@@ -249,9 +273,11 @@ Two places, merged:
   `categories`, `entryDeadline`, `url`, `source` (`sta` / `jttl` / `manual`),
   `provisional`, `note` and `rewards` are optional. A `provisional: true` entry
   is badged as an estimate, and its `note` explains why. A `rewards` object
-  (`perWin`, `places`, `improve`, `note`) is the weakest suggestion there is: a
+  (`kind`, `perWin`, `places`, `qf`, `improve`, `note`) is the weakest
+  suggestion there is: a
   tournament exception set in the browser beats it, and so does the child's own
-  standard.
+  standard. `kind` is `group` or `knockout` and defaults to `group`; `qf` is the
+  quarterfinal bonus and is only read on a knockout.
 
 See `findings.md` for the full trace of what each source does and does not
 expose.

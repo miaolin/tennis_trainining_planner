@@ -5,6 +5,43 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.0] — 2026-09-06
+
+### Added
+
+- **A reward scheme now starts by asking the shape of the draw.** *Group* or
+  *Knockout*, and each brings its own lines and its own figures to start from.
+  A group is priced per match won and down the podium, which is what the dialog
+  has always offered. A knockout is priced per **round** won, with bonuses
+  stacked on the rungs above it: **Quarterfinal**, **2nd place**, **1st place**
+  — shown in that order, bottom rung first, the way the draw is actually played.
+
+  The bonuses stack rather than replace one another, so a child who wins the
+  thing is paid the round money, the quarterfinal money — they went through it —
+  and the 1st place money on top. The quarterfinal pays on any finish of 8th or
+  better, since a recorded place is the only evidence on hand that they reached
+  the last eight.
+
+  The sum reads back in the child's own words: *$105 · 4 rounds $40 ·
+  quarterfinal $15 · 1st $50*. A knockout counts the same matches a group does,
+  but a child who played one talks about rounds, so the breakdown and the
+  rewards line both say rounds. It reaches the results `.csv` unchanged.
+
+### Changed
+
+- **A knockout has no third place and a group has no quarterfinal**, so
+  switching shape empties that one line where you can watch it go, rather than
+  leaving it filled in and dropping it without a word at **Save**. Every line
+  the two shapes share — per win, 1st, 2nd, beat last, format — keeps whatever
+  has been typed into it.
+- **The figures each shape offers are placeholders, not values.** A grey *15*
+  beside Quarterfinal says what the rung is usually worth without quietly
+  promising to pay it — the same bargain the group lines have always struck. A
+  scheme still pays only what was actually typed.
+- Every scheme saved before there was a choice reads as a group one, which is
+  what it was. An unreadable shape in a stored or imported file is treated the
+  same way rather than being trusted.
+
 ## [2.12.0] — 2026-09-05
 
 ### Changed
