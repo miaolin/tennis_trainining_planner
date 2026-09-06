@@ -5,6 +5,32 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.0] — 2026-09-06
+
+### Added
+
+- **A tournament left serving nobody is offered up when a child is removed.**
+  Deleting a child has never deleted tournaments and still does not: a
+  tournament is an event in the world and belongs to the family, not to a
+  child — on a list of two it is as likely the other's. But a tournament added
+  for one child and narrowed to them is left on a list of nobody the moment
+  they go, and until now it simply sat there to be come across later.
+
+  Removing a child now asks a second question where that has happened, naming
+  the rows it means. Cancel keeps them. It only ever offers tournaments added
+  by hand — one from the STA feed would be back on the next fetch — and it
+  offers nothing when the last child goes, because with an empty list every
+  tournament trivially serves nobody and a season should outlast a list being
+  briefly empty. A tournament any remaining child has a status on is never
+  offered, whatever the age groups say: a recorded decision holds a row on the
+  list on its own.
+
+### Changed
+
+- **Everything a tournament owns is now dropped in one place.** The **×** on
+  Setup and the offer above both go through `dropTournament`, so neither can
+  forget the entries, the scheme or the list it was on.
+
 ## [2.13.0] — 2026-09-06
 
 ### Added
