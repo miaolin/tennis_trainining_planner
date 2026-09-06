@@ -699,6 +699,7 @@ input[type=number]#days{width:74px}
 /* A knockout is a ladder, so it is drawn as one: the round money, then each
    rung above it. Ordering in CSS lets one set of fields serve both shapes. */
 #r-rows{display:flex;flex-direction:column}
+#r-row-init{order:0}
 #r-row-win{order:1}
 #r-row-qf{order:2}
 #r-row-p1{order:3}
@@ -1045,6 +1046,8 @@ input[type=number]#days{width:74px}
       </div>
     </div>
     <div id="r-rows">
+      <div class="mrow" id="r-row-init" hidden><label class="lab" for="r-init">Initial prize</label>
+        <input type="number" id="r-init" min="0" max="10000" step="1" placeholder="20"></div>
       <div class="mrow" id="r-row-win"><label class="lab" for="r-win" id="r-winlab">Per win</label>
         <input type="number" id="r-win" min="0" max="10000" step="1" placeholder="5"></div>
       <div class="mrow" id="r-row-qf" hidden><label class="lab" for="r-qf">Quarterfinal</label>
@@ -1055,7 +1058,7 @@ input[type=number]#days{width:74px}
         <input type="number" id="r-p2" min="0" max="10000" step="1" placeholder="30"></div>
       <div class="mrow" id="r-row-p3"><label class="lab" for="r-p3">3rd place</label>
         <input type="number" id="r-p3" min="0" max="10000" step="1"></div>
-      <div class="mrow" id="r-row-imp"><label class="lab" for="r-imp">Beat last</label>
+      <div class="mrow" id="r-row-imp"><label class="lab" for="r-imp" id="r-implab">Beat last</label>
         <input type="number" id="r-imp" min="0" max="10000" step="1" placeholder="5"></div>
       <div class="mrow" id="r-row-note"><label class="lab" for="r-note">Format</label>
         <input type="text" id="r-note" maxlength="80" placeholder="Red ball, played in group"></div>
@@ -1649,23 +1652,27 @@ let rewardKind = 'group';  // which shape the open dialog is currently written f
    grey 15 says what a quarterfinal is usually worth without quietly promising
    to pay it, which is the same bargain the group lines have always struck. */
 const KIND_TEMPLATE = {
-  group:    {win:'5',  qf:'',   p1:'50', p2:'30', p3:'', imp:'5',
+  group:    {init:'',   win:'5',  qf:'',   p1:'50',  p2:'30', p3:'', imp:'5',
              note:'Red ball, played in group'},
-  knockout: {win:'10', qf:'15', p1:'50', p2:'30', p3:'', imp:'5',
+  knockout: {init:'20', win:'20', qf:'30', p1:'100', p2:'50', p3:'', imp:'30',
              note:'Red ball, knockout draw'}
 };
 
 // Two sentences: what this shape of draw pays for, then whose figures these are.
 function rewardHint(){
   const shape = rewardKind === 'knockout'
-    ? 'A knockout pays for every round they win, and the quarterfinal, 2nd and 1st ' +
-      'lines are bonuses stacked on top of that — winning the thing earns the ' +
-      'quarterfinal money too, because they went through it. '
+    ? 'A knockout pays something for turning up, then for every round they win, ' +
+      'and the quarterfinal, 2nd and 1st lines are bonuses stacked on top of ' +
+      'that — winning the thing earns the quarterfinal money too, because they ' +
+      'went through it. '
     : 'A group pays for every match they win, and for where they finish in the group. ';
   return shape + (rewardTarget && rewardTarget.kind === 'kid'
     ? 'This is what the child plays for at every tournament. Leave a line blank to ' +
-      'drop it. “Beat last” pays out when they win more matches than at their ' +
-      'previous tournament.'
+      'drop it. ' + (rewardKind === 'knockout'
+        ? '“Beat best” pays out when they win more rounds than at their previous ' +
+          'tournament.'
+        : '“Beat last” pays out when they win more matches than at their previous ' +
+          'tournament.')
     : 'This tournament only. Save it with every line blank to say it pays nothing, ' +
       'or press Use standard to go back to what the child normally plays for.');
 }
@@ -1679,14 +1686,18 @@ function setRewardKind(kind){
   const ko = rewardKind === 'knockout';
   const tpl = KIND_TEMPLATE[rewardKind];
   document.getElementById('r-rows').classList.toggle('ko', ko);
+  document.getElementById('r-row-init').hidden = !ko;
   document.getElementById('r-row-qf').hidden = !ko;
   document.getElementById('r-row-p3').hidden = ko;
   document.getElementById('r-winlab').textContent = ko ? 'Per round' : 'Per win';
-  for(const [el, v] of [['r-win', tpl.win], ['r-qf', tpl.qf], ['r-p1', tpl.p1],
-                        ['r-p2', tpl.p2], ['r-p3', tpl.p3], ['r-imp', tpl.imp],
-                        ['r-note', tpl.note]])
+  // The rule behind it does not change with the shape, only the word for it.
+  document.getElementById('r-implab').textContent = ko ? 'Beat best' : 'Beat last';
+  for(const [el, v] of [['r-init', tpl.init], ['r-win', tpl.win], ['r-qf', tpl.qf],
+                        ['r-p1', tpl.p1], ['r-p2', tpl.p2], ['r-p3', tpl.p3],
+                        ['r-imp', tpl.imp], ['r-note', tpl.note]])
     document.getElementById(el).placeholder = v;
-  document.getElementById(ko ? 'r-p3' : 'r-qf').value = '';
+  (ko ? ['r-p3'] : ['r-init', 'r-qf'])
+    .forEach(el => { document.getElementById(el).value = ''; });
   document.querySelectorAll('.kindpick button').forEach(b =>
     b.setAttribute('aria-checked', String(b.dataset.kind === rewardKind)));
   document.getElementById('r-hint').textContent = rewardHint();
@@ -1702,7 +1713,7 @@ function openRewards(kind, id){
   // what to open on: accepting it is then one press of Save.
   const r = (kind === 'kid' ? kidScheme(subject)
                             : matchScheme(subject) || feedScheme(subject))
-            || {kind:'group', perWin:0, places:[], qf:0, improve:0, note:''};
+            || {kind:'group', initial:0, perWin:0, places:[], qf:0, improve:0, note:''};
   document.getElementById('r-title').textContent =
     (kind === 'kid' ? 'Rewards — ' : 'Rewards, only here — ') + (subject.name || '');
   document.getElementById('r-clear').textContent =
@@ -1711,6 +1722,7 @@ function openRewards(kind, id){
   // shape owns, and these figures are the ones that should survive it.
   setRewardKind(r.kind);
   const put = (el, v) => { document.getElementById(el).value = v ? v : ''; };
+  put('r-init', r.initial);
   put('r-win', r.perWin);
   put('r-qf', r.qf);
   put('r-p1', r.places[0]);
@@ -1730,6 +1742,7 @@ function commitRewards(){
   const v = id => document.getElementById(id).value;
   const r = normRewards({
     kind: rewardKind,
+    initial: v('r-init'),
     perWin: v('r-win'),
     places: [v('r-p1'), v('r-p2'), v('r-p3')],
     qf: v('r-qf'),
@@ -2783,6 +2796,9 @@ function normRewards(r){
   while(places.length && !places[places.length - 1]) places.pop();   // no trailing empties
   return {
     kind,
+    // Two lines only a knockout has: money for turning up at all, and the rung
+    // into the last eight. A group carries neither rather than hiding them.
+    initial: kind === 'knockout' ? normMoney(r.initial) : 0,
     perWin: normMoney(r.perWin),
     places,
     qf: kind === 'knockout' ? normMoney(r.qf) : 0,
@@ -2791,7 +2807,7 @@ function normRewards(r){
   };
 }
 function hasRewards(r){
-  return !!r && (r.perWin > 0 || r.improve > 0 || r.qf > 0 ||
+  return !!r && (r.perWin > 0 || r.improve > 0 || r.qf > 0 || r.initial > 0 ||
                  r.places.some(v => v > 0) || !!r.note);
 }
 // A scheme is normally the child's, because the bargain is with the child and
@@ -2823,6 +2839,7 @@ function schemeFor(m, p){
 function rewardsLine(r){
   const ko = r.kind === 'knockout';
   const bits = [];
+  if(r.initial) bits.push(`${money(r.initial)} to start`);
   if(r.perWin) bits.push(`${money(r.perWin)} a ${ko ? 'round' : 'win'}`);
   if(r.qf) bits.push(`quarterfinal ${money(r.qf)}`);
   // A group is read down the podium, a knockout up the ladder — the same order
@@ -2830,7 +2847,9 @@ function rewardsLine(r){
   const rungs = r.places.map((v, i) => [v, i]);
   if(ko) rungs.reverse();
   rungs.forEach(([v, i]) => { if(v) bits.push(`${ORDINAL[i]} ${money(v)}`); });
-  if(r.improve) bits.push(`${money(r.improve)} for beating last count`);
+  // The rule is the same on both — their previous tournament — so only the word
+  // the parent chose to label it with changes.
+  if(r.improve) bits.push(`${money(r.improve)} for beating ${ko ? 'best' : 'last'} count`);
   if(r.note) bits.push(r.note);
   return bits.join(' · ');
 }
@@ -2874,7 +2893,15 @@ function payout(m, p){
   if(!hasRewards(r) || !res || (res.wins === null && res.place === null)) return null;
   const parts = [];
   let total = 0;
-  if(res.wins !== null && r.perWin){
+  // Paid for playing, so a recorded result is the whole of the evidence — the
+  // same thing that got us past the guard above.
+  if(r.initial){
+    total += r.initial;
+    parts.push(`played ${money(r.initial)}`);
+  }
+  // Nought wins is a real result, but "0 rounds $0" is not a line worth adding
+  // to a sum — it earned nothing, so it says nothing.
+  if(res.wins && r.perWin){
     const v = r.perWin * res.wins;
     total += v;
     // A knockout counts the same matches, but a child who played one talks

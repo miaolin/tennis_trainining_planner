@@ -2814,8 +2814,8 @@ group('a group draw and a knockout draw pay for different things');
   const saveRew = (dom, d, kind, o = {}) => {
     pick(dom, d, kind);
     for (const [id, v] of Object.entries({
-      'r-win': o.win, 'r-qf': o.qf, 'r-p1': o.p1, 'r-p2': o.p2,
-      'r-p3': o.p3, 'r-imp': o.imp, 'r-note': o.note,
+      'r-init': o.init, 'r-win': o.win, 'r-qf': o.qf, 'r-p1': o.p1,
+      'r-p2': o.p2, 'r-p3': o.p3, 'r-imp': o.imp, 'r-note': o.note,
     })) input(dom, $(d, '#' + id), v ?? '');
     click(dom, $(d, '#r-ok'));
   };
@@ -2858,13 +2858,22 @@ group('a group draw and a knockout draw pay for different things');
     pick(dom, d, 'knockout');
     ok('picking knockout moves the mark', on(d, 'knockout') && !on(d, 'group'));
     ok('a quarterfinal rung appears', shows(d, 'qf'));
+    ok('and money for turning up at all', shows(d, 'init'));
     ok('and the third place goes, because a knockout has none', !shows(d, 'p3'));
     ok('its win line is priced per round', $(d, '#r-winlab').textContent === 'Per round',
        $(d, '#r-winlab').textContent);
+    ok('and the improvement line is named for the shape',
+       $(d, '#r-implab').textContent === 'Beat best', $(d, '#r-implab').textContent);
     ok('and it offers its own figures to start from',
-       $(d, '#r-win').placeholder === '10' && $(d, '#r-qf').placeholder === '15',
-       [$(d, '#r-win').placeholder, $(d, '#r-qf').placeholder].join(','));
+       ['init', 'win', 'qf', 'p2', 'p1', 'imp'].map(k => $(d, '#r-' + k).placeholder).join() ===
+         '20,20,30,50,100,30',
+       ['init', 'win', 'qf', 'p2', 'p1', 'imp'].map(k => $(d, '#r-' + k).placeholder).join());
     ok('the ladder is drawn bottom up', $(d, '#r-rows').classList.contains('ko'));
+
+    pick(dom, d, 'group');
+    ok('and back on a group the shared line is named for that shape again',
+       $(d, '#r-implab').textContent === 'Beat last', $(d, '#r-implab').textContent);
+    ok('with the starting money gone with it', !shows(d, 'init'));
   }
 
   {
@@ -2879,9 +2888,11 @@ group('a group draw and a knockout draw pay for different things');
     ok('the line only a group has is emptied in plain sight', $(d, '#r-p3').value === '',
        $(d, '#r-p3').value);
     input(dom, $(d, '#r-qf'), '15');
+    input(dom, $(d, '#r-init'), '20');
     pick(dom, d, 'group');
-    ok('and so is the line only a knockout has', $(d, '#r-qf').value === '',
-       $(d, '#r-qf').value);
+    ok('and so are both lines only a knockout has',
+       $(d, '#r-qf').value === '' && $(d, '#r-init').value === '',
+       [$(d, '#r-qf').value, $(d, '#r-init').value].join(','));
     ok('the shared line is still there', $(d, '#r-p1').value === '60', $(d, '#r-p1').value);
   }
 
@@ -2889,41 +2900,52 @@ group('a group draw and a knockout draw pay for different things');
     // what a knockout scheme reads like, and what it pays
     const { dom, d } = setup();
     openRew(dom, d, 'Autumn Cup');
-    saveRew(dom, d, 'knockout', { win: 10, qf: 15, p1: 50, p2: 30, imp: 5 });
+    saveRew(dom, d, 'knockout', { init: 20, win: 20, qf: 30, p1: 100, p2: 50, imp: 30 });
     ok('the line reads up the ladder, the way the draw is played',
        rewLine(d, 'Autumn Cup') ===
-         '$10 a round · quarterfinal $15 · 2nd $30 · 1st $50 · $5 for beating last count',
+         '$20 to start · $20 a round · quarterfinal $30 · 2nd $50 · 1st $100 · ' +
+         '$30 for beating best count',
        rewLine(d, 'Autumn Cup'));
     ok('the shape is saved with the figures', schemeOf(dom).kind === 'knockout',
        JSON.stringify(schemeOf(dom)));
-    ok('and so is the quarterfinal figure', schemeOf(dom).qf === 15,
+    ok('and so are the two lines only a knockout has',
+       schemeOf(dom).qf === 30 && schemeOf(dom).initial === 20,
        JSON.stringify(schemeOf(dom)));
 
     openRew(dom, d, 'Autumn Cup');
     ok('it opens again on the shape it was written for', on(d, 'knockout'));
-    ok('with the quarterfinal figure in it', $(d, '#r-qf').value === '15', $(d, '#r-qf').value);
+    ok('with both of those figures in it',
+       $(d, '#r-qf').value === '30' && $(d, '#r-init').value === '20',
+       [$(d, '#r-qf').value, $(d, '#r-init').value].join(','));
     click(dom, $(d, '#r-cancel'));
 
     enter(dom, d, 'Autumn Cup');
+    setRes(dom, d, 'Autumn Cup', 'Ian', 'wins', '0');
+    ok('turning up and losing the first round still earns the starting money',
+       paid(d, 'Autumn Cup', 'Ian') === '$20', paid(d, 'Autumn Cup', 'Ian'));
+    ok('and says that is what it was for',
+       why(d, 'Autumn Cup', 'Ian') === 'played $20', why(d, 'Autumn Cup', 'Ian'));
+
     setRes(dom, d, 'Autumn Cup', 'Ian', 'wins', '2');
     setRes(dom, d, 'Autumn Cup', 'Ian', 'place', '5');
     ok('losing the quarterfinal still earns the quarterfinal money',
-       paid(d, 'Autumn Cup', 'Ian') === '$35', paid(d, 'Autumn Cup', 'Ian'));
+       paid(d, 'Autumn Cup', 'Ian') === '$90', paid(d, 'Autumn Cup', 'Ian'));
     ok('and the sum counts rounds, not wins',
-       why(d, 'Autumn Cup', 'Ian') === '2 rounds $20 · quarterfinal $15',
+       why(d, 'Autumn Cup', 'Ian') === 'played $20 · 2 rounds $40 · quarterfinal $30',
        why(d, 'Autumn Cup', 'Ian'));
 
     setRes(dom, d, 'Autumn Cup', 'Ian', 'wins', '4');
     setRes(dom, d, 'Autumn Cup', 'Ian', 'place', '1');
     ok('winning it earns the rung they went through as well as the trophy',
-       paid(d, 'Autumn Cup', 'Ian') === '$105', paid(d, 'Autumn Cup', 'Ian'));
+       paid(d, 'Autumn Cup', 'Ian') === '$230', paid(d, 'Autumn Cup', 'Ian'));
     ok('and says so line by line',
-       why(d, 'Autumn Cup', 'Ian') === '4 rounds $40 · quarterfinal $15 · 1st $50',
+       why(d, 'Autumn Cup', 'Ian') ===
+         'played $20 · 4 rounds $80 · quarterfinal $30 · 1st $100',
        why(d, 'Autumn Cup', 'Ian'));
 
     setRes(dom, d, 'Autumn Cup', 'Ian', 'place', '9');
-    ok('a finish outside the last eight earns none of it',
-       paid(d, 'Autumn Cup', 'Ian') === '$40', paid(d, 'Autumn Cup', 'Ian'));
+    ok('a finish outside the last eight earns none of the quarterfinal money',
+       paid(d, 'Autumn Cup', 'Ian') === '$100', paid(d, 'Autumn Cup', 'Ian'));
     ok('with nothing about a quarterfinal in the sum',
        !why(d, 'Autumn Cup', 'Ian').includes('quarterfinal'), why(d, 'Autumn Cup', 'Ian'));
   }
@@ -2938,7 +2960,8 @@ group('a group draw and a knockout draw pay for different things');
          '$5 a win · 1st $50 · 2nd $30 · 3rd $20 · $5 for beating last count',
        rewLine(d, 'Autumn Cup'));
     ok('and is saved as one', schemeOf(dom).kind === 'group', JSON.stringify(schemeOf(dom)));
-    ok('carrying no quarterfinal figure at all', schemeOf(dom).qf === 0,
+    ok('carrying neither of the knockout figures',
+       schemeOf(dom).qf === 0 && schemeOf(dom).initial === 0,
        JSON.stringify(schemeOf(dom)));
 
     enter(dom, d, 'Autumn Cup');
@@ -2968,9 +2991,12 @@ group('a group draw and a knockout draw pay for different things');
     ok('an unreadable shape is a group draw too',
        reads({ kind: 'sudden death', perWin: 5, places: [50] }).line === '$5 a win · 1st $50',
        reads({ kind: 'sudden death', perWin: 5, places: [50] }).line);
-    ok('a group draw cannot smuggle in a quarterfinal figure',
-       reads({ kind: 'group', perWin: 5, qf: 99 }).line === '$5 a win',
-       reads({ kind: 'group', perWin: 5, qf: 99 }).line);
+    ok('a group draw cannot smuggle in either knockout figure',
+       reads({ kind: 'group', perWin: 5, qf: 99, initial: 99 }).line === '$5 a win',
+       reads({ kind: 'group', perWin: 5, qf: 99, initial: 99 }).line);
+    ok('starting money on its own is a scheme worth showing',
+       reads({ kind: 'knockout', initial: 20 }).line === '$20 to start',
+       reads({ kind: 'knockout', initial: 20 }).line);
     ok('and a knockout drops a third place it has no way to award',
        reads({ kind: 'knockout', perWin: 10, places: [50, 30, 20] }).line ===
          '$10 a round · 2nd $30 · 1st $50',
@@ -2988,13 +3014,14 @@ group('a group draw and a knockout draw pay for different things');
     const { dom, d } = setup();
     const kidRow = [...$$(d, '.rewkid')].find(r => r.textContent.trim().startsWith('Ian'));
     click(dom, kidRow.querySelector('button'));
-    saveRew(dom, d, 'knockout', { win: 10, qf: 15, p1: 50 });
+    saveRew(dom, d, 'knockout', { init: 20, win: 20, qf: 30, p1: 100 });
     ok('a child’s standard can be a knockout one',
        saved(dom).players[0].rewards.kind === 'knockout',
        JSON.stringify(saved(dom).players[0].rewards));
     const line = $(d, '.rewkid .rkline');
     ok('and reads as one in the rewards box',
-       line.textContent === '$10 a round · quarterfinal $15 · 1st $50', line.textContent);
+       line.textContent === '$20 to start · $20 a round · quarterfinal $30 · 1st $100',
+       line.textContent);
   }
 }
 

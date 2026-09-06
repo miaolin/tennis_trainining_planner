@@ -146,19 +146,25 @@ from. Any line can be left blank to drop it.
 
 | Line | Pays |
 | --- | --- |
+| Initial prize | that much for turning up and playing, whatever happens after |
 | Per round | that much for every round won |
 | Quarterfinal | that much for reaching the last eight — a finish of 8th or better |
 | 2nd place | that much for losing the final |
 | 1st place | that much for winning it |
-| Beat last | that much for winning more rounds than last time |
+| Beat best | that much for winning more rounds than last time |
 | Format | free text, e.g. *Red ball, knockout draw* — shown, never paid |
 
-The knockout bonuses **stack**: a child who wins the thing is paid the round
-money, the quarterfinal money — they went through it — and the 1st place money.
-The lines are shown in that order, bottom rung first, the way the draw is
-played. A knockout has no third place to award and a group has no quarterfinal
-rung, so switching shape empties that one line where you can see it go; every
-line the two shapes share keeps whatever you typed.
+The knockout bonuses **stack**: a child who wins the thing is paid the starting
+money, the round money, the quarterfinal money — they went through it — and the
+1st place money. The lines are shown in that order, bottom rung first, the way
+the draw is played.
+
+*Beat best* and *Beat last* are one line under two names, and the rule behind
+both is the same: their most recent earlier tournament. A knockout has two lines
+a group does not — the initial prize and the quarterfinal — and a group has a
+third place a knockout cannot award, so switching shape empties those lines
+where you can see them go; every line the two shapes share keeps whatever you
+typed.
 
 That standard then applies everywhere, and **no tournament repeats it**. A row
 shows a rewards line only when that event pays something different, badged
@@ -174,8 +180,8 @@ Each child who is **entered** or **confirmed** gets a **Wins** and **Place** box
 under the tournament, whether or not it pays anything — how a child did is worth
 recording on its own, and most tournaments pay nothing. Where a scheme does
 apply, the page adds the payout up in front of them: *$55 · 4 wins $20 · 2nd $30
-· beat 3 $5*, or on a knockout *$105 · 4 rounds $40 · quarterfinal $15 · 1st
-$50*. The sum is always shown in full, so a child can see how the number
+· beat 3 $5*, or on a knockout *$230 · played $20 · 4 rounds $80 · quarterfinal
+$30 · 1st $100*. The sum is always shown in full, so a child can see how the number
 was reached. Two children on the same draw are each paid their own way, and a
 tournament that pays nothing simply says nothing about money.
 
@@ -273,11 +279,12 @@ Two places, merged:
   `categories`, `entryDeadline`, `url`, `source` (`sta` / `jttl` / `manual`),
   `provisional`, `note` and `rewards` are optional. A `provisional: true` entry
   is badged as an estimate, and its `note` explains why. A `rewards` object
-  (`kind`, `perWin`, `places`, `qf`, `improve`, `note`) is the weakest
-  suggestion there is: a
+  (`kind`, `initial`, `perWin`, `places`, `qf`, `improve`, `note`) is the
+  weakest suggestion there is: a
   tournament exception set in the browser beats it, and so does the child's own
-  standard. `kind` is `group` or `knockout` and defaults to `group`; `qf` is the
-  quarterfinal bonus and is only read on a knockout.
+  standard. `kind` is `group` or `knockout` and defaults to `group`; `initial`
+  and `qf` are the starting money and the quarterfinal bonus, and are only read
+  on a knockout.
 
 See `findings.md` for the full trace of what each source does and does not
 expose.
