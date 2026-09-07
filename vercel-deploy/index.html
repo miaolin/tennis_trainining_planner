@@ -2753,7 +2753,35 @@ function removePlayer(id){
   // staying on a list of nobody.
   for(const k in state.forKids) setForKids(k, state.forKids[k].filter(x => x !== id));
   if(trainWho === id) trainWho = null;
+  offerToDropOrphans();
   render(); save();
+}
+/* A tournament added for one child and nobody else is left serving nobody the
+   moment that child goes. It is not deleted with them — a tournament is an
+   event in the world, and on a list of two it is as likely the other's — but
+   where nothing at all is left on it, it is offered up here rather than left
+   to be come across later.
+
+   Only rows added by hand: a tournament from the feed is a file in the repo
+   and would be back on the next fetch. And only while a child remains — with
+   nobody left every tournament trivially serves nobody, and offering to clear
+   a whole season because the list is briefly empty is not a kindness. */
+function orphanedTournaments(){
+  if(!state.players.length) return [];
+  return (state.manualMatches || []).filter(m => kidsOnMatch(m).length === 0);
+}
+function offerToDropOrphans(){
+  const orphans = orphanedTournaments();
+  if(!orphans.length) return;
+  const one = orphans.length === 1;
+  const shown = orphans.slice(0, 6).map(m => `\u2022 ${m.name}`).join('\n');
+  const rest = orphans.length > 6 ? `\n\u2026and ${orphans.length - 6} more` : '';
+  if(!window.confirm(
+      `${orphans.length} tournament${one ? '' : 's'} now serve${one ? 's' : ''} nobody:`
+      + `\n\n${shown}${rest}\n\n`
+      + `Delete ${one ? 'it' : 'them'} too? Cancel keeps ${one ? 'it' : 'them'} on the list.`
+      )) return;
+  orphans.forEach(m => dropTournament(m.id));
 }
 
 /* ---- entries ---- */
@@ -3012,13 +3040,18 @@ function addTournament(){
   render(); save();
   return true;
 }
-function removeTournament(id){
-  const m = (state.manualMatches || []).find(x=>x.id===id);
-  if(m && !window.confirm(`Delete “${m.name}”?`)) return;
+// Everything a tournament owns, dropped together. Both the × and the offer
+// made when a child leaves come through here, so neither can forget a piece.
+function dropTournament(id){
   state.manualMatches = state.manualMatches.filter(x=>x.id !== id);
   state.entries = state.entries.filter(e=>e.matchId !== id);
   delete state.rewards[id];
   delete state.forKids[id];
+}
+function removeTournament(id){
+  const m = (state.manualMatches || []).find(x=>x.id===id);
+  if(m && !window.confirm(`Delete “${m.name}”?`)) return;
+  dropTournament(id);
   render(); save();
 }
 

@@ -3127,6 +3127,121 @@ group('beating last time and beating everything are different achievements');
      paid(d, NAMES[0], 'Ian'));
 }
 
+group('a tournament left serving nobody is offered up, not taken');
+{
+  const Y = new Date().getFullYear();
+  const PAST = Y - 1;
+  const rows = d => $$(d, '#setuplist .tourn').map(r => r.querySelector('.tnm').textContent);
+  const kidX = (d, name) =>
+    $$(d, '#kidrow .kx').find(b => b.getAttribute('aria-label') === 'Remove ' + name);
+  // Two confirms now stand between a child and the list: the one that removes
+  // them, and the offer that follows. The tests answer them by turn.
+  const answering = (dom, ...replies) => {
+    const asked = [];
+    dom.window.confirm = msg => { asked.push(msg); return replies[asked.length - 1] ?? true; };
+    return asked;
+  };
+  // Ian is 9 and Ada is 15, so an U10 event fits him alone and a U16 her alone.
+  const setup = () => {
+    const dom = boot();
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    addKid(dom, d, 'Ian', Y - 9);
+    addKid(dom, d, 'Ada', Y - 15);
+    addTourn(dom, d, { name: 'U10 Red Ball Open', start: `${PAST}-03-01`, cat: 'U10' });
+    addTourn(dom, d, { name: 'U16 Junior Masters', start: `${PAST}-06-01`, cat: 'U16' });
+    goSetup(dom, d);
+    return { dom, d };
+  };
+
+  {
+    const { dom, d } = setup();
+    ok('both tournaments are on the list', rows(d).length === 2, rows(d).join(' | '));
+
+    const asked = answering(dom, true, true);
+    click(dom, kidX(d, 'Ian'));
+    ok('removing Ian asks twice', asked.length === 2, asked.length);
+    ok('the second question names what is left serving nobody',
+       asked[1].includes('U10 Red Ball Open') && asked[1].includes('serves nobody'), asked[1]);
+    ok('it does not name the one Ada is still on',
+       !asked[1].includes('U16 Junior Masters'), asked[1]);
+    ok('saying yes takes it', rows(d).join() === 'U16 Junior Masters', rows(d).join(' | '));
+    ok('and it is gone from the file',
+       saved(dom).manualMatches.length === 1, JSON.stringify(saved(dom).manualMatches));
+  }
+
+  {
+    // the offer is an offer
+    const { dom, d } = setup();
+    answering(dom, true, false);
+    click(dom, kidX(d, 'Ian'));
+    ok('saying no keeps it', rows(d).length === 2, rows(d).join(' | '));
+    ok('and the child still goes', saved(dom).players.length === 1,
+       JSON.stringify(saved(dom).players.map(p => p.name)));
+    ok('the row it left behind is still there to delete by hand',
+       !!$$(d, '#setuplist .tourn')
+          .find(r => r.textContent.includes('U10 Red Ball Open'))
+          .querySelector('.tdel'));
+  }
+
+  {
+    // backing out of the first question changes nothing at all
+    const { dom, d } = setup();
+    const asked = answering(dom, false);
+    click(dom, kidX(d, 'Ian'));
+    ok('cancelling the removal never reaches the offer', asked.length === 1, asked.length);
+    ok('the child stays', saved(dom).players.length === 2);
+    ok('and so do both tournaments', rows(d).length === 2, rows(d).join(' | '));
+  }
+
+  {
+    // A recorded decision holds a tournament on the list on its own — even
+    // Ada's, on an event three age groups below her, which is exactly the case
+    // the age rule alone would throw away.
+    const { dom } = setup();
+    const seed = saved(dom);
+    const u10 = seed.manualMatches.find(m => m.name.includes('U10')).id;
+    const ada = seed.players.find(p => p.name === 'Ada').id;
+    seed.entries = [{ matchId: u10, playerId: ada, status: 'confirmed' }];
+    const dom2 = boot({ [KEY]: JSON.stringify(seed) });
+    const d2 = dom2.window.document;
+    goSetup(dom2, d2);
+    const asked = answering(dom2, true, true);
+    click(dom2, kidX(d2, 'Ian'));
+    ok('a tournament Ada has a status on is never offered up', asked.length === 1, asked.length);
+    ok('and stays on the list', rows(d2).length === 2, rows(d2).join(' | '));
+  }
+
+  {
+    // with nobody left, everything trivially serves nobody — so nothing is asked
+    const { dom, d } = setup();
+    answering(dom, true, false);            // Ada goes; her U16 event is kept
+    click(dom, kidX(d, 'Ada'));
+    const asked = answering(dom, true, true);
+    click(dom, kidX(d, 'Ian'));
+    ok('removing the last child asks only about the child', asked.length === 1, asked.length);
+    ok('and leaves the whole season standing for whoever comes next',
+       saved(dom).manualMatches.length === 2,
+       JSON.stringify(saved(dom).manualMatches.map(m => m.name)));
+    ok('with nobody on the list at all', saved(dom).players.length === 0);
+  }
+
+  {
+    // a scheme and its entries go with the row, exactly as the × would take them
+    const { dom, d } = setup();
+    const seed = saved(dom);
+    const u10 = seed.manualMatches.find(m => m.name.includes('U10')).id;
+    seed.rewards = { [u10]: { kind: 'group', perWin: 5 } };
+    const dom2 = boot({ [KEY]: JSON.stringify(seed) });
+    const d2 = dom2.window.document;
+    goSetup(dom2, d2);
+    answering(dom2, true, true);
+    click(dom2, kidX(d2, 'Ian'));
+    ok('the scheme goes with the tournament it was written for',
+       !(u10 in saved(dom2).rewards), JSON.stringify(saved(dom2).rewards));
+  }
+}
+
 group('a suggested scheme is the weakest one');
 {
   const Y = new Date().getFullYear();

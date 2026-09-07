@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.13.0** · [Changelog](CHANGELOG.md)
+**Version 2.14.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -228,6 +228,16 @@ of its own, and nothing on it is ever read-only.
   statement, and it is changed on Tournaments.
 - A tournament nobody is on says **on no one's list** on its row. Press a name to
   fix it.
+- **Removing a child does not remove tournaments.** A tournament is an event in
+  the world and belongs to the family, not to a child — on a list of two it is as
+  likely the other's. What goes with them is their entries, their statuses and
+  their results, and any list narrowed to them widens back to the age rule.
+  Where that leaves a hand-added tournament serving nobody at all, you are asked
+  whether to delete those too, by name; cancelling keeps them. Rows from the STA
+  feed are never offered, since they would return on the next fetch, and nothing
+  is offered when the last child goes — with an empty list every tournament
+  trivially serves nobody, and a season should outlast a list being briefly
+  empty.
 - No statuses, no rewards, no results here — those belong to a child, on their
   own tab under Tournaments.
 
