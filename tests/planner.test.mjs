@@ -1454,39 +1454,61 @@ group('adding tournaments');
   ok('delete removes it', $$(d, '#tournlist .tourn').length === 1, $$(d, '#tournlist .tourn').length);
 }
 
-group('entry status per kid');
+group('who is playing each tournament');
 {
+  // Being on a tournament is the whole of the statement — there is no entry to
+  // confirm on top of it — so there is one state to set, and Setup is where it
+  // is set: a child's own tab lists only what they are on, and taking them off
+  // there would take the row and the chip to undo it with it.
   const dom = boot();
   const d = dom.window.document;
   click(dom, $(d, '#nav-matches'));
   addKid(dom, d, 'Mia');
   addTourn(dom, d, { name: 'Champs', start: offset(60) });   // while still editable
   addKid(dom, d, 'Leo');
-  // A second child opens on Everyone, which changes nothing. The status cycle
-  // lives on a child's tab.
   click(dom, $$(d, '#whofilter button[data-who]')[1]);
 
-  ok('one join button per kid', $$(d, '#tournlist .join').length === 2, $$(d, '#tournlist .join').length);
-  ok('no status initially', !$(d, '#tournlist .join').className.includes('s-'));
+  ok('the tournaments view says who is playing', $$(d, '#tournlist .join').length === 2,
+     $$(d, '#tournlist .join').length);
+  ok('and states it rather than offering it',
+     $$(d, '#tournlist .join').every(c => c.tagName === 'SPAN'),
+     $$(d, '#tournlist .join').map(c => c.tagName).join());
+  ok('both children start on it, the age rule having nothing against either',
+     $$(d, '#tournlist .join').every(c => c.className.includes('on')));
+  ok('and both are counted in the header', $(d, '#restdays').textContent === '2',
+     $(d, '#restdays').textContent);
 
-  click(dom, $(d, '#tournlist .join'));
-  ok('first click -> planned', $(d, '#tournlist .join').className.includes('s-planned'), $(d, '#tournlist .join').className);
-  click(dom, $(d, '#tournlist .join'));
-  ok('second -> entered', $(d, '#tournlist .join').className.includes('s-entered'), $(d, '#tournlist .join').className);
-  ok('entered counts in the header', $(d, '#restdays').textContent === '1', $(d, '#restdays').textContent);
-  click(dom, $(d, '#tournlist .join'));
-  ok('third -> confirmed', $(d, '#tournlist .join').className.includes('s-confirmed'), $(d, '#tournlist .join').className);
-  click(dom, $(d, '#tournlist .join'));
-  ok('fourth -> skipped', $(d, '#tournlist .join').className.includes('s-skipped'), $(d, '#tournlist .join').className);
-  click(dom, $(d, '#tournlist .join'));
-  ok('fifth clears it', !$(d, '#tournlist .join').className.includes('s-'), $(d, '#tournlist .join').className);
+  goSetup(dom, d);
+  const chipFor = name => $$(d, '#setuplist .join')
+    .find(b => b.textContent.trim() === name);
+  ok('Setup offers the change', chipFor('Mia').tagName === 'BUTTON');
+  click(dom, chipFor('Mia'));
+  ok('taking a child off turns the chip off', !chipFor('Mia').className.includes('on'),
+     chipFor('Mia').className);
+  ok('and the other is left on it', chipFor('Leo').className.includes('on'));
+  ok('the list it wrote is stored', saved(dom).forKids && Object.keys(saved(dom).forKids).length === 1,
+     JSON.stringify(saved(dom).forKids));
 
-  click(dom, $(d, '#tournlist .join'));
-  ok('entry persisted', saved(dom).entries.length === 1, saved(dom).entries.length);
+  click(dom, $(d, '#nav-matches'));
+  click(dom, $$(d, '#whofilter button[data-who]')[0]);      // Everyone
+  ok('the tournaments view drops her from the row',
+     $$(d, '#tournlist .join').length === 1, $$(d, '#tournlist .join').length);
+  ok('and the header counts one', $(d, '#restdays').textContent === '1',
+     $(d, '#restdays').textContent);
+  click(dom, $$(d, '#whofilter button[data-who]')[1]);      // Mia
+  ok('and it is off her season entirely', $$(d, '#tournlist .tourn').length === 0,
+     $$(d, '#tournlist .tourn').length);
+
   const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
   const d2 = dom2.window.document;
   click(dom2, $(d2, '#nav-matches'));
-  ok('entry survives reload', $(d2, '#tournlist .join').className.includes('s-planned'), $(d2, '#tournlist .join').className);
+  ok('it survives a reload', $$(d2, '#tournlist .join').length === 1,
+     $$(d2, '#tournlist .join').length);
+
+  goSetup(dom2, d2);
+  const back = () => $$(d2, '#setuplist .join').find(b => b.textContent.trim() === 'Mia');
+  click(dom2, back());
+  ok('and putting her back on works', back().className.includes('on'), back().className);
 }
 
 group('season checks');
@@ -1502,19 +1524,19 @@ group('season checks');
      $(d, '#mnotes').textContent.slice(0, 120));
   ok('the row is marked', $(d, '#tournlist .tourn').classList.contains('soon'));
 
-  // marking as skipping should silence it
-  click(dom, $(d, '#tournlist .join'));  // planned
-  click(dom, $(d, '#tournlist .join'));  // entered
-  ok('entering it clears the deadline warning',
+  // taking the child off it should silence it — there is nothing else left to
+  // decide, being on it is the whole of the answer
+  goSetup(dom, d);
+  click(dom, $(d, '#setuplist .tourn .forpick'));
+  click(dom, $(d, '#nav-matches'));
+  ok('taking her off clears the deadline warning',
      !$(d, '#mnotes').textContent.includes('Entry deadline closing'),
      $(d, '#mnotes').textContent.slice(0, 120));
 
-  // overlapping tournaments for the same kid
+  // overlapping tournaments for the same kid — she is on both by the age rule,
+  // having no birth year to keep her off either
   addTourn(dom, d, { name: 'Clash A', start: offset(90), end: offset(93) });
   addTourn(dom, d, { name: 'Clash B', start: offset(92), end: offset(95) });
-  const joins = $$(d, '#tournlist .join');
-  click(dom, joins[joins.length - 2]);
-  click(dom, joins[joins.length - 1]);
   ok('overlapping tournaments are flagged', $(d, '#mnotes').textContent.includes('Overlapping tournaments'),
      $(d, '#mnotes').textContent.slice(0, 200));
 
@@ -1553,8 +1575,8 @@ group('corrupt part-2 state');
   const cases = [
     ['players not an array', { ...base, players: 'nope' }],
     ['player missing a name', { ...base, players: [{ id: 'p1' }] }],
-    ['entry with unknown status', { ...base, players: [{ id: 'p1', name: 'Mia' }], entries: [{ matchId: 'm1', playerId: 'p1', status: 'vibes' }] }],
-    ['entry for a deleted kid', { ...base, players: [], entries: [{ matchId: 'm1', playerId: 'ghost', status: 'entered' }] }],
+    ['entry left over from the status cycle', { ...base, players: [{ id: 'p1', name: 'Mia' }], entries: [{ matchId: 'm1', playerId: 'p1', status: 'vibes' }] }],
+    ['entry for a deleted kid', { ...base, players: [], entries: [{ matchId: 'm1', playerId: 'ghost', wins: 2 }] }],
     ['manual match with no date', { ...base, manualMatches: [{ id: 'm1', name: 'X' }] }],
     ['manual match not an object', { ...base, manualMatches: [42, null, 'x'] }],
   ];
@@ -1565,7 +1587,11 @@ group('corrupt part-2 state');
     ok(`${label} -> page still renders`, realDays(d) === 14 && $(d, '#tournlist') !== null);
   }
   const dd = boot({ [KEY]: JSON.stringify(cases[2][1]) }).window.document;
-  ok('bad status dropped', !JSON.stringify(dd.defaultView.localStorage.getItem(KEY)).includes('vibes'));
+  // An entry is a result now. One that records nothing is not kept, and the
+  // status it used to carry is not read on the way in.
+  ok('a status is not stored', !JSON.stringify(dd.defaultView.localStorage.getItem(KEY)).includes('vibes'));
+  ok('and an entry recording nothing is dropped',
+     JSON.parse(dd.defaultView.localStorage.getItem(KEY)).entries.length === 0);
   const de = boot({ [KEY]: JSON.stringify(cases[3][1]) });
   ok('orphaned entry dropped', saved(de).entries.length === 0, saved(de).entries.length);
   const df = boot({ [KEY]: JSON.stringify(cases[4][1]) });
@@ -1888,7 +1914,7 @@ group('per-kid eligibility');
     return { dom, d };
   };
   const rowNamed = (d, text) => $$(d, '#tournlist .tourn').find(r => r.textContent.includes(text));
-  const kidsOn = row => [...row.querySelectorAll('.join')].map(b => b.textContent.replace(/·.*/, '').trim());
+  const kidsOn = row => [...row.querySelectorAll('.join')].map(b => b.textContent.trim());
 
   const { dom, d } = setup();
   ok('chips show each age group', $(d, '#kidrow').textContent.includes('U10') &&
@@ -1915,16 +1941,28 @@ group('per-kid eligibility');
   ok('an event with no age group offers everyone',
      kidsOn(rowNamed(d, 'Club Open Day')).join(',') === 'Olivia,Ian', kidsOn(rowNamed(d, 'Club Open Day')));
 
-  // a recorded status must survive even when the rules would hide the kid
+  // The age rule is a guess and a stated list beats it: naming the child is
+  // what puts them on an event their age would have kept them off.
   const seed = JSON.parse(dom.window.localStorage.getItem(KEY));
   const u10 = seed.manualMatches.find(m => m.name.includes('U10'));
   const ian = seed.players.find(p => p.name === 'Ian');
-  seed.entries.push({ matchId: u10.id, playerId: ian.id, status: 'entered' });
+  const olivia = seed.players.find(p => p.name === 'Olivia');
+  seed.forKids = { [u10.id]: [olivia.id, ian.id] };
   const dom2 = boot({ [KEY]: JSON.stringify(seed) });
   const d2 = dom2.window.document;
   click(dom2, $(d2, '#nav-matches'));
-  ok('a kid with a recorded status is never hidden',
+  ok('a kid named on a tournament is on it whatever their age',
      kidsOn(rowNamed(d2, 'U10 Red')).includes('Ian'), kidsOn(rowNamed(d2, 'U10 Red')));
+
+  // and an entry alone no longer does: a result is what came back from an
+  // afternoon, not a claim about who is playing
+  const seedB = JSON.parse(dom.window.localStorage.getItem(KEY));
+  seedB.entries.push({ matchId: u10.id, playerId: ian.id, wins: 2 });
+  const dom2b = boot({ [KEY]: JSON.stringify(seedB) });
+  const d2b = dom2b.window.document;
+  click(dom2b, $(d2b, '#nav-matches'));
+  ok('a stored result does not put a kid on a tournament',
+     !kidsOn(rowNamed(d2b, 'U10 Red')).includes('Ian'), kidsOn(rowNamed(d2b, 'U10 Red')));
 
   // kids without a birth year are shown everywhere
   const dom3 = boot();
@@ -2064,7 +2102,7 @@ group('backup export / import');
     click(dom, $(d, '#nav-matches'));
     addKid(dom, d, 'Olivia', Y - 9);
     addTourn(dom, d, { name: 'Champs', start: `${Y}-11-02` });
-    click(dom, $(d, '#tournlist .join'));
+    change(dom, $(d, '#tournlist .rwin'), '3');
     ok('data bar updates', /1 kid · 1 tournament · 1 entry/.test($(d, '#dstat').textContent),
        $(d, '#dstat').textContent);
 
@@ -2094,8 +2132,8 @@ group('backup export / import');
     click(dom2, $(d2, '#nav-matches'));
     ok('restore brings the kid back', $$(d2, '.kid').length === 1, $$(d2, '.kid').length);
     ok('restore brings the tournament back', $$(d2, '#tournlist .tourn').length === 1, $$(d2, '#tournlist .tourn').length);
-    ok('restore brings the entry status back', $(d2, '#tournlist .join').className.includes('s-planned'),
-       $(d2, '#tournlist .join').className);
+    ok('restore brings the result back',
+       $(d2, '#tournlist .rwin').value === '3', $(d2, '#tournlist .rwin').value);
     ok('restore reports what it did', $(d2, '#datanote').textContent.includes('Restored'),
        $(d2, '#datanote').textContent);
     ok('restore names the backup date', $(d2, '#datanote').textContent.includes('2026-08-07'),
@@ -2234,22 +2272,18 @@ group('year calendar');
     click(dom, $(d, '#nav-calendar'));
     while ($(d, '#cal-year').textContent !== '2026') click(dom, $(d, '#cal-prev'));
     ok('tournament days marked', $$(d, '.cell.ev').length === 3, $$(d, '.cell.ev').length);
-    ok('not marked as entered yet', $$(d, '.cell.ev.ent').length === 0);
     ok('day carries a tooltip', $(d, '.cell.ev').getAttribute('title').includes('Champs'),
        $(d, '.cell.ev').getAttribute('title'));
 
-    click(dom, $(d, '#nav-matches'));
-    click(dom, $(d, '#tournlist .join'));   // planned
-    click(dom, $(d, '#tournlist .join'));   // entered
-    click(dom, $(d, '#nav-calendar'));
-    while ($(d, '#cal-year').textContent !== '2026') click(dom, $(d, '#cal-prev'));
-    ok('entered tournaments highlighted', $$(d, '.cell.ev.ent').length === 3,
+    // Mia has no birth year, so the age rule puts her on it — and being on it
+    // is the whole of what "entered" ever meant.
+    ok('a tournament a child is on is highlighted', $$(d, '.cell.ev.ent').length === 3,
        $$(d, '.cell.ev.ent').length);
     ok('the kid now has a dot on those days',
        $$(d, '.cell.ev .dots i:not(.none)').length === 3,
        $$(d, '.cell.ev .dots i:not(.none)').length);
-    ok('tooltip names the kid and status',
-       $(d, '.cell.ev').getAttribute('title').includes('Mia: Entered'),
+    ok('tooltip names who is playing',
+       $(d, '.cell.ev').getAttribute('title').includes('Playing: Mia'),
        $(d, '.cell.ev').getAttribute('title'));
 
     // a tournament inside a school holiday is flagged in the holiday list
@@ -2279,14 +2313,13 @@ group('year calendar');
     addTourn(dom, d, { name: 'Only Mia', start: '2026-04-20' });
     addTourn(dom, d, { name: 'Nobody', start: '2026-04-25' });
 
-    const rowJoins = n => $$(d, '#tournlist .tourn')[n].querySelectorAll('.join');
-    click(dom, rowJoins(0)[0]);           // Mia planned on "Both go"
-    click(dom, rowJoins(0)[1]);           // Leo planned on "Both go"
-    click(dom, rowJoins(1)[0]);           // Mia planned on "Only Mia"
-    click(dom, rowJoins(2)[1]);           // Leo on "Nobody"...
-    click(dom, rowJoins(2)[1]);
-    click(dom, rowJoins(2)[1]);
-    click(dom, rowJoins(2)[1]);           // ...cycled to skipped
+    // Both start on all three, neither having a birth year. Who is playing what
+    // is set on Setup, so the trimming is done there.
+    goSetup(dom, d);
+    const rowChips = i => $$(d, '#setuplist .tourn')[i].querySelectorAll('.forpick');
+    click(dom, rowChips(1)[1]);           // Leo off "Only Mia"
+    click(dom, rowChips(2)[0]);           // and both off "Nobody"
+    click(dom, rowChips(2)[1]);
 
     click(dom, $(d, '#nav-calendar'));
     while ($(d, '#cal-year').textContent !== '2026') click(dom, $(d, '#cal-prev'));
@@ -2301,7 +2334,7 @@ group('year calendar');
     ok('a day nobody is going to shows the "nobody yet" dot',
        cells[2].querySelectorAll('.dots i.none').length === 1,
        cells[2].querySelectorAll('.dots i').length);
-    ok('a skipped kid gets no dot',
+    ok('a kid taken off gets no dot',
        cells[2].querySelectorAll('.dots i:not(.none)').length === 0,
        cells[2].querySelectorAll('.dots i:not(.none)').length);
     ok('kid dots use each kid colour',
@@ -2403,17 +2436,22 @@ group('tournament rewards');
     addTourn(dom, d, { name: 'U10 Red Ball Series Two', start: `${PAST}-06-01` });
     return { dom, d };
   };
-  const enter = (dom, d, t) => {
-    click(dom, rowNamed(d, t).querySelector('.join'));   // planned
-    click(dom, rowNamed(d, t).querySelector('.join'));   // entered
-  };
+  // Being on a tournament is what says a child is playing it, and the age rule
+  // has already put them on these — so there is nothing left to enter. The
+  // helper stays as the place that would say otherwise if that changed.
+  const enter = () => {};
 
   {
     const { dom, d } = setup();
     ok('a tournament with no scheme of its own is not marked as an exception',
        !isException(d, 'Series One'));
     ok('and shows no rewards line', rewLine(d, 'Series One') === '');
-    ok('and no result boxes', !rowNamed(d, 'Series One').querySelector('.results'));
+    // How a child did is worth recording whether or not it pays, so the boxes
+    // follow the list and only the money follows the scheme.
+    ok('but result boxes all the same', !!rowNamed(d, 'Series One').querySelector('.results'));
+    ok('saying nothing about money',
+       !rowNamed(d, 'Series One').querySelector('.rpay') &&
+       !rowNamed(d, 'Series One').textContent.includes('No result yet'));
 
     openRew(dom, d, 'Series One');
     ok('the dialog says it is for this tournament alone',
@@ -2432,11 +2470,8 @@ group('tournament rewards');
     ok('a scheme on one tournament does not leak onto the other',
        rewLine(d, 'Series Two') === '', rewLine(d, 'Series Two'));
 
-    // result boxes only once a kid is actually in it
-    ok('a paying tournament nobody entered has no result boxes',
-       !rowNamed(d, 'Series One').querySelector('.results'));
-    enter(dom, d, 'Series One');
-    ok('entering the kid opens a result box', !!resRow(d, 'Series One', 'Ian'));
+    // once it pays, a box with nothing in it is money not worked out yet
+    ok('the kid on it has a result box', !!resRow(d, 'Series One', 'Ian'));
     ok('and it says there is no result yet',
        !!resRow(d, 'Series One', 'Ian').querySelector('.rtodo'));
 
@@ -2631,11 +2666,10 @@ group('rewards belong to the child');
     const el = r && r.querySelector('.rpay');
     return el ? el.textContent : null;
   };
-  const enter = (dom, d, t, i) => {
-    tabTo(dom, d, i === 0 ? 'Ian' : 'Olivia');
-    click(dom, [...rowNamed(d, t).querySelectorAll('.join')][i]);
-    click(dom, [...rowNamed(d, t).querySelectorAll('.join')][i]);
-  };
+  // Being on a tournament is what says a child is playing it, and the age rule
+  // has already put them on these — so there is nothing left to enter. The
+  // helper stays as the place that would say otherwise if that changed.
+  const enter = (dom, d, t, i) => tabTo(dom, d, i === 0 ? 'Ian' : 'Olivia');
   const setup = () => {
     const dom = boot();
     const d = dom.window.document;
@@ -2840,10 +2874,10 @@ group('a group draw and a knockout draw pay for different things');
     addTourn(dom, d, { name: 'Autumn Cup', start: `${PAST}-03-01` });
     return { dom, d };
   };
-  const enter = (dom, d, t) => {
-    click(dom, rowNamed(d, t).querySelector('.join'));   // planned
-    click(dom, rowNamed(d, t).querySelector('.join'));   // entered
-  };
+  // Being on a tournament is what says a child is playing it, and the age rule
+  // has already put them on these — so there is nothing left to enter. The
+  // helper stays as the place that would say otherwise if that changed.
+  const enter = () => {};
   const schemeOf = dom => Object.values(saved(dom).rewards)[0];
 
   {
@@ -3069,10 +3103,10 @@ group('beating last time and beating everything are different achievements');
     const el = resRow(d, t, kid).querySelector('.rwhy');
     return el ? el.textContent : '';
   };
-  const enter = (dom, d, t) => {
-    click(dom, rowNamed(d, t).querySelector('.join'));   // planned
-    click(dom, rowNamed(d, t).querySelector('.join'));   // entered
-  };
+  // Being on a tournament is what says a child is playing it, and the age rule
+  // has already put them on these — so there is nothing left to enter. The
+  // helper stays as the place that would say otherwise if that changed.
+  const enter = () => {};
 
   // Three events in order, each paying $5 a win, $5 for beating last time and
   // $20 for beating everything before it.
@@ -3195,20 +3229,20 @@ group('a tournament left serving nobody is offered up, not taken');
   }
 
   {
-    // A recorded decision holds a tournament on the list on its own — even
-    // Ada's, on an event three age groups below her, which is exactly the case
-    // the age rule alone would throw away.
+    // Naming a child holds a tournament on the list on its own — even Ada's, on
+    // an event three age groups below her, which is exactly the case the age
+    // rule alone would throw away.
     const { dom } = setup();
     const seed = saved(dom);
     const u10 = seed.manualMatches.find(m => m.name.includes('U10')).id;
     const ada = seed.players.find(p => p.name === 'Ada').id;
-    seed.entries = [{ matchId: u10, playerId: ada, status: 'confirmed' }];
+    seed.forKids = { [u10]: [ada] };
     const dom2 = boot({ [KEY]: JSON.stringify(seed) });
     const d2 = dom2.window.document;
     goSetup(dom2, d2);
     const asked = answering(dom2, true, true);
     click(dom2, kidX(d2, 'Ian'));
-    ok('a tournament Ada has a status on is never offered up', asked.length === 1, asked.length);
+    ok('a tournament Ada is named on is never offered up', asked.length === 1, asked.length);
     ok('and stays on the list', rows(d2).length === 2, rows(d2).join(' | '));
   }
 
@@ -3449,8 +3483,9 @@ group('Everyone changes nothing');
     ok('no editing a standard', !$(d, '.rewkid button'));
     ok('no Rewards on a row', !$(d, '#tournlist .tourn .trewbtn'));
     ok('no deleting a tournament from here', !$(d, '#tournlist .tourn .tdel'));
-    ok('the status buttons do not take a click',
-       $$(d, '#tournlist .tourn .join').every(b => b.disabled), $$(d, '#tournlist .tourn .join').length);
+    ok('who is playing is stated, never offered',
+       $$(d, '#tournlist .tourn .join').every(c => c.tagName === 'SPAN'),
+       $$(d, '#tournlist .tourn .join').map(c => c.tagName).join());
 
     // but the season itself is still legible
     ok('both standards are still listed', $$(d, '#rewrow .rewkid').length === 2,
@@ -3458,22 +3493,21 @@ group('Everyone changes nothing');
     ok('and the tournament is still there', $$(d, '#tournlist .tourn').length === 1);
     ok('and the season check still reads', !$(d, '#checksbox').hidden);
 
-    // clicking a status on Everyone must not sneak a change through
-    const before = JSON.stringify(saved(dom).entries);
+    // clicking a chip on Everyone must not sneak a change through
+    const before = JSON.stringify(saved(dom).forKids || {});
     click(dom, $(d, '#tournlist .tourn .join'));
-    ok('a click on a locked status changes nothing',
-       JSON.stringify(saved(dom).entries) === before, saved(dom).entries);
+    ok('a click on a locked chip changes nothing',
+       JSON.stringify(saved(dom).forKids || {}) === before, saved(dom).forKids);
 
     // and a child's tab hands it all back
     click(dom, tabs(d)[1]);
     ok('a child’s tab edits their standard again', !!$(d, '.rewkid button'));
-    ok('and works the row again',
-       !!$(d, '#tournlist .tourn .trewbtn') && !$(d, '#tournlist .tourn .join').disabled);
+    ok('and works the row again', !!$(d, '#tournlist .tourn .trewbtn'));
     ok('and no lock line on a child’s tab', $(d, '#wholock').hidden);
 
     // the header line has to describe the tab you are on
     ok('a child’s tab keeps the original line',
-       $(d, '#sub').textContent.includes('Click a child on a row'), $(d, '#sub').textContent);
+       $(d, '#sub').textContent.includes('Change who one is for on Setup'), $(d, '#sub').textContent);
     click(dom, tabs(d)[0]);
     ok('Everyone says to pick a child instead',
        $(d, '#sub').textContent.includes('Pick a child above'), $(d, '#sub').textContent);
@@ -3483,9 +3517,8 @@ group('Everyone changes nothing');
     ok('Setup is the view on show', $(d, '#view-setup').classList.contains('on'));
     ok('and the tournaments page is not', !$(d, '#view-matches').classList.contains('on'));
     ok('its list offers a delete', !!$(d, '#setuplist .tourn .tdel'));
-    ok('but no rewards, statuses or results there',
-       !$(d, '#setuplist .tourn .trewbtn') && !$(d, '#setuplist .tourn .join:not(.forpick)') &&
-       !$(d, '#setuplist .tourn .res'));
+    ok('but no rewards or results there',
+       !$(d, '#setuplist .tourn .trewbtn') && !$(d, '#setuplist .tourn .res'));
     ok('what it does carry is who the tournament is for',
        $$(d, '#setuplist .tourn .forpick').length === 2,
        $$(d, '#setuplist .tourn .forpick').length);
@@ -3755,16 +3788,19 @@ group('Setup is a view of its own');
   ok('its list shows every tournament, whoever can enter it',
      $$(d, '#setuplist .tourn').length === 1, $$(d, '#setuplist .tourn').length);
   ok('with a delete', !!$(d, '#setuplist .tourn .tdel'));
-  ok('and no statuses, rewards or results',
-     !$(d, '#setuplist .join:not(.forpick)') && !$(d, '#setuplist .trewbtn') && !$(d, '#setuplist .res'));
-  ok('only who it is for', $$(d, '#setuplist .forpick').length === 2, $$(d, '#setuplist .forpick').length);
+  ok('and no rewards or results',
+     !$(d, '#setuplist .trewbtn') && !$(d, '#setuplist .res'));
+  ok('only who it is for, and it can be changed',
+     $$(d, '#setuplist .forpick').length === 2 &&
+     $$(d, '#setuplist .forpick').every(b => b.tagName === 'BUTTON'),
+     $$(d, '#setuplist .forpick').length);
 
   // The tournaments page keeps the season and loses the setting up.
   click(dom, $(d, '#nav-matches'));
   ok('the strip is Everyone and the children, nothing more',
      $$(d, '#whofilter button[data-who]').length === 3,
      $$(d, '#whofilter button[data-who]').map(b => b.textContent.trim()).join('|'));
-  ok('the row has statuses', !!$(d, '#tournlist .tourn .join'));
+  ok('the row says who is playing', !!$(d, '#tournlist .tourn .join'));
   ok('but no delete', !$(d, '#tournlist .tourn .tdel'));
 }
 
@@ -3833,7 +3869,7 @@ group('an age cap written any of the ways it is written');
 {
   const Y = new Date().getFullYear();
   const rowNamed = (d, t) => $$(d, '#tournlist .tourn').find(r => r.textContent.includes(t));
-  const kidsOn = row => [...row.querySelectorAll('.join')].map(b => b.textContent.replace(/·.*/, '').trim());
+  const kidsOn = row => [...row.querySelectorAll('.join')].map(b => b.textContent.trim());
 
   const dom = boot();
   const d = dom.window.document;
@@ -3868,7 +3904,7 @@ group('a year in the title is not an age cap');
 {
   const Y = new Date().getFullYear();
   const rowNamed = (d, t) => $$(d, '#tournlist .tourn').find(r => r.textContent.includes(t));
-  const kidsOn = row => [...row.querySelectorAll('.join')].map(b => b.textContent.replace(/·.*/, '').trim());
+  const kidsOn = row => [...row.querySelectorAll('.join')].map(b => b.textContent.trim());
 
   const dom = boot();
   const d = dom.window.document;
@@ -3978,14 +4014,20 @@ group('every child ticked stores nothing');
   ok('no list is written', Object.keys(saved(dom).forKids || {}).length === 0,
      JSON.stringify(saved(dom).forKids));
 
-  // unticking everyone is the same as saying nothing, not a tournament for
-  // nobody — one that appeared on no tab at all would be unreachable
+  // Unticking everyone is a real answer — nobody is playing this one — because
+  // being on a tournament is now the whole of what says a child is playing it.
+  // It appears on no child's tab, but Setup lists every tournament there is, so
+  // it is never lost.
   addTournFor(dom, d, { name: 'For nobody', start: offset(41) }, []);
-  ok('unticking everyone stores nothing either',
-     Object.keys(saved(dom).forKids || {}).length === 0, JSON.stringify(saved(dom).forKids));
+  ok('unticking everyone says nobody, and is stored',
+     JSON.stringify(Object.values(saved(dom).forKids)) === '[[]]',
+     JSON.stringify(saved(dom).forKids));
   goSetup(dom, d);
-  ok('and both are still on both lists', forChips(d).filter(b => b.className.includes('on')).length === 4,
+  ok('so only the first tournament has anyone on it',
+     forChips(d).filter(b => b.className.includes('on')).length === 2,
      forChips(d).filter(b => b.className.includes('on')).length);
+  ok('and the empty one says so',
+     $$(d, '#setuplist .tourn').filter(r => r.querySelector('.nokid')).length === 1);
 }
 
 group('a tournament on nobody’s list says so');
@@ -4053,23 +4095,32 @@ group('an entry outranks the list');
   addKid(dom, d, 'Ian');
   addTournFor(dom, d, { name: 'Club Meet', start: offset(40) });
 
-  // Olivia is entered, so she stays on it whatever the list says
+  // Olivia has a result on it. Taking her off is still allowed — as often a
+  // mis-click as a change of plan — so the afternoon is kept rather than
+  // deleted, and putting her back brings it with her.
   click(dom, $(d, '#nav-matches'));
   const olivia = saved(dom).players.find(p => p.name === 'Olivia').id;
   goTab(dom, d, olivia);
-  click(dom, $(d, '#tournlist .join'));
-  ok('she is planned', saved(dom).entries.length === 1);
+  change(dom, $(d, '#tournlist .rwin'), '4');
+  ok('her result is stored', saved(dom).entries.length === 1, saved(dom).entries.length);
 
   goSetup(dom, d);
-  const hers = forChips(d).find(b => b.dataset.p === olivia);
-  ok('her chip is fixed on', hers.className.includes('on') && hers.disabled);
-  ok('and says where to change it', hers.title.includes('Tournaments'), hers.title);
+  const hers = () => forChips(d).find(b => b.dataset.p === olivia);
+  ok('her chip is on and pressable', hers().className.includes('on') && !hers().disabled);
 
-  click(dom, hers);
-  ok('clicking it does nothing', Object.keys(saved(dom).forKids || {}).length === 0,
-     JSON.stringify(saved(dom).forKids));
+  click(dom, hers());
+  ok('pressing it takes her off', !hers().className.includes('on'), hers().className);
+  ok('and the result is kept, not deleted', saved(dom).entries.length === 1,
+     JSON.stringify(saved(dom).entries));
   goTab(dom, d, olivia);
-  ok('she still has the tournament', $$(d, '#tournlist .tourn').length === 1);
+  ok('the tournament is off her season', $$(d, '#tournlist .tourn').length === 0,
+     $$(d, '#tournlist .tourn').length);
+
+  goSetup(dom, d);
+  click(dom, hers());
+  goTab(dom, d, olivia);
+  ok('putting her back brings the afternoon with her',
+     $(d, '#tournlist .rwin').value === '4', $(d, '#tournlist .rwin').value);
 }
 
 group('a child who is not on it has no deadline to miss');
@@ -4298,11 +4349,7 @@ group('results do not wait on rewards');
   addTourn(dom, d, { name: 'Club Meet', start: `${Y}-03-07` });
   click(dom, $(d, '#nav-matches'));
 
-  ok('nothing to record before he is in it', !resOf(d, 'Club Meet', 'Ian'));
-  click(dom, $(d, '#tournlist .join'));            // planned
-  ok('planned is not being in it either', !resOf(d, 'Club Meet', 'Ian'));
-  click(dom, $(d, '#tournlist .join'));            // entered
-  ok('entered, and the boxes are there with nothing set to pay',
+  ok('he is on it, so the boxes are there with nothing set to pay',
      !!resOf(d, 'Club Meet', 'Ian'));
   ok('and the row says nothing about money',
      !resOf(d, 'Club Meet', 'Ian').querySelector('.rpay') &&
@@ -4336,23 +4383,25 @@ group('the season as a spreadsheet');
   addTourn(dom, d, { name: 'Winter Cup', start: `${Y}-05-16` });
   click(dom, $(d, '#nav-matches'));
 
-  // Ian is entered for the first with a result; Olivia is skipping it; nobody
-  // has touched the second
-  // The list redraws on every click, so the row is found again each time — and
-  // a row carries a chip for every child, not only the one whose tab it is, so
-  // the chip is picked by who it belongs to rather than by position.
+  // Both children are on the first — the age rule lets them both in — and Ian
+  // has a result on it with the sheet it was read off. Nobody is taken off the
+  // second, so it is two more rows with nothing in them.
+  // The list redraws on every change, so the row is found again each time.
   const club = () => $$(d, '#tournlist .tourn').find(r => r.textContent.includes('Club'));
   const idOf = name => saved(dom).players.find(p => p.name === name).id;
-  const chip = name => club().querySelector(`.join[data-p="${idOf(name)}"]`);
 
   goTab(dom, d, idOf('Ian'));
-  click(dom, chip('Ian'));
-  click(dom, chip('Ian'));                         // entered
   change(dom, club().querySelector('.rwin'), '4');
   change(dom, club().querySelector('.rpl'), '1');
+  change(dom, club().querySelector('.rlink'), 'https://docs.example.com/draw');
 
-  goTab(dom, d, idOf('Olivia'));
-  for (let i = 0; i < 4; i++) click(dom, chip('Olivia'));   // skipping
+  // nobody is playing the second, so it is nobody's row
+  goSetup(dom, d);
+  const winterChip = () => $$(d, '#setuplist .tourn')
+    .find(r => r.textContent.includes('Winter'))
+    .querySelector('.forpick.on');
+  while (winterChip()) click(dom, winterChip());
+  click(dom, $(d, '#nav-matches'));
 
   let captured = null, filename = null;
   dom.window.URL.createObjectURL = blob => { captured = blob; return 'blob:x'; };
@@ -4370,15 +4419,18 @@ group('the season as a spreadsheet');
   const lines = csv.trim().split('\r\n');
   ok('a header and a row per child per tournament', lines.length === 3, lines.length);
   ok('the header names the columns',
-     lines[0] === 'Tournament,Starts,Ends,Venue,Categories,Source,Child,Status,Wins,Place,Earned,How',
+     lines[0] === 'Tournament,Starts,Ends,Venue,Categories,Source,Child,Wins,Place,Results,Earned,How',
      lines[0]);
   // a name with a comma and quotes in it must not break the record apart
   ok('a comma in a name is quoted', lines[1].startsWith('"Club ""Open"", Kallang",'), lines[1]);
-  ok('Ian’s result is on his row', /,Ian,Entered,4,1,/.test(lines[1]), lines[1]);
+  ok('Ian’s result is on his row', /,Ian,4,1,/.test(lines[1]), lines[1]);
+  ok('and the sheet it was read off with it',
+     lines[1].includes('https://docs.example.com/draw'), lines[1]);
   ok('a tournament that pays nothing leaves the money columns empty',
      lines[1].endsWith(',,'), lines[1]);
-  ok('skipping is a row too, and says so', /,Olivia,Skipping,,,/.test(lines[2]), lines[2]);
-  ok('a tournament nobody has a status on is no row at all',
+  ok('a child on it with nothing recorded is still a row',
+     /,Olivia,,,,,$/.test(lines[2]), lines[2]);
+  ok('a tournament nobody is on is no row at all',
      !csv.includes('Winter Cup'), csv);
   ok('records end CRLF, as a spreadsheet expects', csv.endsWith('\r\n'));
 }
@@ -4390,6 +4442,11 @@ group('nothing to save yet says so');
   const d = dom.window.document;
   addKid(dom, d, 'Ian', Y - 13);
   addTourn(dom, d, { name: 'Club Meet', start: `${Y}-03-07` });
+  // he is on it by the age rule, so take him off: with nobody on anything there
+  // is no season to write down
+  goSetup(dom, d);
+  click(dom, $(d, '#setuplist .tourn .forpick'));
+  click(dom, $(d, '#nav-matches'));
   let made = false;
   dom.window.URL.createObjectURL = () => { made = true; return 'blob:x'; };
   click(dom, $(d, '#btn-results'));

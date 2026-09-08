@@ -5,6 +5,73 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.15.0] — 2026-09-08
+
+### Removed
+
+- **The entry status cycle is gone.** Being on a tournament is now the whole of
+  the statement: a child on it is playing it. *Planned → entered → confirmed →
+  skipping* asked a question the app could never answer — the entry is submitted
+  at the organiser's end, and nothing here could tell whether it had been — so
+  all four ever recorded was that somebody had pressed the button the right
+  number of times, and then every check in the season had to guess which of them
+  counted as going.
+
+  There were two answers to "is this child playing this?" and they could
+  disagree. Now there is one, and it is the list the tournament is already on.
+
+### Added
+
+- **A link to the result, per child per tournament.** A **Results** box beside
+  Wins and Place takes the address of wherever the draw was published — the
+  organiser's sheet, whatever they put it on — and the row then shows a
+  **Results** link rather than the address, which is long and says nothing. Only
+  http(s) is stored, because it is rendered as a link. Two children at one event
+  can point at different draws. It rides along into the CSV as its own column,
+  where **Status** used to be.
+
+### Changed
+
+- **Who is playing is set on Setup, and stated on Tournaments.** The chips on a
+  tournament row now say who is on it; pressing a name to change it is done on
+  Setup. That is not tidiness: a child's own tab lists only the tournaments they
+  are on, so taking them off one there would delete the row out from under the
+  press, with the chip to undo it gone with it.
+
+- **Taking the last child off a tournament now says nobody is playing it**,
+  where before it quietly handed the tournament back to the age rule and put
+  them straight back on. An empty list is a real answer and a different one from
+  never having said. Such a tournament reaches no child's tab, but Setup lists
+  every tournament there is and says which are on no one's list, so it is never
+  lost. Removing a *child* still drops the list instead — with them gone it says
+  nothing about anybody, rather than saying nobody plays it.
+
+- **A result is kept when a child is taken off a tournament**, not deleted.
+  Taking someone off is as often a mis-click as a change of plan, and putting
+  them back should not have cost them the afternoon. Until then it counts
+  towards nobody's season and appears nowhere.
+
+- **An entry now holds a result and nothing else**, so one recording nothing is
+  no longer stored: the tournament's own list is what says who is playing it.
+  The season checks, the calendar dots and tooltip, the CSV and the header count
+  all read that list now rather than a status.
+
+- Result boxes follow the list rather than an entry, so every child on a
+  tournament has somewhere to record how they did — which was always the
+  intention, most tournaments paying nothing and being the season anyway.
+
+### Migration
+
+Stored plans are read forward without asking. Wins, places and who is on what
+all survive. Two things to know:
+
+- **Anything marked *Skipping* is dropped**, that being the one thing the new
+  model cannot say by keeping the row: the child simply appears on the
+  tournament again. Press their name on Setup to take them off, which now
+  sticks.
+- A child who had a status on a tournament whose list named other children is
+  added to that list, so nobody falls off an event they were down for.
+
 ## [2.14.1] — 2026-09-08
 
 ### Changed
