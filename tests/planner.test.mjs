@@ -1970,8 +1970,12 @@ group('per-kid eligibility');
   click(dom3, $(d3, '#nav-matches'));
   addKid(dom3, d3, 'Unknown');
   addTourn(dom3, d3, { name: 'STA SPEX U10 Red', start: `${Y}-11-02`, cat: 'STA, Junior (U10)' });
-  ok('a kid with no birth year still appears', $$(d3, '#tournlist .tourn .join').length === 1,
-     $$(d3, '#tournlist .tourn .join').length);
+  // With one child there is no chip on the row — every row is theirs, so their
+  // name on each of them says nothing. What shows the age rule let them through
+  // is the tournament reaching their list at all, with their boxes under it.
+  ok('a kid with no birth year still appears',
+     $$(d3, '#tournlist .tourn').length === 1 && !!$(d3, '#tournlist .res'),
+     $$(d3, '#tournlist .tourn').length);
   ok('chip says the age group is unset', $(d3, '#kidrow').textContent.includes('no age group'),
      $(d3, '#kidrow').textContent);
 
@@ -4437,6 +4441,46 @@ group('reading a scorecard');
      wide.length === 1 && wide[0].wins === 4 && wide[0].place === 2,
      JSON.stringify(wide));
 
+  // Selecting the players alone is the natural thing to do — the header sits
+  // above a merged title and two blank lines. Rank gives the columns away: down
+  // a group it runs 1,2,3… once each, which no column of scores ever does.
+  const NO_HEADER = [
+    '1\tIan Testwood\t\t\t6\t5\t3\t7\t11\t5\t7\t12\t5\t3\t3\t3\t40',
+    '2\tAda Quill\t5\t6\t\t\t11\t3\t12\t8\t7\t12\t5\t4\t5\t1\t50',
+    '3\tVane, Bo Marchetti\t7\t3\t3\t11\t\t\t6\t5\t2\t8\t6\t5\t4\t2\t29',
+    '4\tRory Vale\t5\t11\t8\t12\t5\t6\t\t\t4\t9\t5\t4\t2\t4\t',
+    '5\tNell Ashby\t12\t7\t12\t7\t8\t2\t9\t4\tE\t\t7\t6\t1\t5\t',
+    '6\tOtto Vane\t3\t5\t4\t5\t5\t6\t4\t5\t6\t7\t\t\t0\t6\t',
+  ].join('\n');
+  const bare = parse(NO_HEADER);
+  ok('a paste with no header still reads', bare.length === 6, bare.length);
+  ok('and says the columns were worked out, not read',
+     bare.aimedBy === 'shape', bare.aimedBy);
+  ok('the placings come out a clean run, which is what found them',
+     bare.map(r => r.place).sort((a, b) => a - b).join() === '1,2,3,4,5,6',
+     bare.map(r => r.place).join());
+  ok('and each player keeps their own wins',
+     bare[0].wins === 3 && bare[0].place === 3, JSON.stringify(bare[0]));
+  ok('a tab-pasted name holding a comma needs no quotes to survive',
+     bare[2].name === 'Vane, Bo Marchetti', bare[2].name);
+  ok('the wins add up to one per match played',
+     bare.reduce((t, r) => t + r.wins, 0) === 15,
+     bare.map(r => r.wins).join());
+  ok('a header, when there is one, is what aims it',
+     parse(GROUP_A).aimedBy === 'header', parse(GROUP_A).aimedBy);
+
+  // Guessing needs something to go on. Two rows could agree by chance, and a
+  // wrong result is worse than one typed by hand.
+  ok('too few rows to be sure of anything is left alone',
+     parse('1\tIan Testwood\t\t\t6\t5\t3\t2\n2\tAda Quill\t5\t6\t\t\t1\t1').length === 0);
+  ok('and a block with no column that runs like a placing is left alone',
+     parse([
+       '1\tIan Testwood\t\t\t6\t5\t3\t7\t2\t2',
+       '2\tAda Quill\t5\t6\t\t\t11\t3\t2\t2',
+       '3\tRory Vale\t7\t3\t3\t11\t\t\t2\t2',
+       '4\tOtto Vane\t5\t11\t8\t12\t5\t6\t2\t2',
+     ].join('\n')).length === 0);
+
   ok('a first name finds the player it starts',
      match('Ian', both).row.name === 'Ian Testwood',
      JSON.stringify(match('Ian', both)));
@@ -4478,6 +4522,8 @@ group('a scorecard fills the boxes in');
   ok('and how much of the paste it read',
      $(d, '#s-hint').textContent.includes('2 players read, 1 of yours matched'),
      $(d, '#s-hint').textContent);
+  ok('a header read outright is not remarked on',
+     !$(d, '#s-hint').textContent.includes('worked out'), $(d, '#s-hint').textContent);
 
   change(dom, $(d, '#s-link'), 'https://sheets.example.com/draw');
   click(dom, $(d, '#s-ok'));

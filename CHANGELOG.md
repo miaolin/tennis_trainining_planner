@@ -5,6 +5,32 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.16.1] — 2026-09-08
+
+### Fixed
+
+- **A scorecard pasted without its header now reads.** It said no player was
+  found, which was true and useless: the header naming Won and Rank was what
+  aimed it, and that header is the awkward part to select — it sits above a
+  merged title and a couple of blank rows, so copying the players alone is what
+  the hand does.
+
+  The block can now speak for itself. Down a group **Rank** runs 1, 2, 3 … once
+  each, and no column of scores ever does that, scores repeating all the time —
+  so the rightmost column whose values are distinct and inside the size of the
+  group is the placing, and Won is beside it. A header, where there is one, is
+  still believed outright; this only runs when there is none.
+
+  Fewer than four rows is left alone rather than guessed at, two rows being able
+  to agree by chance, and the dialog says when the columns were worked out
+  rather than read so the numbers can be glanced at before saving.
+
+### Changed
+
+- **With one child, their name no longer appears on every tournament row.**
+  Every row is theirs, so the chip said nothing. A tournament nobody is on still
+  says so — with one child that is the only way to see it.
+
 ## [2.16.0] — 2026-09-08
 
 ### Added
