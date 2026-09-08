@@ -5,6 +5,27 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.16.2] — 2026-09-08
+
+### Fixed
+
+- **A tournament row still named the child whose season was being read.** The
+  rule shipped in 2.16.1 was written as "with one child", which is the case it
+  was noticed in and not the case it is. A family with two children reading one
+  child's tab saw that child's name against every row of it — and their tab
+  lists only the tournaments they are on, so the name never said anything.
+
+  The rule is now the one that was meant: a row never names the child whose
+  season is being read. Who *else* is playing is still named, that being a fact
+  about the event rather than about whose season it is, and **Everyone** names
+  everybody, which is what that tab is for. With one child there is no tab to be
+  on and the whole page is theirs, which comes to the same thing — so the
+  original case is covered by the same sentence rather than by counting
+  children.
+
+  A tournament nobody is on still says so, whoever is reading. On a single
+  child's page that is the only way to see it.
+
 ## [2.16.1] — 2026-09-08
 
 ### Fixed
