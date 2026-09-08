@@ -5,6 +5,39 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.1] — 2026-09-08
+
+### Changed
+
+- **The two shapes of draw are priced to pay a child about the same.** Each was
+  sensible on its own; side by side they paid two children very differently for
+  comparable years. A group hands out eight matches and a podium finish every
+  time, so its place money was a near-certain payout — while on a 128 draw the
+  1st and 2nd lines were decoration, being rungs a child winning one or two
+  rounds cannot reach at all. The same afternoon was worth much more in one
+  shape than the other.
+
+  Raising a line only moves what a child takes home as often as the line
+  actually pays, so the money moved to where each shape reaches. A group gains
+  a third place at 10, because the bottom of a podium it stands on every time
+  is worth marking and not only the top two. A knockout's quarterfinal rises to
+  50 and its 2nd to 80 — the rungs a large draw can genuinely be climbed to.
+  Both now come out around the same over a season, while still paying for
+  entirely different things: a group pays steadily, a knockout pays for
+  surviving.
+
+- **Both improvement lines now read the same on either shape.** A knockout's
+  Beat last comes down from 30 to 15 and its Best ever from 50 to 20, in line
+  with the group's. Beating your own record is the same achievement whichever
+  shape the draw is, and pricing it by format said otherwise.
+
+  Initial prize and per round stay at 20. Turning up is the floor a knockout
+  needs, having no guaranteed second match, and a round is worth four times a
+  group win because losing one ends the day.
+
+  These are the dialog's grey figures and not values, so nothing already
+  entered moves: a scheme a parent has saved is theirs and stays as typed.
+
 ## [2.14.0] — 2026-09-06
 
 ### Added
