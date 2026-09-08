@@ -2868,7 +2868,7 @@ group('a group draw and a knockout draw pay for different things');
        shows(d, 'imp') && shows(d, 'best'));
     ok('and it offers its own figures to start from',
        ['init', 'win', 'qf', 'p2', 'p1', 'imp', 'best']
-         .map(k => $(d, '#r-' + k).placeholder).join() === '20,20,30,50,100,30,50',
+         .map(k => $(d, '#r-' + k).placeholder).join() === '20,20,50,80,100,15,20',
        ['init', 'win', 'qf', 'p2', 'p1', 'imp', 'best']
          .map(k => $(d, '#r-' + k).placeholder).join());
     ok('the ladder is drawn bottom up', $(d, '#r-rows').classList.contains('ko'));
