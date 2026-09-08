@@ -3581,13 +3581,17 @@ function renderTournList(list, ms, {setup, locked, who}){
     // Stating a fact rather than offering a change, so not a button.
     const said = p => `<span class="join forpick on" style="--c:${p.colour}">` +
                       `<span class="pip"></span>${escapeHtml(p.name)}</span>`;
+    // The tournaments view names who else is playing, and never the child whose
+    // season is being read: their own tab lists only what they are on, so their
+    // name against every row of it says nothing. With one child there is no tab
+    // to be on and the whole page is theirs, which comes to the same thing.
+    const reading = who || (hasStrip() ? null : state.players[0]);
+    const others = onKids.filter(p => !reading || p.id !== reading.id);
     const joins = setup
       ? (onKids.length ? '' : nobody) + state.players.map(chip).join('')
-      // With one child every row is theirs and their name on each of them says
-      // nothing. The hint stays either way: a tournament nobody is on is worth
-      // saying out loud, and with one child it is the only way to see it.
-      : state.players.length < 2 ? (onKids.length ? '' : nobody)
-      : (onKids.map(said).join('') || nobody);
+      // The hint stays whoever is reading: a tournament nobody is on is worth
+      // saying out loud, and on a single child's page it is the only way to see it.
+      : (others.map(said).join('') || (onKids.length ? '' : nobody));
 
     html += `<div class="tourn${soon?' soon':''}${past?' past':''}">
       <div class="tdate">${spanLabel(m)}<small>${DOW[d.getDay()]}</small></div>

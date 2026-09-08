@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.16.1** · [Changelog](CHANGELOG.md)
+**Version 2.16.2** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -106,11 +106,12 @@ tests/                          jsdom harness + api tests — dev only, never de
   what is the family's — who the children are, which tournaments exist — is on
   the Setup page. Everyone changes nothing, so it can be read without care.
 
-  A child's row still shows who else is playing, because that is a fact about
-  the event. With one child there is no strip at all, and no chip on the rows
-  either: every tournament is that child's, so naming them on each says nothing.
-  A tournament nobody is on still says so, that being the one thing left worth
-  reading.
+  A child's row shows who **else** is playing, because that is a fact about the
+  event — but never the child whose tab it is: their own tab lists only the
+  tournaments they are on, so their name against every row of it says nothing.
+  **Everyone** names everybody, that being what it is for. With one child there
+  is no strip at all and no chip either, the whole page being theirs. A
+  tournament nobody is on still says so, whoever is reading.
 - **Tournaments** — name, dates, venue, categories and entry deadline, grouped
   by month. Past ones dim.
 - **Who's going** — a chip per child on each row, saying who is playing it.

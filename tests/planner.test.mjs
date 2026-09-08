@@ -1466,17 +1466,24 @@ group('who is playing each tournament');
   addKid(dom, d, 'Mia');
   addTourn(dom, d, { name: 'Champs', start: offset(60) });   // while still editable
   addKid(dom, d, 'Leo');
-  click(dom, $$(d, '#whofilter button[data-who]')[1]);
-
-  ok('the tournaments view says who is playing', $$(d, '#tournlist .join').length === 2,
-     $$(d, '#tournlist .join').length);
+  // Everyone: both children are on it, the age rule having nothing against
+  // either, and the whole season is what this tab is for.
+  ok('Everyone names everybody playing it', $$(d, '#tournlist .join').length === 2,
+     $$(d, '#tournlist .join').map(c => c.textContent.trim()).join());
   ok('and states it rather than offering it',
      $$(d, '#tournlist .join').every(c => c.tagName === 'SPAN'),
      $$(d, '#tournlist .join').map(c => c.tagName).join());
-  ok('both children start on it, the age rule having nothing against either',
-     $$(d, '#tournlist .join').every(c => c.className.includes('on')));
-  ok('and both are counted in the header', $(d, '#restdays').textContent === '2',
+  ok('both are counted in the header', $(d, '#restdays').textContent === '2',
      $(d, '#restdays').textContent);
+
+  // A child's own tab lists only what they are on, so naming them against every
+  // row of it says nothing. Who else is playing is still worth saying.
+  click(dom, $$(d, '#whofilter button[data-who]')[1]);
+  ok('a child’s tab does not name the child',
+     $$(d, '#tournlist .join').length === 1,
+     $$(d, '#tournlist .join').map(c => c.textContent.trim()).join());
+  ok('it names the other one', $(d, '#tournlist .join').textContent.trim() === 'Leo',
+     $(d, '#tournlist .join').textContent.trim());
 
   goSetup(dom, d);
   const chipFor = name => $$(d, '#setuplist .join')
@@ -1492,7 +1499,9 @@ group('who is playing each tournament');
   click(dom, $(d, '#nav-matches'));
   click(dom, $$(d, '#whofilter button[data-who]')[0]);      // Everyone
   ok('the tournaments view drops her from the row',
-     $$(d, '#tournlist .join').length === 1, $$(d, '#tournlist .join').length);
+     $$(d, '#tournlist .join').length === 1 &&
+     $(d, '#tournlist .join').textContent.trim() === 'Leo',
+     $$(d, '#tournlist .join').map(c => c.textContent.trim()).join());
   ok('and the header counts one', $(d, '#restdays').textContent === '1',
      $(d, '#restdays').textContent);
   click(dom, $$(d, '#whofilter button[data-who]')[1]);      // Mia
@@ -3395,10 +3404,9 @@ group('a child’s tab scopes the whole view');
   };
   setKid('Ian', { win: 5 });
   setKid('Olivia', { win: 10 });
-  // the row names both children whichever tab you are on, so both enter here
+  // both are on it already, the age rule having nothing against either, so each
+  // has boxes on their own tab
   goTab('Ian');
-  [0, 1].forEach(i => { click(dom, [...row().querySelectorAll('.join')][i]);
-                        click(dom, [...row().querySelectorAll('.join')][i]); });
   change(dom, row().querySelector('.rwin'), '3');
   goTab('Olivia');
   change(dom, row().querySelector('.rwin'), '2');
@@ -3421,8 +3429,11 @@ group('a child’s tab scopes the whole view');
   ok('his tab shows his purse alone',
      notes(d).includes('Ian $15 across 1 result') && !notes(d).includes('Olivia'), notes(d));
   ok('and his standard alone', rewNames(d).join(',') === 'Ian', rewNames(d).join(','));
-  ok('the row still shows who else is in it', row().querySelectorAll('.join').length === 2,
-     row().querySelectorAll('.join').length);
+  // who else is in it is a fact about the event; his own name on his own tab
+  // is not, that tab holding only the tournaments he is on
+  ok('the row still shows who else is in it',
+     [...row().querySelectorAll('.join')].map(c => c.textContent.trim()).join() === 'Olivia',
+     [...row().querySelectorAll('.join')].map(c => c.textContent.trim()).join());
   ok('but only his result box', row().querySelectorAll('.res').length === 1,
      [...row().querySelectorAll('.res .rnm')].map(e => e.textContent).join(','));
 
