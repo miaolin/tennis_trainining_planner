@@ -2396,8 +2396,8 @@ group('tournament rewards');
     const el = rowNamed(d, t).querySelector('.trew');
     return el ? el.textContent.replace('Only here', '') : '';
   };
-  const isException = (d, t) => rowNamed(d, t).querySelector('.trewbtn').classList.contains('set');
-  const openRew = (dom, d, t) => click(dom, rowNamed(d, t).querySelector('.trewbtn'));
+  const isException = (d, t) => rowNamed(d, t).querySelector('[data-rew]').classList.contains('set');
+  const openRew = (dom, d, t) => click(dom, rowNamed(d, t).querySelector('[data-rew]'));
   // the standard scheme, up in its own box
   const kidRow = (d, kid) =>
     [...$$(d, '.rewkid')].find(r => r.textContent.trim().startsWith(kid));
@@ -2619,7 +2619,7 @@ group('rewards belong to the child');
     const el = rowNamed(d, t).querySelector('.trew');
     return el ? el.textContent.replace('Only here', '') : '';
   };
-  const isException = (d, t) => rowNamed(d, t).querySelector('.trewbtn').classList.contains('set');
+  const isException = (d, t) => rowNamed(d, t).querySelector('[data-rew]').classList.contains('set');
   const kidRow = (d, kid) => $$(d, '.rewkid').find(r => r.textContent.trim().startsWith(kid));
   const kidLine = (d, kid) => {
     const el = kidRow(d, kid).querySelector('.rkline');
@@ -2649,7 +2649,7 @@ group('rewards belong to the child');
   };
   const setMatchRew = (dom, d, t, o, kid) => {
     tabTo(dom, d, kid || 'Ian');
-    click(dom, rowNamed(d, t).querySelector('.trewbtn'));
+    click(dom, rowNamed(d, t).querySelector('[data-rew]'));
     fillRew(dom, d, o);
   };
   const resRow = (d, t, kid) => {
@@ -2749,7 +2749,7 @@ group('rewards belong to the child');
        paid(d, 'Series Two', 'Ian') === '$40', paid(d, 'Series Two', 'Ian'));
 
     // and back to the standard
-    click(dom, rowNamed(d, 'Series Two').querySelector('.trewbtn'));
+    click(dom, rowNamed(d, 'Series Two').querySelector('[data-rew]'));
     ok('the button offers the standard back',
        $(d, '#r-clear').textContent === 'Use standard', $(d, '#r-clear').textContent);
     ok('and the dialog says it is for this tournament alone',
@@ -2839,7 +2839,7 @@ group('a group draw and a knockout draw pay for different things');
     const el = rowNamed(d, t).querySelector('.trew');
     return el ? el.textContent.replace('Only here', '') : '';
   };
-  const openRew = (dom, d, t) => click(dom, rowNamed(d, t).querySelector('.trewbtn'));
+  const openRew = (dom, d, t) => click(dom, rowNamed(d, t).querySelector('[data-rew]'));
   const pick = (dom, d, kind) => click(dom, $(d, '#r-kind-' + kind));
   const on = (d, kind) => $(d, '#r-kind-' + kind).getAttribute('aria-checked') === 'true';
   const shows = (d, row) => !$(d, '#r-row-' + row).hidden;
@@ -3082,7 +3082,7 @@ group('beating last time and beating everything are different achievements');
   const Y = new Date().getFullYear();
   const PAST = Y - 1;
   const rowNamed = (d, t) => $$(d, '#tournlist .tourn').find(r => r.textContent.includes(t));
-  const openRew = (dom, d, t) => click(dom, rowNamed(d, t).querySelector('.trewbtn'));
+  const openRew = (dom, d, t) => click(dom, rowNamed(d, t).querySelector('[data-rew]'));
   const saveRew = (dom, d, o = {}) => {
     click(dom, $(d, '#r-kind-group'));
     for (const [id, v] of Object.entries({
@@ -3333,7 +3333,7 @@ group('a suggested scheme is the weakest one');
     const { paid, row } = await paidOn(STANDARD, undefined);
     ok('no suggestion at all is the same story', paid === '$20', paid);
     ok('and a feed row is never badged as an exception',
-       !row.querySelector('.trewbtn').classList.contains('set'));
+       !row.querySelector('[data-rew]').classList.contains('set'));
   }
   {
     // an exception set here still beats both
@@ -3341,7 +3341,7 @@ group('a suggested scheme is the weakest one');
     const d = dom.window.document;
     await settle();
     click(dom, $(d, '#nav-matches'));
-    click(dom, $$(d, '#tournlist .tourn')[0].querySelector('.trewbtn'));
+    click(dom, $$(d, '#tournlist .tourn')[0].querySelector('[data-rew]'));
     ok('the dialog opens on the suggestion, ready to accept',
        $(d, '#r-win').value === '1', $(d, '#r-win').value);
     input(dom, $(d, '#r-win'), '9');
@@ -3350,7 +3350,7 @@ group('a suggested scheme is the weakest one');
        $$(d, '#tournlist .tourn')[0].querySelector('.rpay').textContent === '$36',
        $$(d, '#tournlist .tourn')[0].querySelector('.rpay').textContent);
     ok('and only then is the row badged',
-       $$(d, '#tournlist .tourn')[0].querySelector('.trewbtn').classList.contains('set'));
+       $$(d, '#tournlist .tourn')[0].querySelector('[data-rew]').classList.contains('set'));
   }
   {
     // the new buttons name what they act on
@@ -3359,8 +3359,8 @@ group('a suggested scheme is the weakest one');
        $(d, '[data-rewkid]').getAttribute('aria-label') === 'Edit Ian rewards',
        $(d, '[data-rewkid]').getAttribute('aria-label'));
     ok('and a row’s button names the tournament',
-       $(d, '.trewbtn').getAttribute('aria-label') === 'Rewards for U10 Red Ball Feed Event',
-       $(d, '.trewbtn').getAttribute('aria-label'));
+       $(d, '[data-rew]').getAttribute('aria-label') === 'Rewards for U10 Red Ball Feed Event',
+       $(d, '[data-rew]').getAttribute('aria-label'));
   }
 }
 
@@ -4372,6 +4372,142 @@ group('results do not wait on rewards');
      resOf(d2, 'Club Meet', 'Ian').querySelector('.rwin').value);
 }
 
+group('reading a scorecard');
+{
+  // The shape of a real STA group sheet, with made-up players: a header naming
+  // the columns, a row per player, a name with a comma in it, and a no-show
+  // whose Won and Rank are dashes. Real children's names are not committed to
+  // a public repo — the parser only cares about the shape.
+  const GROUP_A = [
+    'GROUP A,,1,,2,,3,,4,,5,,Won,Rank,',
+    '1,Ian Testwood,,,8,2,7,6,6,5,5,4,4,2,63',
+    '2,Ada Quill,2,8,,,2,7,2,5,1,5,1,5,',
+    '3,"Vane, Bo Marchetti",6,7,7,2,,,7,3,4,5,3,3,68',
+    '4,Rory Vale,5,6,5,2,3,7,,,5,3,2,4,',
+    '5,Nell Ashby,0,10,0,10,0,10,0,10,,,-,-,',
+  ].join('\n');
+  // A second group, a different width, holding a player whose name also
+  // contains "Ian" — the trap a loose match would fall into.
+  const GROUP_B = [
+    'GROUP B,,1,,2,,3,,4,,Won,Rank,',
+    '1,Jo Ian Pemberton,,,0,10,0,10,0,10,0,4,',
+    '2,Otto Vane,10,0,,,9,2,5,6,3,1,',
+  ].join('\n');
+
+  const dom = boot();
+  const d = dom.window.document;
+  const parse = t => dom.window.parseScorecard(t);
+  const match = (kid, t) => dom.window.matchRow(kid, parse(t));
+
+  const rows = parse(GROUP_A);
+  ok('every player who played is read', rows.length === 4, rows.length);
+  ok('the no-show is left out, a dash not being a nought',
+     !rows.some(r => r.name === 'Nell Ashby'), JSON.stringify(rows.map(r => r.name)));
+  const ian = rows.find(r => r.name === 'Ian Testwood');
+  ok('the header aims it at the right columns', ian && ian.wins === 4 && ian.place === 2,
+     JSON.stringify(ian));
+  const quoted = rows.find(r => r.name === 'Vane, Bo Marchetti');
+  ok('a quoted name holding a comma survives whole', !!quoted,
+     JSON.stringify(rows.map(r => r.name)));
+  ok('and keeps its own numbers', quoted && quoted.wins === 3 && quoted.place === 3,
+     quoted && `${quoted.wins}/${quoted.place}`);
+
+  ok('without a header nothing is read, there being no way to know the columns',
+     parse('1,Ian Testwood,,,8,2,4,2,63').length === 0);
+  ok('two groups of different widths both read, each re-aimed by its own header',
+     parse(GROUP_A + '\n' + GROUP_B).length === 6, parse(GROUP_A + '\n' + GROUP_B).length);
+
+  // a spreadsheet copies tab-separated, an exported csv comes comma-separated
+  const tabbed = GROUP_A.split('\n')
+    .map(l => dom.window.splitCells(l).join('\t')).join('\n');
+  ok('tabs read the same as commas', parse(tabbed).length === 4, parse(tabbed).length);
+  ok('and give the same numbers',
+     parse(tabbed).find(r => r.name === 'Ian Testwood').wins === 4);
+
+  const both = GROUP_A + '\n' + GROUP_B;
+  // Selecting whole rows brings the scorecard's own RANK column along, far to
+  // the left of the matrix's Won,Rank pair. The two usually agree, so picking
+  // the wrong one passes by luck until the day it does not.
+  const WHOLE_ROWS = [
+    'GROUP A PLAYERS,,RANK,,TIMING,C1,,,,,,GROUP A,,1,,2,,3,,Won,Rank,',
+    '1,Ian Testwood,9,,9:30:00 am,1 vs 8,,,10,,0,1,Ian Testwood,,,8,2,7,6,4,2,63',
+  ].join('\n');
+  const wide = parse(WHOLE_ROWS);
+  ok('a whole-row paste reads the matrix, not the scorecard column beside it',
+     wide.length === 1 && wide[0].wins === 4 && wide[0].place === 2,
+     JSON.stringify(wide));
+
+  ok('a first name finds the player it starts',
+     match('Ian', both).row.name === 'Ian Testwood',
+     JSON.stringify(match('Ian', both)));
+  ok('rather than the one merely containing it',
+     match('Ian', both).row.name !== 'Jo Ian Pemberton');
+  ok('a full name matches outright', match('Ian Testwood', both).row.name === 'Ian Testwood');
+  ok('a child who is not in the paste finds nothing', match('Olivia', both) === null);
+  ok('and two names that tie are reported, never guessed between',
+     (match('Vane', both).ambiguous || []).length === 2,
+     JSON.stringify(match('Vane', both)));
+}
+
+group('a scorecard fills the boxes in');
+{
+  const Y = new Date().getFullYear();
+  const SHEET = [
+    'GROUP A,,1,,2,,3,,Won,Rank,',
+    '1,Ian Lindqvist,,,8,2,7,6,6,1,63',
+    '2,Ada Quill,2,8,,,2,7,1,3,',
+  ].join('\n');
+
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Ian', Y - 13);
+  addTourn(dom, d, { name: 'Club Meet', start: `${Y}-03-07` });
+  click(dom, $(d, '#nav-matches'));
+
+  const row = () => $(d, '#tournlist .tourn');
+  click(dom, row().querySelector('[data-sc]'));
+  ok('the dialog names the tournament',
+     $(d, '#s-title').textContent === 'Results — Club Meet', $(d, '#s-title').textContent);
+  ok('and says nothing is stored but your own child’s numbers',
+     $(d, '#s-hint').textContent.includes('nobody else'), $(d, '#s-hint').textContent);
+
+  change(dom, $(d, '#s-paste'), SHEET);
+  ok('the preview says who it found',
+     $(d, '#s-found').textContent.includes('found as Ian Lindqvist: 6 wins, 1st'),
+     $(d, '#s-found').textContent);
+  ok('and how much of the paste it read',
+     $(d, '#s-hint').textContent.includes('2 players read, 1 of yours matched'),
+     $(d, '#s-hint').textContent);
+
+  change(dom, $(d, '#s-link'), 'https://sheets.example.com/draw');
+  click(dom, $(d, '#s-ok'));
+
+  ok('the wins box is filled in', $(d, '#tournlist .rwin').value === '6',
+     $(d, '#tournlist .rwin').value);
+  ok('and the place box', $(d, '#tournlist .rpl').value === '1',
+     $(d, '#tournlist .rpl').value);
+  ok('only this child is stored, never the rest of the draw',
+     saved(dom).entries.length === 1 &&
+     !JSON.stringify(saved(dom)).includes('Ada Quill'),
+     JSON.stringify(saved(dom).entries));
+  ok('the link is the tournament’s, not the child’s',
+     saved(dom).resultLinks[saved(dom).manualMatches[0].id] === 'https://sheets.example.com/draw',
+     JSON.stringify(saved(dom).resultLinks));
+  ok('and it shows on the tournament’s own line',
+     [...row().querySelectorAll('.tmeta a')].some(a => a.textContent === 'Results'),
+     row().querySelector('.tmeta').textContent);
+
+  // a paste that names nobody on the tournament changes nothing
+  const before = JSON.stringify(saved(dom).entries);
+  click(dom, row().querySelector('[data-sc]'));
+  change(dom, $(d, '#s-paste'), 'GROUP B,,Won,Rank\n1,Someone Else,3,4,');
+  ok('a paste with no match says so',
+     $(d, '#s-found').textContent.includes('not in this paste'), $(d, '#s-found').textContent);
+  click(dom, $(d, '#s-ok'));
+  ok('and leaves the result alone', JSON.stringify(saved(dom).entries) === before,
+     JSON.stringify(saved(dom).entries));
+}
+
 group('the season as a spreadsheet');
 {
   const Y = new Date().getFullYear();
@@ -4393,7 +4529,10 @@ group('the season as a spreadsheet');
   goTab(dom, d, idOf('Ian'));
   change(dom, club().querySelector('.rwin'), '4');
   change(dom, club().querySelector('.rpl'), '1');
-  change(dom, club().querySelector('.rlink'), 'https://docs.example.com/draw');
+  // the sheet is the tournament's, so it is set in its Results dialog
+  click(dom, club().querySelector('[data-sc]'));
+  change(dom, $(d, '#s-link'), 'https://docs.example.com/draw');
+  click(dom, $(d, '#s-ok'));
 
   // nobody is playing the second, so it is nobody's row
   goSetup(dom, d);
@@ -4428,8 +4567,9 @@ group('the season as a spreadsheet');
      lines[1].includes('https://docs.example.com/draw'), lines[1]);
   ok('a tournament that pays nothing leaves the money columns empty',
      lines[1].endsWith(',,'), lines[1]);
+  // the sheet is the tournament's, so it is on her row too
   ok('a child on it with nothing recorded is still a row',
-     /,Olivia,,,,,$/.test(lines[2]), lines[2]);
+     /,Olivia,,,https:\/\/docs\.example\.com\/draw,,$/.test(lines[2]), lines[2]);
   ok('a tournament nobody is on is no row at all',
      !csv.includes('Winter Cup'), csv);
   ok('records end CRLF, as a spreadsheet expects', csv.endsWith('\r\n'));

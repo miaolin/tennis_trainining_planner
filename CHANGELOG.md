@@ -5,6 +5,56 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.16.0] — 2026-09-08
+
+### Added
+
+- **A tournament's results are read off the sheet rather than typed.** Press
+  **Results** on a row, paste the group's scoring matrix, and the wins and the
+  place are filled in for every child of yours in it. The dialog says who it
+  found before anything is written.
+
+  It reads the header row naming **Won** and **Rank** to learn which columns
+  hold the numbers, so it does not have to be told the shape of the sheet.
+  Several groups can be pasted at once — each header re-aims the columns for the
+  rows beneath it, which is what makes groups of eight and nine both work. A
+  name quoted because it holds a comma survives whole. A dash is a player who
+  never turned up and is not a nought, so that row is skipped. Tabs and commas
+  both read, a spreadsheet copying one and an exported CSV the other.
+
+  Names are matched leniently but not carelessly. *Ian* finds *Ian Lin*, whose
+  name it starts, and not *Ho Yin Ian Chiu*, who merely contains it — a real
+  pair in a real draw. Two rows tying are named in the dialog and nothing is
+  filled in, a wrong result being worse than one typed by hand.
+
+  Whole rows can be selected rather than hunting for the matrix, which is the
+  easier thing to tell somebody. That drags in the scorecard's own **RANK**
+  column, fifty columns to the left of the matrix's **Won, Rank** pair, so the
+  Rank taken is the one that follows Won. The two columns agree in every sheet
+  seen so far, which is precisely why choosing between them by position rather
+  than by luck is worth the line of code.
+
+- **The link to the draw sits on the tournament's own line**, beside
+  *Tournament page*, and is set in the same dialog.
+
+### Changed
+
+- **The result link is the tournament's, not each child's.** A draw is one sheet
+  covering everybody in it, so a link per child was one link too many. Any link
+  already entered against a child becomes that tournament's.
+
+### Notes
+
+The sheet is pasted rather than fetched, and no amount of work would change
+that. It arrives as a private `.xlsx` belonging to whoever ran the event, so
+there is no address a page can read. It is a zip of XML, so reading it would
+mean shipping a spreadsheet library into a file that has no dependencies at all.
+And it carries fifty other families' names, emails and part of their NRIC, none
+of which belongs in a planner for one family.
+
+Pasting keeps all three out of the way: the parse happens in the page, nothing
+is fetched, and only the matched child's two numbers are stored.
+
 ## [2.15.0] — 2026-09-08
 
 ### Removed

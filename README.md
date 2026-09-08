@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.15.0** · [Changelog](CHANGELOG.md)
+**Version 2.16.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -186,12 +186,9 @@ Schemes resolve in one order, most specific first:
 
     tournament exception  →  the child's standard  →  a data/matches.json suggestion
 
-Each child on the tournament gets a **Wins** box, a **Place** box and a
-**Results** box, whether or not it pays anything — how a child did is worth
-recording on its own, and most tournaments pay nothing. Results takes a link to
-wherever the draw was published, the organiser's sheet or whatever they put it
-on; paste it and the row shows a **Results** link instead of the address. Only
-http(s) links are kept. Where a scheme does apply, the page adds the payout up
+Each child on the tournament gets a **Wins** and **Place** box, whether or not
+it pays anything — how a child did is worth recording on its own, and most
+tournaments pay nothing. Where a scheme does apply, the page adds the payout up
 in front of them: *$55 · 4 wins $20 · 2nd $30 · beat 3 $5*, or on a knockout
 *$230 · played $20 · 4 rounds $80 · quarterfinal $30 · 1st $100*. The sum is always shown in full, so a child can see how the number
 was reached. Two children on the same draw are each paid their own way, and a
@@ -205,8 +202,45 @@ bonus pays. This is the reason results are stored at all.
 
 Nought wins is a real result and is kept as one; an empty box means *not yet
 entered*, which is what the season check chases after a tournament has
-finished. A row with nothing in any box is not stored at all — the tournament's
-own list is what says who is playing it.
+finished. A row with nothing in either box is not stored at all — the
+tournament's own list is what says who is playing it.
+
+### Results
+
+**Results** on a tournament row opens its own dialog, holding the two things
+that come back from the weekend.
+
+**A link** to wherever the draw was published, which then shows on the
+tournament's own line beside *Tournament page*. One per tournament, not one per
+child: the sheet is the event's and covers everybody in it. Only http(s) is
+kept, because it is rendered as a link.
+
+**The scorecard**, pasted. Open the sheet, copy the group's scoring matrix with
+its header row, and paste it in; the dialog says who it found before anything
+is written, and **Save** fills in the wins and the place for every child of
+yours it matched.
+
+It is pasted rather than fetched, and that is not laziness. The sheet arrives as
+a private `.xlsx` belonging to whoever ran the event, so there is no address a
+page could read; it is a zip of XML, which would mean shipping a spreadsheet
+library into a file that has no dependencies at all; and it carries fifty other
+families' names, emails and part of their NRIC. Pasting keeps all of that out:
+the parse happens in the page, and only the matched child's two numbers are
+stored.
+
+What it reads:
+
+| | |
+| --- | --- |
+| The header | the row naming **Won** and **Rank** says which columns hold the numbers. Without it nothing is read, there being no way to guess. Several groups can be pasted at once — each header re-aims the columns for the rows beneath it, so groups of different sizes are fine |
+| A player row | the first cell that reads as a name, then those two columns. A name quoted because it holds a comma survives whole |
+| A dash | a player who never turned up. Not a nought, so the row is skipped |
+| Tabs or commas | a spreadsheet copies tab-separated and an exported CSV comes comma-separated; both read |
+
+Names are matched leniently but not carelessly. *Ian* finds *Ian Lin*, because
+the name starts the cell — and not *Ho Yin Ian Chiu*, who merely contains it. If
+two rows tie, the dialog names them both and fills in nothing: a wrong result is
+worse than one typed by hand.
 
 ## What it does — Setup
 
@@ -525,8 +559,8 @@ on at all.
 ### The season as a spreadsheet
 
 **Download results** writes a dated `.csv` — one row per child per tournament
-they are on, with the dates, venue, categories, wins, place, the link to the
-result, what it earned and how that was made up. It opens in Excel, Numbers or Sheets,
+they are on, with the dates, venue, categories, wins, place, the tournament's
+result link, what it earned and how that was made up. It opens in Excel, Numbers or Sheets,
 and the earnings column is a bare number so a column of them adds up.
 
 It is a copy to read, sort and keep, not a backup: nothing reads it back in.
@@ -550,7 +584,8 @@ for different start weekdays, the load checks and the age they scale with, whose
 block is whose — the training strip, the owner picker, and a block outliving the
 child it belonged to — a timezone regression, view
 switching, Setup as a view of its own and its edits reaching both strips,
-kids, tournament add/delete, who each tournament is for, the reward
+kids, tournament add/delete, who each tournament is for, the scorecard
+parser and the dialog that fills boxes from it, the reward
 schemes — per child, per tournament, a feed's suggestion, and the order the
 three resolve in — the payout arithmetic behind them, and the season checks.
 
