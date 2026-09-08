@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.16.0** · [Changelog](CHANGELOG.md)
+**Version 2.16.1** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -107,7 +107,10 @@ tests/                          jsdom harness + api tests — dev only, never de
   the Setup page. Everyone changes nothing, so it can be read without care.
 
   A child's row still shows who else is playing, because that is a fact about
-  the event. With one child there is no strip at all.
+  the event. With one child there is no strip at all, and no chip on the rows
+  either: every tournament is that child's, so naming them on each says nothing.
+  A tournament nobody is on still says so, that being the one thing left worth
+  reading.
 - **Tournaments** — name, dates, venue, categories and entry deadline, grouped
   by month. Past ones dim.
 - **Who's going** — a chip per child on each row, saying who is playing it.
@@ -215,10 +218,9 @@ tournament's own line beside *Tournament page*. One per tournament, not one per
 child: the sheet is the event's and covers everybody in it. Only http(s) is
 kept, because it is rendered as a link.
 
-**The scorecard**, pasted. Open the sheet, copy the group's scoring matrix with
-its header row, and paste it in; the dialog says who it found before anything
-is written, and **Save** fills in the wins and the place for every child of
-yours it matched.
+**The scorecard**, pasted. Open the sheet, copy the group's rows, and paste
+them in; the dialog says who it found before anything is written, and **Save**
+fills in the wins and the place for every child of yours it matched.
 
 It is pasted rather than fetched, and that is not laziness. The sheet arrives as
 a private `.xlsx` belonging to whoever ran the event, so there is no address a
@@ -232,7 +234,8 @@ What it reads:
 
 | | |
 | --- | --- |
-| The header | the row naming **Won** and **Rank** says which columns hold the numbers. Without it nothing is read, there being no way to guess. Several groups can be pasted at once — each header re-aims the columns for the rows beneath it, so groups of different sizes are fine |
+| The header | the row naming **Won** and **Rank** says which columns hold the numbers. Several groups can be pasted at once — each header re-aims the columns for the rows beneath it, so groups of different sizes are fine |
+| No header | the block is read for its shape instead. Down a group **Rank** runs 1, 2, 3 … once each, which no column of scores ever does, so the rightmost column whose values are distinct and inside the size of the group is the placing, and Won is beside it. Fewer than four rows is left alone: two rows can agree by chance. The dialog says when the columns were worked out rather than read |
 | A player row | the first cell that reads as a name, then those two columns. A name quoted because it holds a comma survives whole |
 | A dash | a player who never turned up. Not a nought, so the row is skipped |
 | Tabs or commas | a spreadsheet copies tab-separated and an exported CSV comes comma-separated; both read |
@@ -241,6 +244,11 @@ Names are matched leniently but not carelessly. *Ian* finds *Ian Lin*, because
 the name starts the cell — and not *Ho Yin Ian Chiu*, who merely contains it. If
 two rows tie, the dialog names them both and fills in nothing: a wrong result is
 worse than one typed by hand.
+
+The header is worth including where it is easy to grab, being certain rather
+than deduced. It is often not easy — it sits above a merged title and a couple
+of blank rows, and selecting the players alone is what the hand does — which is
+why the block can speak for itself.
 
 ## What it does — Setup
 

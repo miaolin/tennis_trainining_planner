@@ -3033,11 +3033,62 @@ function rowName(cells){
 }
 const MAX_PASTE = 200000;   // a whole workbook pasted by accident, not a group
 
+/* A block pasted without its header, which is the easy thing to do: the header
+   sits above a merged title and two blank lines, and selecting the players
+   alone is what the hand does.
+
+   The columns can still be found, because Rank gives itself away. Down a group
+   it runs 1, 2, 3 … once each — no column of scores ever does that, scores
+   repeating all the time. So the rightmost column whose values are distinct and
+   inside 1..however many players there are is the Rank, and Won is beside it.
+
+   Two rows are not enough to tell a ranking from a coincidence, so a block
+   shorter than four is left alone rather than guessed at. */
+const MIN_INFER_ROWS = 4;
+
+function inferAim(rows){
+  if(rows.length < MIN_INFER_ROWS) return null;
+  const width = Math.max(...rows.map(c => c.length));
+  for(let i = width - 1; i >= 3; i--){
+    const seen = rows.map(c => cellNum(c[i])).filter(v => v !== null);
+    // A player who withdrew has a dash for both, so a column need not be full —
+    // but most of it has to be there, or this is a column of stray numbers.
+    if(seen.length < rows.length - 2 || seen.length < MIN_INFER_ROWS) continue;
+    if(new Set(seen).size !== seen.length) continue;        // placings do not repeat
+    if(seen.some(v => v < 1 || v > rows.length)) continue;  // nor run past the group
+    // Won is a count of matches rather than a placing, so it may repeat. It
+    // only has to be there, and to be a possible number of matches.
+    const won = rows.map(c => cellNum(c[i - 1])).filter(v => v !== null);
+    if(won.length < seen.length || won.some(v => v >= rows.length)) continue;
+    return {wonAt: i - 1, rankAt: i};
+  }
+  return null;
+}
+
+// One row's two numbers, once the columns are known.
+function readRow(cells, wonAt, rankAt){
+  const name = rowName(cells);
+  if(!name) return null;
+  const wins = wonAt >= 0 ? cellNum(cells[wonAt]) : null;
+  const place = rankAt >= 0 ? cellNum(cells[rankAt]) : null;
+  if(wins === null && place === null) return null;   // a row that played nothing
+  return {name, wins, place};
+}
+// A line that looks like a player in a group: their number in it, then a name.
+function isPlayerRow(cells){
+  return cells.length >= 6 && cellNum(cells[0]) !== null && !!rowName(cells);
+}
+
+/* Two ways in, tried in that order. A header naming Won and Rank is believed
+   outright; failing that the shape of the block is read. `aimedBy` says which,
+   because a parent should be told when the columns were worked out rather
+   than read. */
 function parseScorecard(text){
-  const rows = String(text || '').slice(0, MAX_PASTE).split(/\r?\n/);
-  let wonAt = -1, rankAt = -1;
+  const lines = String(text || '').slice(0, MAX_PASTE).split(/\r?\n/);
+  let wonAt = -1, rankAt = -1, sawHeader = false;
   const out = [];
-  rows.forEach(line => {
+  const bare = [];
+  lines.forEach(line => {
     const cells = splitCells(line);
     if(!cells.some(c => c)) return;
     const w = cells.findIndex(c => /^won$/i.test(c));
@@ -3052,17 +3103,32 @@ function parseScorecard(text){
     if(w >= 0 || r >= 0){
       if(w >= 0) wonAt = w;
       if(r >= 0) rankAt = r;
+      sawHeader = true;
       return;
     }
-    if(wonAt < 0 && rankAt < 0) return;         // nothing has aimed us yet
-    const name = rowName(cells);
-    if(!name) return;
-    const wins = wonAt >= 0 ? cellNum(cells[wonAt]) : null;
-    const place = rankAt >= 0 ? cellNum(cells[rankAt]) : null;
-    if(wins === null && place === null) return;  // a row that played nothing
-    out.push({name, wins, place});
+    if(wonAt < 0 && rankAt < 0){
+      // Nothing has aimed us yet. Keep it: if no header ever turns up, the
+      // block has to speak for itself.
+      if(isPlayerRow(cells)) bare.push(cells);
+      return;
+    }
+    const got = readRow(cells, wonAt, rankAt);
+    if(got) out.push(got);
   });
-  return out;
+  if(out.length){ out.aimedBy = 'header'; return out; }
+
+  // No header, or one that named nobody. Let the block's own shape say where
+  // the columns are, and take it only if it speaks clearly.
+  if(sawHeader && wonAt < 0 && rankAt < 0) return [];
+  const aim = inferAim(bare);
+  if(!aim) return [];
+  const guessed = [];
+  bare.forEach(cells => {
+    const got = readRow(cells, aim.wonAt, aim.rankAt);
+    if(got) guessed.push(got);
+  });
+  guessed.aimedBy = 'shape';
+  return guessed;
 }
 
 /* Which of those rows is this child. The sheet writes a full name and the app
@@ -3132,9 +3198,10 @@ function renderFound(){
   const {rows, out} = readFound();
   if(!document.getElementById('s-paste').value.trim()){
     box.innerHTML = '';
-    hint.textContent = 'Open the sheet, copy the group’s scoring matrix with its ' +
-      'header row, and paste it here. Only your own child’s wins and place are ' +
-      'kept — nobody else’s row is stored or sent anywhere.';
+    hint.textContent = 'Open the sheet, copy the group’s rows, and paste them ' +
+      'here. The header naming Won and Rank helps but is not needed — without ' +
+      'it the columns are worked out from the block. Only your own child’s wins ' +
+      'and place are kept: nobody else’s row is stored or sent anywhere.';
     return;
   }
   box.innerHTML = out.map(({player, hit}) => {
@@ -3152,11 +3219,18 @@ function renderFound(){
       `<span class="sfok">found as ${escapeHtml(r.name)}: ${bits.join(', ')}</span></div>`;
   }).join('');
   const named = out.filter(o => o.hit && o.hit.row).length;
+  // Where the columns came from is worth saying. Read off a header they are
+  // certain; worked out from the shape of the block they are all but certain,
+  // and the parent is the one who can tell at a glance.
+  const how = rows.aimedBy === 'shape'
+    ? ' No header in the paste, so the columns were worked out from the block —' +
+      ' worth a glance at the numbers before saving.'
+    : '';
   hint.textContent = rows.length
     ? `${rows.length} player${rows.length === 1 ? '' : 's'} read, ` +
-      `${named} of yours matched. Save fills those in.`
-    : 'No player rows found. The header row naming Won and Rank has to be in ' +
-      'the paste — it is what says which columns the numbers are in.';
+      `${named} of yours matched. Save fills those in.` + how
+    : 'No player rows found. Paste the group’s rows — the ones with a player ' +
+      'per line — and include the header naming Won and Rank if you can.';
 }
 function commitScores(){
   if(!scoreTarget) return;
@@ -3509,6 +3583,10 @@ function renderTournList(list, ms, {setup, locked, who}){
                       `<span class="pip"></span>${escapeHtml(p.name)}</span>`;
     const joins = setup
       ? (onKids.length ? '' : nobody) + state.players.map(chip).join('')
+      // With one child every row is theirs and their name on each of them says
+      // nothing. The hint stays either way: a tournament nobody is on is worth
+      // saying out loud, and with one child it is the only way to see it.
+      : state.players.length < 2 ? (onKids.length ? '' : nobody)
       : (onKids.map(said).join('') || nobody);
 
     html += `<div class="tourn${soon?' soon':''}${past?' past':''}">
