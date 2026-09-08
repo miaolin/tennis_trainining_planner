@@ -5,6 +5,32 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.17.0] — 2026-09-08
+
+### Added
+
+- **“Use these” takes the figures the rewards dialog is showing.** They are grey
+  placeholders and not values, which reads as a form already filled in: press
+  Save against them and nothing is stored, every tournament then pays nothing,
+  and no row anywhere says why. One press now turns them into real values, to be
+  edited or saved like any others.
+
+  Only the lines the shape is showing. A group has no quarterfinal to pay for
+  and a knockout no third place, and filling a hidden line would promise money
+  for something the draw cannot award. Pick **Knockout** first and it takes that
+  column instead — $20 to start, $20 a round, $50 for the quarterfinal.
+
+  It is called *Use these* rather than *Use standard*, which the tournament
+  dialog already uses for a different thing: dropping that event's exception and
+  falling back to the child's standard. Two buttons reading alike and doing
+  differently is a trap of its own.
+
+### Changed
+
+- **The dialog says what the grey figures are.** “The grey figures are
+  suggestions and pay nothing until they are taken.” The note had explained
+  every line except the one thing that was actually catching people out.
+
 ## [2.16.2] — 2026-09-08
 
 ### Fixed

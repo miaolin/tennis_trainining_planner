@@ -4387,6 +4387,75 @@ group('results do not wait on rewards');
      resOf(d2, 'Club Meet', 'Ian').querySelector('.rwin').value);
 }
 
+group('taking the figures the dialog offers');
+{
+  // The grey figures are placeholders, so a dialog that looks filled in saves
+  // nothing and every tournament then pays nothing, with no line anywhere to
+  // say why. "Use these" turns them into values.
+  const Y = new Date().getFullYear();
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Ian', Y - 9);
+  addTourn(dom, d, { name: 'Club Meet', start: `${Y}-03-07` });
+  click(dom, $(d, '#nav-matches'));
+
+  click(dom, $(d, '#rewrow [data-rewkid]'));
+  ok('the lines show figures without holding them',
+     $(d, '#r-win').placeholder === '5' && $(d, '#r-win').value === '',
+     `${$(d, '#r-win').placeholder}/${$(d, '#r-win').value}`);
+  ok('and the note says they pay nothing until taken',
+     $(d, '#r-hint').textContent.includes('pay nothing until they are taken'),
+     $(d, '#r-hint').textContent);
+
+  // saving against the placeholders is the trap: it stores nothing
+  click(dom, $(d, '#r-ok'));
+  // Whatever is written down, nothing is owed: every line came back nought, so
+  // the box still says so and no tournament pays.
+  ok('saving them untouched leaves nothing set',
+     $(d, '#rewrow').textContent.includes('nothing set'), $(d, '#rewrow').textContent);
+  ok('and no line is paid', (saved(dom).players[0].rewards || {}).perWin === 0,
+     JSON.stringify(saved(dom).players[0].rewards));
+
+  click(dom, $(d, '#rewrow [data-rewkid]'));
+  click(dom, $(d, '#r-take'));
+  ok('“Use these” fills the lines as values',
+     $(d, '#r-win').value === '5' && $(d, '#r-p1').value === '50' &&
+     $(d, '#r-p3').value === '10' && $(d, '#r-best').value === '20',
+     [$(d, '#r-win').value, $(d, '#r-p1').value, $(d, '#r-p3').value].join());
+  ok('the format line too', $(d, '#r-note').value === 'Red ball, played in group',
+     $(d, '#r-note').value);
+  ok('but not a line this shape has no way to pay',
+     $(d, '#r-qf').value === '' && $(d, '#r-init').value === '',
+     `${$(d, '#r-qf').value}/${$(d, '#r-init').value}`);
+
+  click(dom, $(d, '#r-ok'));
+  ok('and saving now stores the scheme', saved(dom).players[0].rewards.perWin === 5,
+     JSON.stringify(saved(dom).players[0].rewards));
+  ok('so the box at the top reads it back',
+     $(d, '#rewrow').textContent.includes('$5 a win'), $(d, '#rewrow').textContent);
+
+  // and the money lands on the row, which is the whole point
+  change(dom, $(d, '#tournlist .rwin'), '3');
+  change(dom, $(d, '#tournlist .rpl'), '2');
+  ok('a result now pays', $(d, '#tournlist .rpay').textContent === '$45',
+     $(d, '#tournlist .rpay').textContent);
+  ok('and shows how it was reached',
+     $(d, '#tournlist .rwhy').textContent === '3 wins $15 · 2nd $30',
+     $(d, '#tournlist .rwhy').textContent);
+
+  // a knockout offers its own figures, and its own lines
+  click(dom, $(d, '#rewrow [data-rewkid]'));
+  click(dom, $(d, '#r-kind-knockout'));
+  click(dom, $(d, '#r-take'));
+  ok('the knockout column is taken whole',
+     $(d, '#r-init').value === '20' && $(d, '#r-win').value === '20' &&
+     $(d, '#r-qf').value === '50' && $(d, '#r-p2').value === '80',
+     [$(d, '#r-init').value, $(d, '#r-win').value, $(d, '#r-qf').value].join());
+  ok('and a knockout is given no third place, having none to award',
+     $(d, '#r-p3').value === '' && $(d, '#r-p4').value === '',
+     `${$(d, '#r-p3').value}/${$(d, '#r-p4').value}`);
+}
+
 group('reading a scorecard');
 {
   // The shape of a real STA group sheet, with made-up players: a header naming
