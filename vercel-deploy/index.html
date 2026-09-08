@@ -665,11 +665,7 @@ input[type=number]#days{width:74px}
 .res .rnm{font-weight:700;color:var(--court-line);border-left:3px solid var(--c);padding-left:7px}
 .res label{display:flex;align-items:center;gap:5px}
 .res input{width:58px;font-size:12px;padding:3px 6px}
-/* An address needs more room than a count of wins, though not much: it is
-   pasted rather than read, and the link beside it is what gets used. */
-.res input.rlink{width:132px}
-.res .rlk{color:#8FC0E6;text-decoration:none;border-bottom:1px dotted rgba(143,192,230,.5)}
-.res .rlk:hover{color:var(--court-line)}
+
 .res .rpay{color:var(--ball);font-weight:700}
 /* A locked value keeps the shape of the field it replaces, so a row does not
    jump about as tabs change. */
@@ -680,6 +676,20 @@ input[type=number]#days{width:74px}
 .kid .kyrv{font-size:12px;color:var(--court-line);padding:3px 2px}
 .res .rtodo{color:var(--warn)}
 #rmodal .mrow .lab{min-width:82px}
+/* The scorecard box. A pasted group is wide and monospaced in its own sheet, so
+   it is left that way here — the parent is checking they grabbed the right
+   block, not reading it. */
+#smodal textarea{
+  width:100%;margin-top:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:11.5px;line-height:1.45;white-space:pre;overflow-x:auto;
+}
+#smodal .lab{display:block;margin-top:14px}
+.sfound{margin-top:10px;display:flex;flex-direction:column;gap:5px;font-size:12px}
+.sfound .sf{display:flex;align-items:center;gap:8px}
+.sfound .sfnm{font-weight:700;color:var(--court-line);border-left:3px solid var(--c);padding-left:7px}
+.sfound .sfok{color:var(--ok)}
+.sfound .sfno{color:var(--mute)}
+.sfound .sfamb{color:var(--warn)}
 /* Group or knockout: two shapes of draw that pay for different things, so the
    dialog asks which before it asks for figures. A segmented pair rather than a
    select, because there are only two and both should read at once. */
@@ -1078,6 +1088,23 @@ input[type=number]#days{width:74px}
   </div>
 </div>
 
+<div class="modal-back" id="smodal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="s-title">
+    <h3 id="s-title">Results</h3>
+    <div class="mrow"><label class="lab" for="s-link">Link</label>
+      <input type="url" id="s-link" inputmode="url" placeholder="link to the draw or result sheet"></div>
+    <label class="lab" for="s-paste">Scorecard</label>
+    <textarea id="s-paste" rows="5" spellcheck="false"
+      placeholder="Paste the group's scoring matrix here, header row included"></textarea>
+    <div id="s-found" class="sfound"></div>
+    <p class="hint" id="s-hint"></p>
+    <div class="mfoot">
+      <button type="button" id="s-cancel">Cancel</button>
+      <button type="button" id="s-ok" class="go">Save</button>
+    </div>
+  </div>
+</div>
+
 <p class="hint" id="datanote">Everything you enter is stored in this browser, and Safari deletes it
   after about a week without a visit. Download a backup to keep it safe, or turn on sync below to
   keep two devices on the same plan.</p>
@@ -1188,7 +1215,7 @@ function emptyState(){
   // state — into localStorage, into a backup file, and up to the server.
   return {version:2, updatedAt:0, blocks:[], activeBlockId:null,
           players:[], entries:[], trips:[], manualMatches:[], rewards:{},
-          forKids:{}};
+          forKids:{}, resultLinks:{}};
 }
 // playerId is whose block this is. null means nobody has said yet — every
 // block written before there were two children is in that state, and so is one
@@ -1455,15 +1482,11 @@ function sanitiseState(raw, allowEmptyBlocks){
         const out = {matchId:e.matchId, playerId:e.playerId};
         if(Number.isInteger(e.wins) && e.wins >= 0 && e.wins <= MAX_WINS) out.wins = e.wins;
         if(Number.isInteger(e.place) && e.place >= 1 && e.place <= MAX_PLACE) out.place = e.place;
-        // Where the result was read off. Only http(s) is kept, because it is
-        // rendered as a link and a javascript: URL must never become one.
-        const link = safeUrl(e.link);
-        if(link) out.link = link;
         return out;
       })
       // With the status gone, an entry recording nothing says nothing: the
       // tournament's own list is what says who is playing it.
-      .filter(e => 'wins' in e || 'place' in e || 'link' in e);
+      .filter(e => 'wins' in e || 'place' in e);
 
     // A child who had a status was on that tournament however the age rule
     // read, and a stated list that leaves them off would now drop them. Where
@@ -1494,6 +1517,24 @@ function sanitiseState(raw, allowEmptyBlocks){
   // Whose list a tournament is on. Ids of children who are gone are dropped,
   // and a list left empty by that is not kept: the tournament goes back to the
   // age rule rather than becoming one nobody can see.
+  // Where the result was published, one per tournament: the draw is one sheet
+  // covering everybody in it, not a thing each child has their own copy of.
+  // Only http(s) is kept, because it is rendered as a link and a javascript:
+  // URL must never become one.
+  if(raw.resultLinks && typeof raw.resultLinks === 'object' && !Array.isArray(raw.resultLinks)){
+    for(const k in raw.resultLinks){
+      const u = safeUrl(raw.resultLinks[k]);
+      if(u) st.resultLinks[k] = u;
+    }
+  }
+  // Written while the link hung off each child's entry. One sheet is one
+  // tournament's, so the first one found becomes the tournament's.
+  if(Array.isArray(raw.entries)) raw.entries.forEach(e=>{
+    if(!e || typeof e.matchId !== 'string' || st.resultLinks[e.matchId]) return;
+    const u = safeUrl(e.link);
+    if(u) st.resultLinks[e.matchId] = u;
+  });
+
   if(raw.forKids && typeof raw.forKids === 'object' && !Array.isArray(raw.forKids)){
     const kids = new Set(st.players.map(p=>p.id));
     for(const k in raw.forKids){
@@ -2935,12 +2976,210 @@ function rewardsLine(r){
   return bits.join(' · ');
 }
 
+
+/* ---- reading a scorecard ----
+   The draw comes back as a spreadsheet from the organiser, and there is no way
+   to fetch it: it is a private file belonging to whoever ran the event, it is
+   an .xlsx rather than anything a page can read, and it carries fifty other
+   families' names, emails and part of their NRIC. None of that belongs in here.
+
+   So the sheet is not fetched, it is pasted. The parent opens it, copies the
+   group's scoring matrix, and only the two numbers that are their own child's
+   are kept. Nobody else's row is stored, or ever leaves the page.
+
+   The shape being read, a row per player with a header naming the columns:
+
+     GROUP A ,, 1 , 2 , … , 9 ,, Won , Rank
+     1, Ian Lin ,  — , 8,2 , … , 5,1 ,  7  ,  2
+
+   A paste can hold several groups at once and they are not the same width, so
+   every header line re-aims the columns for the rows beneath it. */
+
+// A spreadsheet copies tab-separated; an exported CSV comes comma-separated
+// with quotes round anything holding a comma — and a name like
+// "Bo Lin, Alfred Li" is exactly that, so the quotes have to be honoured.
+function splitCells(line){
+  if(line.indexOf('\t') >= 0) return line.split('\t').map(c => c.trim());
+  const out = [];
+  let cur = '', quoted = false;
+  for(let i = 0; i < line.length; i++){
+    const c = line[i];
+    if(quoted){
+      if(c === '"'){
+        if(line[i + 1] === '"'){ cur += '"'; i++; } else quoted = false;
+      } else cur += c;
+    }
+    else if(c === '"') quoted = true;
+    else if(c === ','){ out.push(cur.trim()); cur = ''; }
+    else cur += c;
+  }
+  out.push(cur.trim());
+  return out;
+}
+// A cell that is a plain count. "-" is how the sheet writes a player who never
+// turned up, and it is not a nought.
+function cellNum(c){
+  if(!/^\d{1,3}$/.test(String(c || '').trim())) return null;
+  const v = parseInt(c, 10);
+  return Number.isInteger(v) ? v : null;
+}
+// The name is the first cell that reads as one: the row opens with the player's
+// number in the group, which is a count and not a name.
+function rowName(cells){
+  for(const c of cells){
+    if(c && cellNum(c) === null && /[A-Za-z]/.test(c) && c.length > 1) return c;
+  }
+  return '';
+}
+const MAX_PASTE = 200000;   // a whole workbook pasted by accident, not a group
+
+function parseScorecard(text){
+  const rows = String(text || '').slice(0, MAX_PASTE).split(/\r?\n/);
+  let wonAt = -1, rankAt = -1;
+  const out = [];
+  rows.forEach(line => {
+    const cells = splitCells(line);
+    if(!cells.some(c => c)) return;
+    const w = cells.findIndex(c => /^won$/i.test(c));
+    // Won and Rank sit together at the end of the scoring matrix. Select whole
+    // rows and the line also carries the scorecard's own RANK column, far to
+    // the left — so once Won is found, the Rank meant is the one after it.
+    // They usually agree, which is exactly why picking by luck is no good.
+    let r = w >= 0 ? cells.findIndex((c, i) => i > w && /^rank$/i.test(c)) : -1;
+    if(r < 0) r = cells.findIndex(c => /^rank$/i.test(c));
+    // A header line says where the numbers are from here down, and says
+    // nothing about a player.
+    if(w >= 0 || r >= 0){
+      if(w >= 0) wonAt = w;
+      if(r >= 0) rankAt = r;
+      return;
+    }
+    if(wonAt < 0 && rankAt < 0) return;         // nothing has aimed us yet
+    const name = rowName(cells);
+    if(!name) return;
+    const wins = wonAt >= 0 ? cellNum(cells[wonAt]) : null;
+    const place = rankAt >= 0 ? cellNum(cells[rankAt]) : null;
+    if(wins === null && place === null) return;  // a row that played nothing
+    out.push({name, wins, place});
+  });
+  return out;
+}
+
+/* Which of those rows is this child. The sheet writes a full name and the app
+   holds whatever the parent typed, so "Ian" has to find "Ian Lin" — without
+   also finding "Ho Yin Ian Chiu", who is a different boy in the same draw.
+   Hence a score rather than a test: a name that starts the cell beats a name
+   merely somewhere inside it, and two rows tying at the top are reported as
+   ambiguous rather than guessed between. */
+const normName2 = s => String(s || '').toLowerCase()
+  .replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+function nameScore(kid, row){
+  const k = normName2(kid), r = normName2(row);
+  if(!k || !r) return 0;
+  if(k === r) return 3;
+  if(r.startsWith(k + ' ') || r.endsWith(' ' + k)) return 2;
+  const rt = r.split(' ');
+  return k.split(' ').every(t => rt.includes(t)) ? 1 : 0;
+}
+// null when nothing matched; {row} when one did; {ambiguous} when several tied.
+function matchRow(kidName, rows){
+  let best = 0, hits = [];
+  rows.forEach(r => {
+    const sc = nameScore(kidName, r.name);
+    if(sc > best){ best = sc; hits = [r]; }
+    else if(sc === best && sc > 0) hits.push(r);
+  });
+  if(!best) return null;
+  if(hits.length > 1) return {ambiguous: hits};
+  return {row: hits[0]};
+}
+
+
+/* ---- the results dialog ----
+   One tournament's sheet, and what it says about the children on it. The link
+   is a bookmark and nothing more — the file cannot be fetched, being private,
+   an .xlsx, and full of other families' details — so the numbers arrive by
+   paste, and only the matched child's two figures are ever kept. */
+let scoreTarget = null;    // match id, or null when the dialog is shut
+
+function openScores(mId){
+  const m = allMatches().find(x => x.id === mId);
+  if(!m || viewLocked()) return;
+  scoreTarget = mId;
+  document.getElementById('s-title').textContent = 'Results — ' + m.name;
+  document.getElementById('s-link').value = resultLink(mId);
+  document.getElementById('s-paste').value = '';
+  renderFound();
+  document.getElementById('smodal').hidden = false;
+  document.getElementById('s-link').focus();
+}
+function closeScores(){
+  scoreTarget = null;
+  document.getElementById('smodal').hidden = true;
+}
+// What the paste says about each child on this tournament, as it is typed. It
+// reads and reports; nothing is written until Save.
+function readFound(){
+  const rows = parseScorecard(document.getElementById('s-paste').value);
+  const m = allMatches().find(x => x.id === scoreTarget);
+  if(!m) return {rows, out: []};
+  return {rows, out: kidsOnMatch(m).map(p => ({player: p, hit: matchRow(p.name, rows)}))};
+}
+function renderFound(){
+  const box = document.getElementById('s-found');
+  const hint = document.getElementById('s-hint');
+  const {rows, out} = readFound();
+  if(!document.getElementById('s-paste').value.trim()){
+    box.innerHTML = '';
+    hint.textContent = 'Open the sheet, copy the group’s scoring matrix with its ' +
+      'header row, and paste it here. Only your own child’s wins and place are ' +
+      'kept — nobody else’s row is stored or sent anywhere.';
+    return;
+  }
+  box.innerHTML = out.map(({player, hit}) => {
+    const nm = `<span class="sfnm">${escapeHtml(player.name)}</span>`;
+    if(!hit) return `<div class="sf" style="--c:${player.colour}">${nm}` +
+      '<span class="sfno">not in this paste</span></div>';
+    if(hit.ambiguous) return `<div class="sf" style="--c:${player.colour}">${nm}` +
+      `<span class="sfamb">matches ${escapeHtml(hit.ambiguous.map(r=>r.name).join(', '))}` +
+      ' — too close to call, so nothing is filled in</span></div>';
+    const r = hit.row;
+    const bits = [];
+    if(r.wins !== null) bits.push(`${r.wins} win${r.wins === 1 ? '' : 's'}`);
+    if(r.place !== null) bits.push(ORDINAL[r.place - 1] || `${r.place}th`);
+    return `<div class="sf" style="--c:${player.colour}">${nm}` +
+      `<span class="sfok">found as ${escapeHtml(r.name)}: ${bits.join(', ')}</span></div>`;
+  }).join('');
+  const named = out.filter(o => o.hit && o.hit.row).length;
+  hint.textContent = rows.length
+    ? `${rows.length} player${rows.length === 1 ? '' : 's'} read, ` +
+      `${named} of yours matched. Save fills those in.`
+    : 'No player rows found. The header row naming Won and Rank has to be in ' +
+      'the paste — it is what says which columns the numbers are in.';
+}
+function commitScores(){
+  if(!scoreTarget) return;
+  const mId = scoreTarget;
+  setResultLink(mId, document.getElementById('s-link').value);
+  const {out} = readFound();
+  out.forEach(({player, hit}) => {
+    if(!hit || !hit.row) return;
+    const e = entryFor(mId, player.id);
+    if(hit.row.wins !== null && hit.row.wins <= MAX_WINS) e.wins = hit.row.wins;
+    if(hit.row.place !== null && hit.row.place >= 1 && hit.row.place <= MAX_PLACE)
+      e.place = hit.row.place;
+    pruneEntry(mId, player.id);
+  });
+  closeScores();
+  render(); save();
+}
+
 function resultOf(matchId, playerId){
   const e = (state.entries || []).find(x => x.matchId === matchId && x.playerId === playerId);
   if(!e) return null;
   return {wins: Number.isInteger(e.wins) ? e.wins : null,
-          place: Number.isInteger(e.place) ? e.place : null,
-          link: typeof e.link === 'string' ? e.link : ''};
+          place: Number.isInteger(e.place) ? e.place : null};
 }
 // An entry holds the result and nothing else, so recording one is what brings
 // it into being. A blank or silly number clears the field rather than being
@@ -2956,7 +3195,7 @@ function pruneEntry(matchId, playerId){
   const i = state.entries.findIndex(x => x.matchId === matchId && x.playerId === playerId);
   if(i < 0) return;
   const e = state.entries[i];
-  if(!('wins' in e) && !('place' in e) && !('link' in e)) state.entries.splice(i, 1);
+  if(!('wins' in e) && !('place' in e)) state.entries.splice(i, 1);
 }
 function setResult(matchId, playerId, field, raw){
   if(viewLocked()) return;
@@ -2970,16 +3209,17 @@ function setResult(matchId, playerId, field, raw){
   render(); save();
 }
 // Where the result was published — the draw sheet, whatever the organiser put
-// it on. Anything that is not an http(s) address is dropped rather than stored
-// and refused later, because it is about to be rendered as a link.
-function setResultLink(matchId, playerId, raw){
-  if(viewLocked()) return;
-  const e = entryFor(matchId, playerId);
+// it on. One per tournament: the sheet covers everybody in the draw. Anything
+// that is not an http(s) address is dropped rather than stored and refused
+// later, because it is about to be rendered as a link.
+function resultLink(matchId){
+  return (state.resultLinks && state.resultLinks[matchId]) || '';
+}
+function setResultLink(matchId, raw){
+  if(!state.resultLinks) state.resultLinks = {};
   const u = safeUrl(raw);
-  if(u) e.link = u;
-  else delete e.link;
-  pruneEntry(matchId, playerId);
-  render(); save();
+  if(u) state.resultLinks[matchId] = u;
+  else delete state.resultLinks[matchId];
 }
 // The most matches this child has won at any tournament before this one. Like
 // prevWins it looks only backwards: a first tournament has nothing to beat, so
@@ -3115,6 +3355,7 @@ function dropTournament(id){
   state.entries = state.entries.filter(e=>e.matchId !== id);
   delete state.rewards[id];
   delete state.forKids[id];
+  if(state.resultLinks) delete state.resultLinks[id];
 }
 function removeTournament(id){
   const m = (state.manualMatches || []).find(x=>x.id===id);
@@ -3199,6 +3440,10 @@ function renderTournList(list, ms, {setup, locked, who}){
         (cowner && trainStrip() && !shownKid ? ` (${escapeHtml(cowner.name)})` : ''));
     }
     if(m.url) meta.push(`<a class="tlink" href="${escapeHtml(m.url)}" target="_blank" rel="noopener noreferrer">Tournament page</a>`);
+    // The draw is one sheet for the whole event, so it belongs on the event's
+    // own line rather than repeated under every child in it.
+    const rlink = resultLink(m.id);
+    if(rlink && !setup) meta.push(`<a class="tlink" href="${escapeHtml(rlink)}" target="_blank" rel="noopener noreferrer">Results</a>`);
     if(m.note) meta.push(`<span class="tnote">${escapeHtml(m.note)}</span>`);
 
     // A line on the row means this tournament pays something other than the
@@ -3222,7 +3467,7 @@ function renderTournList(list, ms, {setup, locked, who}){
     const played = setup ? [] : (who ? [who] : state.players)
       .filter(p => kidOnMatch(p, m, mYear));
     const results = played.map(p=>{
-      const res = resultOf(m.id, p.id) || {wins:null, place:null, link:''};
+      const res = resultOf(m.id, p.id) || {wins:null, place:null};
       const pay = payout(m, p);
       const pays = hasRewards(schemeFor(m, p));
       const box = (cls, field, val, lo, hi, lab) => locked
@@ -3237,21 +3482,9 @@ function renderTournList(list, ms, {setup, locked, who}){
         ? `<span class="rpay">${money(pay.total)}</span>` +
           (pay.parts.length ? `<span class="rwhy">${escapeHtml(pay.parts.join(' · '))}</span>` : '')
         : pays ? '<span class="rtodo">No result yet</span>' : '';
-      // The sheet the result was read off. Once there is one it is the link and
-      // not the address that is worth the width — the URL is long, says
-      // nothing, and is one click from being read in full.
-      const lk = res.link
-        ? `<a class="rlk" href="${escapeHtml(res.link)}" target="_blank" rel="noopener noreferrer">Results \u29C9</a>`
-        : '';
-      const linkbox = locked ? lk
-        : `<label>Results <input type="url" class="rlink" inputmode="url"` +
-          ` data-m="${m.id}" data-p="${p.id}" value="${escapeHtml(res.link)}"` +
-          ` placeholder="paste link" aria-label="${escapeHtml(p.name)} results link` +
-          ` at ${escapeHtml(m.name)}"></label>` + lk;
       return `<div class="res" style="--c:${p.colour}"><span class="rnm">${escapeHtml(p.name)}</span>` +
              box('rwin', 'wins', res.wins, 0, MAX_WINS, 'Wins') +
-             box('rpl', 'final place', res.place, 1, MAX_PLACE, 'Place') +
-             linkbox + sum + '</div>';
+             box('rpl', 'final place', res.place, 1, MAX_PLACE, 'Place') + sum + '</div>';
     }).join('');
     // One question now: is this child playing this tournament? Being on it is
     // the whole of the answer — there is no entry to confirm afterwards, and
@@ -3286,6 +3519,8 @@ function renderTournList(list, ms, {setup, locked, who}){
         ${meta.length ? `<div class="tmeta">${meta.join(' · ')}</div>` : ''}
         ${differs ? `<div class="trew"><span class="only">Only here</span>${escapeHtml(rewardsLine(own))}</div>` : ''}</div>
       <div class="joins">${joins}${locked || setup ? '' :
+        `<button class="trewbtn" data-sc="${m.id}"
+          aria-label="Results for ${escapeHtml(m.name)}">Results</button>` +
         `<button class="trewbtn${differs?' set':''}" data-rew="${m.id}"
           aria-label="Rewards for ${escapeHtml(m.name)}">Rewards</button>`}${setup && editable.has(m.id)
         ? `<button class="tdel" data-del="${m.id}" aria-label="Delete">&times;</button>` : ''}</div>
@@ -3300,14 +3535,14 @@ function renderTournList(list, ms, {setup, locked, who}){
     btn.addEventListener('click', ()=>toggleForKid(btn.dataset.mfor, btn.dataset.p)));
   list.querySelectorAll('.tdel').forEach(btn=>
     btn.addEventListener('click', ()=>removeTournament(btn.dataset.del)));
-  list.querySelectorAll('.trewbtn').forEach(btn=>
+  list.querySelectorAll('[data-rew]').forEach(btn=>
     btn.addEventListener('click', ()=>openRewards('match', btn.dataset.rew)));
+  list.querySelectorAll('[data-sc]').forEach(btn=>
+    btn.addEventListener('click', ()=>openScores(btn.dataset.sc)));
   list.querySelectorAll('.rwin').forEach(inp=>
     inp.addEventListener('change', ()=>setResult(inp.dataset.m, inp.dataset.p, 'wins', inp.value)));
   list.querySelectorAll('.rpl').forEach(inp=>
     inp.addEventListener('change', ()=>setResult(inp.dataset.m, inp.dataset.p, 'place', inp.value)));
-  list.querySelectorAll('.rlink').forEach(inp=>
-    inp.addEventListener('change', ()=>setResultLink(inp.dataset.m, inp.dataset.p, inp.value)));
 }
 
 /* ---- render: Setup ----
@@ -3675,14 +3910,14 @@ function resultRows(){
     state.players.forEach(p=>{
       // Not on it is not a row: the list is what says a child played something.
       if(!kidOnMatch(p, m, Number(m.start.slice(0,4)))) return;
-      const res = resultOf(m.id, p.id) || {wins:null, place:null, link:''};
+      const res = resultOf(m.id, p.id) || {wins:null, place:null};
       const pay = payout(m, p);
       rows.push([
         m.name, m.start, m.end, m.venue, (m.categories || []).join(' · '), m.source,
         p.name,
         res.wins === null ? '' : res.wins,
         res.place === null ? '' : res.place,
-        res.link,
+        resultLink(m.id),
         // A bare number, so a column of them adds up in the spreadsheet.
         pay ? (Math.round(pay.total * 100) / 100) : '',
         pay ? pay.parts.join(' · ') : ''
@@ -4518,6 +4753,20 @@ document.getElementById('r-cancel').addEventListener('click', closeRewards);
 document.getElementById('r-clear').addEventListener('click', clearRewards);
 document.getElementById('rmodal').addEventListener('click', e=>{
   if(e.target.id === 'rmodal') closeRewards();
+});
+document.getElementById('s-ok').addEventListener('click', commitScores);
+document.getElementById('s-cancel').addEventListener('click', closeScores);
+// input for typing and pasting, change for a paste committed by leaving the
+// box — both say the same thing, that the text under the preview has moved on.
+['input', 'change'].forEach(ev =>
+  document.getElementById('s-paste').addEventListener(ev, renderFound));
+document.getElementById('smodal').addEventListener('click', e=>{
+  if(e.target.id === 'smodal') closeScores();
+});
+document.getElementById('smodal').addEventListener('keydown', e=>{
+  // Enter inside the scorecard is a newline, the paste being many lines. Only
+  // Escape and the buttons close this one.
+  if(e.key === 'Escape'){ e.preventDefault(); closeScores(); }
 });
 document.querySelectorAll('.kindpick button').forEach(b =>
   b.addEventListener('click', ()=>setRewardKind(b.dataset.kind)));
