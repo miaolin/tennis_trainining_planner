@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.16.2** · [Changelog](CHANGELOG.md)
+**Version 2.17.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -141,6 +141,14 @@ child in the **Rewards** box at the top of the tournaments view.
 The dialog asks the shape of the draw first, because the two shapes pay for
 different things and each brings its own lines and its own figures to start
 from. Any line can be left blank to drop it.
+
+Those figures are grey **placeholders and not values** — a dialog that looks
+filled in stores nothing, and a scheme with nothing in it pays nothing on every
+tournament. **Use these** takes them all at once, as real values, and only for
+the lines the shape is showing: a group has no quarterfinal to pay for and a
+knockout no third place. Everything stays editable before Save. (On a
+tournament's own dialog the same button reads **Use standard**, and does a
+different thing — see below.)
 
 **Group** — everyone plays the same handful of matches, so the wins carry it:
 

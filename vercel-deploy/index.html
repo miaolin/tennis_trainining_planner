@@ -1081,6 +1081,7 @@ input[type=number]#days{width:74px}
     </div>
     <p class="hint" id="r-hint"></p>
     <div class="mfoot">
+      <button type="button" id="r-take">Use these</button>
       <button type="button" id="r-clear">Clear</button>
       <button type="button" id="r-cancel">Cancel</button>
       <button type="button" id="r-ok" class="go">Save</button>
@@ -1754,10 +1755,11 @@ function rewardHint(){
       'went through it. '
     : 'A group pays for every match they win, and for where they finish in the group. ';
   return shape + (rewardTarget && rewardTarget.kind === 'kid'
-    ? 'This is what the child plays for at every tournament. Leave a line blank to ' +
-      'drop it. “Beat last” pays when they beat their previous tournament, “Best ' +
-      'ever” when they beat every tournament before it — both can land on the ' +
-      'same afternoon.'
+    ? 'This is what the child plays for at every tournament. The grey figures are ' +
+      'suggestions and pay nothing until they are taken — “Use these” takes them ' +
+      'all at once. Leave a line blank to drop it. “Beat last” pays when they beat ' +
+      'their previous tournament, “Best ever” when they beat every tournament ' +
+      'before it — both can land on the same afternoon.'
     : 'This tournament only. Save it with every line blank to say it pays nothing, ' +
       'or press Use standard to go back to what the child normally plays for.');
 }
@@ -1850,6 +1852,31 @@ function commitRewards(){
 }
 // On a child this drops the scheme outright. On a tournament it drops only the
 // exception, putting the child's standard back.
+/* The figures the dialog opens on are grey placeholders and not values, which
+   reads as a form already filled in — press Save against them and nothing is
+   stored, and every tournament then pays nothing with no line on any row to say
+   why. This takes them at their word: every line the shape is showing gets the
+   figure standing in for it, as a real value, and can be edited before saving
+   like any other.
+
+   Only the lines on show. A group has no quarterfinal to pay for and a knockout
+   no third place, and filling a hidden line would promise money for something
+   the draw cannot award. */
+function useSuggested(){
+  if(!rewardTarget || viewLocked()) return;
+  const tpl = KIND_TEMPLATE[rewardKind];
+  const put = (el, v) => {
+    const box = document.getElementById(el);
+    if(document.getElementById('r-row-' + el.slice(2)).hidden) return;
+    box.value = v;
+  };
+  put('r-init', tpl.init); put('r-win', tpl.win);   put('r-qf', tpl.qf);
+  put('r-p1', tpl.p1);     put('r-p2', tpl.p2);     put('r-p3', tpl.p3);
+  put('r-p4', tpl.p4);     put('r-imp', tpl.imp);   put('r-best', tpl.best);
+  put('r-note', tpl.note);
+  document.getElementById('r-win').focus();
+}
+
 function clearRewards(){
   if(!rewardTarget || viewLocked()) return;
   if(rewardTarget.kind === 'kid'){
@@ -4833,6 +4860,7 @@ document.getElementById('modal').addEventListener('keydown', e=>{
 document.getElementById('r-ok').addEventListener('click', commitRewards);
 document.getElementById('r-cancel').addEventListener('click', closeRewards);
 document.getElementById('r-clear').addEventListener('click', clearRewards);
+document.getElementById('r-take').addEventListener('click', useSuggested);
 document.getElementById('rmodal').addEventListener('click', e=>{
   if(e.target.id === 'rmodal') closeRewards();
 });
