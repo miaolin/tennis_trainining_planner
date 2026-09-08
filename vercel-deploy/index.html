@@ -1655,13 +1655,22 @@ let rewardTarget = null;   // {kind:'kid'|'match', id}; null when the dialog is 
 let rewardKind = 'group';  // which shape the open dialog is currently written for
 
 /* The figures each shape opens on. They are placeholders and not values: a
-   grey 15 says what a quarterfinal is usually worth without quietly promising
-   to pay it, which is the same bargain the group lines have always struck. */
+   grey 50 says what a quarterfinal is usually worth without quietly promising
+   to pay it, which is the same bargain the group lines have always struck.
+
+   The two columns are priced to pay a child about the same over a season
+   despite paying for entirely different things. A group hands out eight
+   matches and a podium finish every time, so its money is spread thin and
+   wide: a win is $5 and even the bottom of the podium is worth something. A
+   knockout guarantees one match and nothing else, so it pays $20 just for
+   turning up and $20 a round — four times a group win, because losing one
+   ends the day. The 1st and 2nd lines sit high and mostly out of reach on a
+   large draw; they are the horizon, not the budget. */
 const KIND_TEMPLATE = {
-  group:    {init:'',   win:'5',  qf:'',   p1:'50',  p2:'30', p3:'', p4:'',
+  group:    {init:'',   win:'5',  qf:'',   p1:'50',  p2:'30', p3:'10', p4:'',
              imp:'5',  best:'20', note:'Red ball, played in group'},
-  knockout: {init:'20', win:'20', qf:'30', p1:'100', p2:'50', p3:'', p4:'',
-             imp:'30', best:'50', note:'Red ball, knockout draw'}
+  knockout: {init:'20', win:'20', qf:'50', p1:'100', p2:'80', p3:'', p4:'',
+             imp:'15', best:'20', note:'Red ball, knockout draw'}
 };
 
 // Two sentences: what this shape of draw pays for, then whose figures these are.
