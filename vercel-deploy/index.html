@@ -615,22 +615,17 @@ input[type=number]#days{width:74px}
   transition:background .15s,border-color .15s,color .15s;
 }
 .join .pip{width:7px;height:7px;border-radius:50%;background:var(--c);flex:none;opacity:.35}
-.join.s-planned{border-color:rgba(255,255,255,.4);color:var(--court-line)}
-.join.s-planned .pip{opacity:1}
-.join.s-entered{border-color:var(--ball);color:var(--ball)}
-.join.s-entered .pip{opacity:1;background:var(--ball)}
-.join.s-confirmed{border-color:var(--ok);background:rgba(79,169,124,.18);color:#9BD7B7}
-.join.s-confirmed .pip{opacity:1;background:var(--ok)}
-.join.s-skipped{opacity:.45;text-decoration:line-through}
-/* Setup asks whose list this is on, not how it is going, so its chips read as
-   on or off and carry no status colour. */
+/* Both lists now ask one thing and it has two answers, so there is one pair of
+   states to draw. On means playing, which is the committed end of what the
+   four statuses used to say, so it keeps the colour Confirmed had. */
 .join.forpick{opacity:.45}
-.join.forpick.on{opacity:1;border-color:rgba(255,255,255,.4);color:var(--court-line)}
-.join.forpick.on .pip{opacity:1}
-.join.forpick:disabled{cursor:default}
-/* Locked, not unavailable: the status still has to read at a glance. */
-.join:disabled{cursor:default;opacity:1}
-.join.s-skipped:disabled{opacity:.45}
+.join.forpick.on{opacity:1;border-color:var(--ok);background:rgba(79,169,124,.18);color:#9BD7B7}
+.join.forpick.on .pip{opacity:1;background:var(--ok)}
+/* Locked, not unavailable: which children are playing still has to read at a
+   glance, so only the pointer goes. A span saying who is playing is not
+   pressable either. */
+.join:disabled,span.join{cursor:default}
+.join.forpick:disabled:not(.on){opacity:.45}
 .tdel{
   border:none;background:transparent;color:var(--mute);
   font-size:15px;padding:3px 7px;border-radius:3px;cursor:pointer;
@@ -670,6 +665,11 @@ input[type=number]#days{width:74px}
 .res .rnm{font-weight:700;color:var(--court-line);border-left:3px solid var(--c);padding-left:7px}
 .res label{display:flex;align-items:center;gap:5px}
 .res input{width:58px;font-size:12px;padding:3px 6px}
+/* An address needs more room than a count of wins, though not much: it is
+   pasted rather than read, and the link beside it is what gets used. */
+.res input.rlink{width:132px}
+.res .rlk{color:#8FC0E6;text-decoration:none;border-bottom:1px dotted rgba(143,192,230,.5)}
+.res .rlk:hover{color:var(--court-line)}
 .res .rpay{color:var(--ball);font-weight:700}
 /* A locked value keeps the shape of the field it replaces, so a row does not
    jump about as tabs change. */
@@ -1438,21 +1438,47 @@ function sanitiseState(raw, allowEmptyBlocks){
 
   // Drop entries whose player is gone. Entries are kept even when their match
   // is not currently known — the feed may simply be missing on this load, and
-  // discarding them would silently lose the user's entry status.
+  // discarding them would silently lose a recorded afternoon.
   if(Array.isArray(raw.entries)){
     const kids = new Set(st.players.map(p=>p.id));
-    st.entries = raw.entries.filter(e =>
-      e && typeof e.matchId === 'string' && typeof e.playerId === 'string' &&
-      STATUSES.includes(e.status) && kids.has(e.playerId))
+    st.entries = raw.entries
+      .filter(e => e && typeof e.matchId === 'string' && typeof e.playerId === 'string' &&
+                   kids.has(e.playerId) &&
+                   // Written when an entry carried a status: "Skipping" said a
+                   // child was not playing, which is now said by taking them off
+                   // the tournament. No result can mean that, so those rows go.
+                   e.status !== 'skipped')
       // A result rides on the entry it belongs to. Absent is not the same as
       // zero — zero wins is a real afternoon, so the keys are left off rather
       // than defaulted.
       .map(e => {
-        const out = {matchId:e.matchId, playerId:e.playerId, status:e.status};
+        const out = {matchId:e.matchId, playerId:e.playerId};
         if(Number.isInteger(e.wins) && e.wins >= 0 && e.wins <= MAX_WINS) out.wins = e.wins;
         if(Number.isInteger(e.place) && e.place >= 1 && e.place <= MAX_PLACE) out.place = e.place;
+        // Where the result was read off. Only http(s) is kept, because it is
+        // rendered as a link and a javascript: URL must never become one.
+        const link = safeUrl(e.link);
+        if(link) out.link = link;
         return out;
-      });
+      })
+      // With the status gone, an entry recording nothing says nothing: the
+      // tournament's own list is what says who is playing it.
+      .filter(e => 'wins' in e || 'place' in e || 'link' in e);
+
+    // A child who had a status was on that tournament however the age rule
+    // read, and a stated list that leaves them off would now drop them. Where
+    // such a list exists, put them back on it.
+    const played = new Set();
+    (raw.entries || []).forEach(e => {
+      if(e && typeof e.matchId === 'string' && typeof e.playerId === 'string' &&
+         kids.has(e.playerId) && e.status && e.status !== 'skipped')
+        played.add(e.matchId + '\u0000' + e.playerId);
+    });
+    played.forEach(k => {
+      const [mId, pId] = k.split('\u0000');
+      const list = st.forKids && st.forKids[mId];
+      if(Array.isArray(list) && !list.includes(pId)) list.push(pId);
+    });
   }
 
   // Keyed by match id so a scheme survives on an imported tournament, which is
@@ -1471,9 +1497,14 @@ function sanitiseState(raw, allowEmptyBlocks){
   if(raw.forKids && typeof raw.forKids === 'object' && !Array.isArray(raw.forKids)){
     const kids = new Set(st.players.map(p=>p.id));
     for(const k in raw.forKids){
-      const ids = Array.isArray(raw.forKids[k])
-        ? raw.forKids[k].filter(x => typeof x === 'string' && kids.has(x)) : [];
-      if(ids.length) st.forKids[k] = [...new Set(ids)];
+      // A list written empty is kept: it says nobody is playing this one, which
+      // is not the same as never having said. A list that named children who
+      // are all gone is neither — it is a statement about nobody who exists, so
+      // it goes and the age rule decides again.
+      if(Array.isArray(raw.forKids[k])){
+        const ids = [...new Set(raw.forKids[k].filter(x => typeof x === 'string' && kids.has(x)))];
+        if(ids.length || !raw.forKids[k].length) st.forKids[k] = ids;
+      }
     }
   }
 
@@ -2203,8 +2234,6 @@ function runChecks(b){
    feed committed alongside the site, and whatever the user adds in the browser.
    They are merged for display; only the locally held ones are editable here.
    ========================================================================= */
-const STATUSES = ['planned','entered','confirmed','skipped'];
-const STATUS_LABEL = {planned:'Planned', entered:'Entered', confirmed:'Confirmed', skipped:'Skipping'};
 const KID_COLOURS = ['#5B9BD5','#D6E64B','#9B87D4','#4FA97C','#E8A33D','#D9603F'];
 const DEADLINE_WARN_DAYS = 21;
 // Rewards. A junior draw is a handful of matches, so the ceilings are only
@@ -2477,23 +2506,26 @@ function kidFitsMatch(p, m, year){
    actually said, keyed by match id like rewards so it survives on an imported
    tournament that is read-only in every other respect.
 
-   No entry means nobody has narrowed it and the age rule still decides. An
-   empty one is never stored, so unticking the last child hands the tournament
-   back to the age rule instead of leaving one that appears on no tab at all. */
+   No list means nobody has narrowed it and the age rule still decides. An empty
+   list is a different answer: nobody is playing this one. That has to be
+   storable now that being on a tournament is the whole of what says a child is
+   playing it — otherwise taking the last child off would hand the tournament
+   straight back to the age rule and put them on it again. Such a tournament
+   appears on no child's tab, but it is never lost: Setup lists every tournament
+   there is, says which ones are on no one's list, and is where a name goes back
+   on. Pass null to drop the list and let the age rule decide again. */
 function forKids(mId){
   const l = state.forKids ? state.forKids[mId] : null;
-  return (Array.isArray(l) && l.length) ? l : null;
+  return Array.isArray(l) ? l : null;
 }
 function setForKids(mId, ids){
   if(!state.forKids) state.forKids = {};
-  if(ids && ids.length) state.forKids[mId] = [...new Set(ids)];
+  if(Array.isArray(ids)) state.forKids[mId] = [...new Set(ids)];
   else delete state.forKids[mId];
 }
-// Never hide a kid who already has a status: whatever the rules say, a recorded
-// decision must stay reachable. A stated list beats the age guess; with no list
-// the age rule is all there is.
+// A stated list beats the age guess; with no list the age rule is all there is.
+// This is now the whole of the answer to whether a child is playing something.
 function kidOnMatch(p, m, year){
-  if(statusOf(m.id, p.id) !== null) return true;
   const named = forKids(m.id);
   if(named) return named.includes(p.id);
   return kidFitsMatch(p, m, year);
@@ -2515,11 +2547,13 @@ function ageEligible(m){
 function sameKids(a, b){
   return a.length === b.length && a.every(x => b.includes(x));
 }
+// On or off, and on means playing. A result already recorded is left alone
+// rather than deleted: taking a child off is as often a mis-click as a change
+// of plan, and putting them back should not have cost them the afternoon.
+// Setup is never read-only — setting up is the one thing you always came to do
+// — and the tournaments view offers no chip to press, so there is nothing to
+// lock against here.
 function toggleForKid(mId, playerId){
-  // An entry is the stronger statement. It keeps a child on a tournament
-  // whatever a list says, so it cannot be taken off one here either — the
-  // mutator checks, not only the disabled attribute on the button.
-  if(statusOf(mId, playerId) !== null) return;
   const m = allMatches().find(x => x.id === mId);
   if(!m) return;
   const cur = forKids(mId) || kidsOnMatch(m).map(p=>p.id);
@@ -2760,7 +2794,13 @@ function removePlayer(id){
   state.blocks.forEach(b=>{ if(b.playerId === id) b.playerId = null; });
   // A tournament kept only for them goes back to the age rule rather than
   // staying on a list of nobody.
-  for(const k in state.forKids) setForKids(k, state.forKids[k].filter(x => x !== id));
+  // Same rule: a list this child was the whole of said something about them,
+  // and with them gone it says nothing — so it is dropped rather than turned
+  // into a claim that nobody plays it.
+  for(const k in state.forKids){
+    const left = state.forKids[k].filter(x => x !== id);
+    setForKids(k, left.length ? left : null);
+  }
   if(trainWho === id) trainWho = null;
   offerToDropOrphans();
   render(); save();
@@ -2793,23 +2833,16 @@ function offerToDropOrphans(){
   orphans.forEach(m => dropTournament(m.id));
 }
 
-/* ---- entries ---- */
-function statusOf(matchId, playerId){
-  const e = (state.entries || []).find(x=>x.matchId===matchId && x.playerId===playerId);
-  return e ? e.status : null;
-}
-function cycleEntry(matchId, playerId){
-  if(viewLocked()) return;
-  const i = state.entries.findIndex(x=>x.matchId===matchId && x.playerId===playerId);
-  if(i < 0){
-    state.entries.push({matchId, playerId, status:'planned'});
-  } else {
-    const next = STATUSES.indexOf(state.entries[i].status) + 1;
-    if(next >= STATUSES.length || next === 0) state.entries.splice(i, 1);
-    else state.entries[i].status = STATUSES[next];
-  }
-  render(); save();
-}
+/* ---- entries ----
+   Being on a tournament is the whole of the statement: a child on it is
+   playing it. There was never anything the app could do with the difference
+   between planning to enter and having entered — the entry is submitted at the
+   organiser's end, and nothing here could tell whether it had been, so all the
+   cycle ever recorded was that somebody had pressed the button the right
+   number of times.
+
+   What is left is what came back from the afternoon: the wins, the final
+   place, and a link to wherever the draw was published. */
 
 /* ---- rewards ----
    What a tournament pays, and what a child actually earned there. The scheme
@@ -2906,20 +2939,46 @@ function resultOf(matchId, playerId){
   const e = (state.entries || []).find(x => x.matchId === matchId && x.playerId === playerId);
   if(!e) return null;
   return {wins: Number.isInteger(e.wins) ? e.wins : null,
-          place: Number.isInteger(e.place) ? e.place : null};
+          place: Number.isInteger(e.place) ? e.place : null,
+          link: typeof e.link === 'string' ? e.link : ''};
 }
-// Typing a result is itself the claim that they played, so it stands an entry
-// up if there is not one. A blank or silly number clears the field rather than
-// being coerced — better an empty box than a wrong figure.
+// An entry holds the result and nothing else, so recording one is what brings
+// it into being. A blank or silly number clears the field rather than being
+// coerced — better an empty box than a wrong figure.
+function entryFor(matchId, playerId){
+  let e = state.entries.find(x => x.matchId === matchId && x.playerId === playerId);
+  if(!e){ e = {matchId, playerId}; state.entries.push(e); }
+  return e;
+}
+// Nothing recorded is no entry. An emptied row would otherwise sit in the save
+// file forever saying that somebody once typed in it and thought better of it.
+function pruneEntry(matchId, playerId){
+  const i = state.entries.findIndex(x => x.matchId === matchId && x.playerId === playerId);
+  if(i < 0) return;
+  const e = state.entries[i];
+  if(!('wins' in e) && !('place' in e) && !('link' in e)) state.entries.splice(i, 1);
+}
 function setResult(matchId, playerId, field, raw){
   if(viewLocked()) return;
-  let e = state.entries.find(x => x.matchId === matchId && x.playerId === playerId);
-  if(!e){ e = {matchId, playerId, status:'confirmed'}; state.entries.push(e); }
+  const e = entryFor(matchId, playerId);
   const v = parseInt(raw, 10);
   const lo = field === 'wins' ? 0 : 1;
   const hi = field === 'wins' ? MAX_WINS : MAX_PLACE;
   if(Number.isInteger(v) && v >= lo && v <= hi) e[field] = v;
   else delete e[field];
+  pruneEntry(matchId, playerId);
+  render(); save();
+}
+// Where the result was published — the draw sheet, whatever the organiser put
+// it on. Anything that is not an http(s) address is dropped rather than stored
+// and refused later, because it is about to be rendered as a link.
+function setResultLink(matchId, playerId, raw){
+  if(viewLocked()) return;
+  const e = entryFor(matchId, playerId);
+  const u = safeUrl(raw);
+  if(u) e.link = u;
+  else delete e.link;
+  pruneEntry(matchId, playerId);
   render(); save();
 }
 // The most matches this child has won at any tournament before this one. Like
@@ -3039,7 +3098,7 @@ function addTournament(){
   // stored: a list that merely repeats the age rule would go stale the moment a
   // birth year is corrected.
   const picked = addForKids().map(p=>p.id);
-  if(picked.length && picked.length < state.players.length) setForKids(id, picked);
+  if(picked.length < state.players.length) setForKids(id, picked);
   addForPick = null;
   forOpen = false;
   lookupHit = null;
@@ -3147,22 +3206,23 @@ function renderTournList(list, ms, {setup, locked, who}){
     const own = matchScheme(m);
     const differs = hasRewards(own);
 
-    // Only kids who are in it get a result box: a tournament nobody entered has
-    // no result to record, and every kid the age filter allows would be noise.
-    // On a child's tab it is their money alone — the buttons above still say who
+    const mYear = Number(m.start.slice(0,4));
+    // Only kids on it get a result box: being on a tournament is what says they
+    // are playing it, and every other kid the age filter allows would be noise.
+    // On a child's tab it is their money alone — the chips above still say who
     // else is playing, because that is a fact about the event rather than about
     // whose season is being read.
     //
     // Whether it pays anything is a separate question. How a child did is worth
     // recording on its own — most tournaments pay nothing and are still the
-    // season — so the boxes follow the entry, and the money follows the scheme.
+    // season — so the boxes follow the list, and the money follows the scheme.
     //
-    // Setup is what exists, not how it is going: no statuses, no results, no
-    // rewards there — those all belong to a child.
-    const played = setup ? [] : (who ? [who] : state.players).filter(p =>
-      ['entered','confirmed'].includes(statusOf(m.id, p.id)));
+    // Setup is what exists, not how it is going: no results and no rewards
+    // there — those belong to a child.
+    const played = setup ? [] : (who ? [who] : state.players)
+      .filter(p => kidOnMatch(p, m, mYear));
     const results = played.map(p=>{
-      const res = resultOf(m.id, p.id) || {wins:null, place:null};
+      const res = resultOf(m.id, p.id) || {wins:null, place:null, link:''};
       const pay = payout(m, p);
       const pays = hasRewards(schemeFor(m, p));
       const box = (cls, field, val, lo, hi, lab) => locked
@@ -3177,40 +3237,46 @@ function renderTournList(list, ms, {setup, locked, who}){
         ? `<span class="rpay">${money(pay.total)}</span>` +
           (pay.parts.length ? `<span class="rwhy">${escapeHtml(pay.parts.join(' · '))}</span>` : '')
         : pays ? '<span class="rtodo">No result yet</span>' : '';
+      // The sheet the result was read off. Once there is one it is the link and
+      // not the address that is worth the width — the URL is long, says
+      // nothing, and is one click from being read in full.
+      const lk = res.link
+        ? `<a class="rlk" href="${escapeHtml(res.link)}" target="_blank" rel="noopener noreferrer">Results \u29C9</a>`
+        : '';
+      const linkbox = locked ? lk
+        : `<label>Results <input type="url" class="rlink" inputmode="url"` +
+          ` data-m="${m.id}" data-p="${p.id}" value="${escapeHtml(res.link)}"` +
+          ` placeholder="paste link" aria-label="${escapeHtml(p.name)} results link` +
+          ` at ${escapeHtml(m.name)}"></label>` + lk;
       return `<div class="res" style="--c:${p.colour}"><span class="rnm">${escapeHtml(p.name)}</span>` +
              box('rwin', 'wins', res.wins, 0, MAX_WINS, 'Wins') +
-             box('rpl', 'final place', res.place, 1, MAX_PLACE, 'Place') + sum + '</div>';
+             box('rpl', 'final place', res.place, 1, MAX_PLACE, 'Place') +
+             linkbox + sum + '</div>';
     }).join('');
-
-    const mYear = Number(m.start.slice(0,4));
-    // Two questions, one strip of children. Setup asks whose list a tournament
-    // is on; the tournaments view asks how it is going for the children on it.
-    // A child with a status is not un-listable here — the entry is the stronger
-    // statement, and dropping them would strand it — so their chip is fixed on
-    // and the change has to be made where the entry lives.
-    // A tournament can sit on nobody's list — an event whose age group suits
-    // none of the children, or one narrowed down to a child who has since left.
-    // The tournaments page has always said "no age match"; here it has to say
-    // so too, because here it is fixable: press a name.
-    const onIt = state.players.filter(p => kidOnMatch(p, m, mYear)).length;
+    // One question now: is this child playing this tournament? Being on it is
+    // the whole of the answer — there is no entry to confirm afterwards, and
+    // nothing here could tell whether one had been submitted anyway.
+    //
+    // Setup is where that is answered, because a child's own tab shows only the
+    // tournaments they are on: taking them off one there would delete the row
+    // out from under the press, with the chip to undo it gone with it. So the
+    // tournaments view states who is playing and Setup is where it changes.
+    const onKids = state.players.filter(p => kidOnMatch(p, m, mYear));
+    const nobody = '<span class="nokid">on no one\u2019s list</span>';
+    const chip = p => {
+      const on = kidOnMatch(p, m, mYear);
+      return `<button class="join forpick${on ? ' on' : ''}" data-mfor="${m.id}"` +
+             ` data-p="${p.id}" style="--c:${p.colour}" aria-pressed="${on}"` +
+             ` title="${on ? escapeHtml(p.name) + ' is playing this — press to take them off'
+                           : 'Not on ' + escapeHtml(p.name) + '’s list — press to add them'}"` +
+             `><span class="pip"></span>${escapeHtml(p.name)}</button>`;
+    };
+    // Stating a fact rather than offering a change, so not a button.
+    const said = p => `<span class="join forpick on" style="--c:${p.colour}">` +
+                      `<span class="pip"></span>${escapeHtml(p.name)}</span>`;
     const joins = setup
-      ? (state.players.length < 2 ? '' :
-         (onIt ? '' : '<span class="nokid">on no one\u2019s list</span>') +
-         state.players.map(p=>{
-          const on = kidOnMatch(p, m, mYear);
-          const held = statusOf(m.id, p.id) !== null;
-          return `<button class="join forpick${on ? ' on' : ''}" data-mfor="${m.id}"` +
-                 ` data-p="${p.id}" style="--c:${p.colour}"${held ? ' disabled' : ''}` +
-                 ` title="${held ? escapeHtml(p.name) + ' has an entry — change it on Tournaments'
-                                 : (on ? 'On ' + escapeHtml(p.name) + '’s list' : 'Not on ' + escapeHtml(p.name) + '’s list')}"` +
-                 `><span class="pip"></span>${escapeHtml(p.name)}</button>`;
-         }).join(''))
-      : state.players.filter(p => kidOnMatch(p, m, mYear)).map(p=>{
-          const st = statusOf(m.id, p.id);
-          return `<button class="join${st ? ' s-'+st : ''}" data-m="${m.id}" data-p="${p.id}" style="--c:${p.colour}"` +
-                 `${locked ? ' disabled' : ''}><span class="pip"></span>` +
-                 `${escapeHtml(p.name)}${st ? ' · ' + STATUS_LABEL[st] : ''}</button>`;
-        }).join('') || '<span class="nokid">no age match</span>';
+      ? (onKids.length ? '' : nobody) + state.players.map(chip).join('')
+      : (onKids.map(said).join('') || nobody);
 
     html += `<div class="tourn${soon?' soon':''}${past?' past':''}">
       <div class="tdate">${spanLabel(m)}<small>${DOW[d.getDay()]}</small></div>
@@ -3230,9 +3296,7 @@ function renderTournList(list, ms, {setup, locked, who}){
 
   // Locked means no handler at all, not merely a disabled button: the attribute
   // stops a real click, but nothing should be listening in the first place.
-  if(!locked) list.querySelectorAll('.join:not(.forpick)').forEach(btn=>
-    btn.addEventListener('click', ()=>cycleEntry(btn.dataset.m, btn.dataset.p)));
-  list.querySelectorAll('.forpick').forEach(btn=>
+  if(!locked) list.querySelectorAll('.forpick').forEach(btn=>
     btn.addEventListener('click', ()=>toggleForKid(btn.dataset.mfor, btn.dataset.p)));
   list.querySelectorAll('.tdel').forEach(btn=>
     btn.addEventListener('click', ()=>removeTournament(btn.dataset.del)));
@@ -3242,6 +3306,8 @@ function renderTournList(list, ms, {setup, locked, who}){
     inp.addEventListener('change', ()=>setResult(inp.dataset.m, inp.dataset.p, 'wins', inp.value)));
   list.querySelectorAll('.rpl').forEach(inp=>
     inp.addEventListener('change', ()=>setResult(inp.dataset.m, inp.dataset.p, 'place', inp.value)));
+  list.querySelectorAll('.rlink').forEach(inp=>
+    inp.addEventListener('change', ()=>setResultLink(inp.dataset.m, inp.dataset.p, inp.value)));
 }
 
 /* ---- render: Setup ----
@@ -3332,22 +3398,17 @@ function runSeasonChecks(ms){
     if(!m.entryDeadline) return false;
     const d = daysBetween(today, m.entryDeadline);
     if(d < 0 || d > DEADLINE_WARN_DAYS) return false;
-    return kids.some(p=>{
-      // Not on their list is not the same as not decided: a tournament nobody
-      // put on this child has no deadline to miss.
-      if(!kidOnMatch(p, m, Number(m.start.slice(0,4)))) return false;
-      const st = statusOf(m.id, p.id);
-      return st === 'planned' || st === null;
-    });
+    // A tournament nobody put on this child has no deadline to miss.
+    return kids.some(p => kidOnMatch(p, m, Number(m.start.slice(0,4))));
   });
   if(closing.length) out.push(['bad','Entry deadline closing',
     closing.map(m=>`${m.name} (${daysBetween(today, m.entryDeadline)}d)`).join('; ') +
-    '. Enter or mark as skipping so it stops nagging.']);
+    '. Get the entry in, or take the child off it so it stops nagging.']);
 
   // the same child in two overlapping tournaments
   const clashes = [];
   kids.forEach(p=>{
-    const committed = upcoming.filter(m=>['planned','entered','confirmed'].includes(statusOf(m.id, p.id)));
+    const committed = upcoming.filter(m => kidOnMatch(p, m, Number(m.start.slice(0,4))));
     for(let i=0;i<committed.length;i++)
       for(let j=i+1;j<committed.length;j++)
         if(committed[i].start <= committed[j].end && committed[j].start <= committed[i].end)
@@ -3375,7 +3436,7 @@ function runSeasonChecks(ms){
   ms.filter(m => m.end < today).forEach(m=>{
     kids.forEach(p=>{
       if(!hasRewards(schemeFor(m, p))) return;
-      if(!['entered','confirmed'].includes(statusOf(m.id, p.id))) return;
+      if(!kidOnMatch(p, m, Number(m.start.slice(0,4)))) return;
       const r = resultOf(m.id, p.id);
       if(!r || r.wins === null) owed.push(`${p.name} at ${m.name}`);
     });
@@ -3388,6 +3449,10 @@ function runSeasonChecks(ms){
   const purses = kids.map(p=>{
     let total = 0, counted = 0;
     ms.forEach(m=>{
+      // A result kept against a child since taken off the tournament is not
+      // money owed. It is left in the save file so putting them back restores
+      // the afternoon, but until then it is not part of anyone's season.
+      if(!kidOnMatch(p, m, Number(m.start.slice(0,4)))) return;
       const pay = payout(m, p);
       if(pay){ total += pay.total; counted++; }
     });
@@ -3468,8 +3533,7 @@ function calendarIndex(year){
   return map;
 }
 function anyoneEntered(m){
-  return state.entries.some(e => e.matchId === m.id &&
-    (e.status === 'entered' || e.status === 'confirmed'));
+  return kidsOnMatch(m).length > 0;
 }
 // Who is actually playing on a given day, in kid order, plus whether any of
 // that day's tournaments has nobody assigned to it at all.
@@ -3477,19 +3541,9 @@ function kidsOnDay(matches){
   const going = [];
   let unassigned = false;
   state.players.forEach(p=>{
-    const best = matches
-      .map(m => statusOf(m.id, p.id))
-      .filter(s => s === 'planned' || s === 'entered' || s === 'confirmed');
-    if(best.length) going.push({player:p, status: best.includes('confirmed') ? 'confirmed'
-                                              : best.includes('entered') ? 'entered' : 'planned'});
+    if(matches.some(m => kidOnMatch(p, m, Number(m.start.slice(0,4))))) going.push({player:p});
   });
-  matches.forEach(m=>{
-    const anyone = state.players.some(p=>{
-      const s = statusOf(m.id, p.id);
-      return s === 'planned' || s === 'entered' || s === 'confirmed';
-    });
-    if(!anyone) unassigned = true;
-  });
+  matches.forEach(m=>{ if(!kidsOnMatch(m).length) unassigned = true; });
   return {going, unassigned};
 }
 
@@ -3543,7 +3597,7 @@ function renderCalendar(){
           if(c.matches.some(anyoneEntered)) cls.push('ent');
           tip.push(c.matches.map(x=>x.name).join(' / '));
           const {going, unassigned} = kidsOnDay(c.matches);
-          if(going.length) tip.push(going.map(g=>`${g.player.name}: ${STATUS_LABEL[g.status]}`).join(', '));
+          if(going.length) tip.push('Playing: ' + going.map(g=>g.player.name).join(', '));
           dots = '<span class="dots">' +
             going.map(g=>`<i style="--c:${g.player.colour}"></i>`).join('') +
             (unassigned ? '<i class="none"></i>' : '') +
@@ -3600,14 +3654,14 @@ function backupPayload(){
 }
 /* ---- the season as a spreadsheet ----
    A backup is for putting back; this is for reading. One row per child per
-   tournament they have a status on, so a season opens in Excel or Numbers and
-   can be sorted, totalled and kept somewhere that is not one browser.
+   tournament they are on, so a season opens in Excel or Numbers and can be
+   sorted, totalled and kept somewhere that is not one browser.
 
    CSV rather than .xlsx: a real workbook is a zip of XML and would mean
    shipping a library into a page that has no dependencies at all. Every
    spreadsheet opens this. */
 const CSV_COLUMNS = ['Tournament','Starts','Ends','Venue','Categories','Source',
-                     'Child','Status','Wins','Place','Earned','How'];
+                     'Child','Wins','Place','Results','Earned','How'];
 // A field is quoted whenever it could be read as anything but text — Excel
 // splits on the comma, ends the record at the newline, and a quote inside a
 // quoted field has to be doubled.
@@ -3619,15 +3673,16 @@ function resultRows(){
   const rows = [];
   allMatches().forEach(m=>{
     state.players.forEach(p=>{
-      const st = statusOf(m.id, p.id);
-      if(!st) return;                       // no status is not a row
-      const res = resultOf(m.id, p.id) || {wins:null, place:null};
+      // Not on it is not a row: the list is what says a child played something.
+      if(!kidOnMatch(p, m, Number(m.start.slice(0,4)))) return;
+      const res = resultOf(m.id, p.id) || {wins:null, place:null, link:''};
       const pay = payout(m, p);
       rows.push([
         m.name, m.start, m.end, m.venue, (m.categories || []).join(' · '), m.source,
-        p.name, STATUS_LABEL[st],
+        p.name,
         res.wins === null ? '' : res.wins,
         res.place === null ? '' : res.place,
+        res.link,
         // A bare number, so a column of them adds up in the spreadsheet.
         pay ? (Math.round(pay.total * 100) / 100) : '',
         pay ? pay.parts.join(' · ') : ''
@@ -3759,14 +3814,16 @@ function renderHeader(){
     // child on a row is wrong on the one tab where clicking does nothing.
     sub.textContent = viewLocked()
       ? 'Every tournament and who is going, across both children. Pick a child above to change anything.'
-      : 'Every tournament and who is going. Click a child on a row to cycle their status.';
+      : 'Every tournament and who is going. Change who one is for on Setup.';
     document.getElementById('tot').textContent = upcoming.length;
     document.getElementById('ondays').textContent = state.players.length;
+    // One child on one tournament, counted across the season. Two children on
+    // the same draw is two of these, because they play it separately.
     document.getElementById('restdays').textContent =
-      state.entries.filter(e=>e.status==='entered'||e.status==='confirmed').length;
+      allMatches().reduce((sum, m) => sum + kidsOnMatch(m).length, 0);
     document.getElementById('lab1').textContent = 'Upcoming';
     document.getElementById('lab2').textContent = 'Kids';
-    document.getElementById('lab3').textContent = 'Entered';
+    document.getElementById('lab3').textContent = 'Playing';
   } else if(view === 'setup'){
     const ms = allMatches();
     document.getElementById('title').textContent = 'Setup';

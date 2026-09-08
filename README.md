@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.14.1** · [Changelog](CHANGELOG.md)
+**Version 2.15.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -92,9 +92,9 @@ tests/                          jsdom harness + api tests — dev only, never de
 - **Only the children who can enter a tournament are offered on it.** A U10
   event shows the nine-year-old alone, a 16&U event the thirteen-year-old. Each
   child is offered their own group and one above it — juniors play up a group,
-  but not into every event they are technically old enough for. A child with a
-  status recorded is always shown regardless, and a child with no birth year is
-  shown everywhere.
+  but not into every event they are technically old enough for. Naming a child
+  on a tournament beats the age rule, and a child with no birth year is shown
+  everywhere.
 - **A tab per child, once you have two kids** — **Everyone**, then one each:
 
   | Tab | What it is |
@@ -110,13 +110,18 @@ tests/                          jsdom harness + api tests — dev only, never de
   the event. With one child there is no strip at all.
 - **Tournaments** — name, dates, venue, categories and entry deadline, grouped
   by month. Past ones dim.
-- **Who's going** — one button per child per tournament, cycling
-  planned → entered → confirmed → skipping → not going.
+- **Who's going** — a chip per child on each row, saying who is playing it.
+  Being on a tournament is the whole of the statement: there is no entry to
+  confirm on top of it, because the entry is submitted at the organiser's end
+  and nothing here could tell whether it had been. Who a tournament is for is
+  changed on Setup — a child's own tab lists only the tournaments they are on,
+  so taking them off one there would take the row and the chip to undo it with
+  it.
 - **Rewards** — what each child plays for, and what they actually earned, kept
   per child rather than pooled. Set once per child; a single tournament can pay
   differently. See below.
-- **Season checks** — an entry deadline inside 21 days that nobody has committed
-  to, the same child booked into two overlapping tournaments, provisional dates,
+- **Season checks** — an entry deadline inside 21 days on a tournament a child
+  is on, the same child booked into two overlapping tournaments, provisional dates,
   the longest clear gap between tournaments as the window to book travel, a
   finished tournament whose result nobody has entered, and the season's running
   reward total.
@@ -181,12 +186,14 @@ Schemes resolve in one order, most specific first:
 
     tournament exception  →  the child's standard  →  a data/matches.json suggestion
 
-Each child who is **entered** or **confirmed** gets a **Wins** and **Place** box
-under the tournament, whether or not it pays anything — how a child did is worth
-recording on its own, and most tournaments pay nothing. Where a scheme does
-apply, the page adds the payout up in front of them: *$55 · 4 wins $20 · 2nd $30
-· beat 3 $5*, or on a knockout *$230 · played $20 · 4 rounds $80 · quarterfinal
-$30 · 1st $100*. The sum is always shown in full, so a child can see how the number
+Each child on the tournament gets a **Wins** box, a **Place** box and a
+**Results** box, whether or not it pays anything — how a child did is worth
+recording on its own, and most tournaments pay nothing. Results takes a link to
+wherever the draw was published, the organiser's sheet or whatever they put it
+on; paste it and the row shows a **Results** link instead of the address. Only
+http(s) links are kept. Where a scheme does apply, the page adds the payout up
+in front of them: *$55 · 4 wins $20 · 2nd $30 · beat 3 $5*, or on a knockout
+*$230 · played $20 · 4 rounds $80 · quarterfinal $30 · 1st $100*. The sum is always shown in full, so a child can see how the number
 was reached. Two children on the same draw are each paid their own way, and a
 tournament that pays nothing simply says nothing about money.
 
@@ -198,7 +205,8 @@ bonus pays. This is the reason results are stored at all.
 
 Nought wins is a real result and is kept as one; an empty box means *not yet
 entered*, which is what the season check chases after a tournament has
-finished.
+finished. A row with nothing in any box is not stored at all — the tournament's
+own list is what says who is playing it.
 
 ## What it does — Setup
 
@@ -222,24 +230,31 @@ of its own, and nothing on it is ever read-only.
   *Everyone* until you say otherwise — which leaves the age groups deciding as
   before — and opens a panel to tick children off; untick one and the tournament
   never reaches their tab. Chips on every row let it be changed later, and
-  pressing a name puts a child on an event their age group would have excluded. Not being on a tournament is not the
-  same as **Skipping** one: a deadline you were never in the running for does not
-  nag you. A child with an entry cannot be taken off — the entry is the stronger
-  statement, and it is changed on Tournaments.
+  pressing a name puts a child on an event their age group would have excluded.
+  A deadline you were never in the running for does not nag you.
+- **Taking the last child off says nobody is playing it**, which is not the same
+  as never having said: the age rule does not then put them back on. Such a
+  tournament reaches no child's tab, but Setup lists every tournament there is,
+  so it is never lost.
+- **A result already recorded is kept when a child is taken off**, not deleted.
+  Taking someone off is as often a mis-click as a change of plan, and putting
+  them back brings the afternoon with them. Until then it counts towards
+  nobody's season.
 - A tournament nobody is on says **on no one's list** on its row. Press a name to
   fix it.
 - **Removing a child does not remove tournaments.** A tournament is an event in
   the world and belongs to the family, not to a child — on a list of two it is as
-  likely the other's. What goes with them is their entries, their statuses and
-  their results, and any list narrowed to them widens back to the age rule.
+  likely the other's. What goes with them is their entries and their results,
+  and any list narrowed to them widens back to the age rule — with them gone it
+  says nothing about anybody, rather than saying nobody plays it.
   Where that leaves a hand-added tournament serving nobody at all, you are asked
   whether to delete those too, by name; cancelling keeps them. Rows from the STA
   feed are never offered, since they would return on the next fetch, and nothing
   is offered when the last child goes — with an empty list every tournament
   trivially serves nobody, and a season should outlast a list being briefly
   empty.
-- No statuses, no rewards, no results here — those belong to a child, on their
-  own tab under Tournaments.
+- No rewards and no results here — those belong to a child, on their own tab
+  under Tournaments.
 
 ### Importing the STA calendar
 
@@ -310,9 +325,8 @@ expose.
 Twelve months for one year, with arrows to move between years.
 
 - **A dot per child** on every tournament day, in that child's colour, so you
-  can see who is competing when. Grey means a tournament nobody has committed
-  to yet; a child who is skipping shows nothing. Hover a day for the names,
-  statuses and holiday.
+  can see who is competing when. Grey means a tournament nobody is on; a child
+  taken off one shows nothing. Hover a day for who is playing and the holiday.
 - **Training blocks** as a left edge — in the child's colour on a day only they
   train, yellow where two of them do or where the block has no owner. Hover for
   the block name and whose it is.
@@ -501,7 +515,7 @@ deletes script-writable storage after about a week without a visit**, so a plan
 left unopened can disappear.
 
 Use **Download backup** at the foot of the page. It writes one dated JSON file
-with every training block, child, tournament and entry status. **Restore backup**
+with every training block, child, tournament and result. **Restore backup**
 reads it back, after confirming, and refuses anything that is not a valid backup
 without touching what you already have.
 
@@ -511,8 +525,8 @@ on at all.
 ### The season as a spreadsheet
 
 **Download results** writes a dated `.csv` — one row per child per tournament
-they have a status on, with the dates, venue, categories, status, wins, place,
-what it earned and how that was made up. It opens in Excel, Numbers or Sheets,
+they are on, with the dates, venue, categories, wins, place, the link to the
+result, what it earned and how that was made up. It opens in Excel, Numbers or Sheets,
 and the earnings column is a bare number so a column of them adds up.
 
 It is a copy to read, sort and keep, not a backup: nothing reads it back in.
@@ -536,7 +550,7 @@ for different start weekdays, the load checks and the age they scale with, whose
 block is whose — the training strip, the owner picker, and a block outliving the
 child it belonged to — a timezone regression, view
 switching, Setup as a view of its own and its edits reaching both strips,
-kids, tournament add/delete, the entry-status cycle, the reward
+kids, tournament add/delete, who each tournament is for, the reward
 schemes — per child, per tournament, a feed's suggestion, and the order the
 three resolve in — the payout arithmetic behind them, and the season checks.
 
