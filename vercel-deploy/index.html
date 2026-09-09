@@ -683,6 +683,9 @@ input[type=number]#days{width:74px}
 .sumrow .sumfig b{color:var(--court-line);font-weight:700}
 .sumrow .sumpay{margin-left:auto;color:var(--ball);font-weight:700;font-size:14px}
 .sumrow .sumnil{margin-left:auto;font-style:italic}
+/* The check sits under the figures in the same box, so it needs a line to say
+   it has changed from what is to what is wanting. */
+#sumrows + #mnotes:not(:empty){margin-top:12px;padding-top:12px;border-top:1px solid var(--hair)}
 .rewkid .rkuse + button{margin-left:12px}
 .rewadd{justify-content:flex-start;gap:12px}
 .rewadd button{margin-left:0}
@@ -975,29 +978,25 @@ input[type=number]#days{width:74px}
   <div class="whotabs" id="whofilter"></div>
   <p class="hint" id="wholock" hidden></p>
 
-  <div class="checks" id="summarybox">
-    <h2>Summary</h2>
-    <div id="sumrows"></div>
-  </div>
-
-  <div id="tournlist"></div>
-
-  <div class="checks" id="checksbox">
-    <h2>Season check</h2>
-    <div id="mnotes"></div>
-  </div>
-
-</section>
-
-<section class="view" id="view-setup">
-
   <div class="kids" id="rewardsbox">
     <h2>Rewards</h2>
     <div class="rewrow" id="rewrow"></div>
     <p class="hint">What a shape of draw pays, whichever child is playing it. A
-      tournament joins one by its draw type, below. One event can pay something
-      different &mdash; press <b>Rewards</b> on its row under Tournaments.</p>
+      tournament joins one by its draw type, set on Setup. One event can pay
+      something different &mdash; press <b>Rewards</b> on its row.</p>
   </div>
+
+  <div class="checks" id="summarybox">
+    <h2>Summary</h2>
+    <div id="sumrows"></div>
+    <div id="mnotes"></div>
+  </div>
+
+  <div id="tournlist"></div>
+
+</section>
+
+<section class="view" id="view-setup">
 
   <div class="kids" id="kidsbox">
     <h2>Kids</h2>
@@ -2946,7 +2945,7 @@ function renderWhoFilter(){
   const row = document.getElementById('whofilter');
   const years = seasonYears();
   const kidBtns = state.players.length < 2 ? '' :
-    [{id: null, label: 'All children', colour: null}]
+    [{id: null, label: 'All players', colour: null}]
       .concat(state.players.map(p => ({id: p.id, label: p.name, colour: p.colour})))
       .map(o => {
         const n = matchesFor(state.players.find(p => p.id === o.id) || null)
@@ -4228,7 +4227,6 @@ function renderSetup(){
   renderAgeRow();
   renderForRow();
   renderTagList();
-  renderSchemes();
 
   renderTournList(document.getElementById('setuplist'), allMatches(),
                   {setup:true, who:null});
@@ -4237,10 +4235,11 @@ function renderSetup(){
 /* One row per scheme, and a scheme belongs to a shape of draw rather than to a
    child: both children on a knockout play for the same terms, and one child who
    plays both shapes is paid by each. Which shape a tournament is comes from the
-   tag it carries — which is answered on this page too, on each row.
+   tag it carries, which is answered on Setup.
 
-   It sits with the rest of what the family has settled rather than over the
-   season, where it was a standing wall of figures above the thing being read. */
+   Shown with all players and not with one. A scheme is the terms the whole
+   family plays on, so it reads with the whole family; filtered to one child the
+   question is how their season is going, and the terms are not part of it. */
 function renderSchemes(){
   const rewrow = document.getElementById('rewrow');
   const tags = knownTags();
@@ -4304,6 +4303,10 @@ function renderSummary(ms){
 
 function renderMatches(){
   document.getElementById('wholock').hidden = true;
+  // The terms belong to everybody, so they show when nobody in particular is
+  // being read about.
+  document.getElementById('rewardsbox').hidden = !!whoShown();
+  renderSchemes();
 
   renderWhoFilter();
 
@@ -4386,6 +4389,10 @@ function runSeasonChecks(ms){
   if(!out.length && ms.length) out.push(['ok','Season looks clear',
     `${upcoming.length} tournament${upcoming.length===1?'':'s'} ahead, no deadline or clash problems.`]);
 
+  /* Under the figures rather than in a box of its own. Where the season stands
+     and what it still wants are one thought — the summary says a child has two
+     results, and the line beneath says a third is owed. Two headings for that
+     made them read as two subjects. */
   document.getElementById('mnotes').innerHTML = out.map(([k,t,body])=>
     `<div class="note ${k}"><span class="dot"></span><div><b>${t}.</b> <span>${body}</span></div></div>`
   ).join('');

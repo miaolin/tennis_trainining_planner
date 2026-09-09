@@ -20,13 +20,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **The rewards schemes move to Setup.** What a shape of draw pays is a standing
-  fact about the family, like who the children are and which tournaments exist —
-  not part of the season being read. A wall of figures over the top of the list
-  was in the way of it.
+- **The season check is part of the summary**, under the figures rather than in
+  a box of its own. Where the season stands and what it still wants are one
+  thought — the summary says a child has two results, and the line beneath says
+  a third is owed. Two headings made them read as two subjects. It no longer
+  totals what was earned either: the figures above say it once and in more
+  detail.
 
-- **The season check no longer totals what was earned.** The summary says it
-  once, in more detail, and the check is for what still wants doing.
+- **The rewards schemes show with All players and not with one child.** A scheme
+  is the terms the whole family plays on, so it reads with the whole family;
+  filtered to one child the question is how their season is going, and the terms
+  are not part of it.
+
+- **The filter reads All players** rather than All children.
 
 ## [2.21.0] — 2026-09-09
 

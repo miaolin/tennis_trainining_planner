@@ -3511,7 +3511,7 @@ group('a child’s tab scopes the whole view');
   change(dom, row().querySelector('.rwin'), '2');
   goTab(null);
 
-  ok('the filter opens on all of them', tabs(d)[0].textContent.includes('All children'));
+  ok('the filter opens on all of them', tabs(d)[0].textContent.includes('All players'));
   ok('and every child has one, and nothing else', tabs(d).length === 3,
      tabs(d).map(b => b.textContent.trim()).join('|'));
   ok('each carries the count of what it would leave',
@@ -3607,7 +3607,7 @@ group('Everyone changes nothing');
     ok('the schemes are listed', $$(d, '#rewrow .rewkid').length >= 1,
        $$(d, '#rewrow .rewkid').length);
     ok('and the tournament is there', $$(d, '#tournlist .tourn').length === 1);
-    ok('and the season check reads', !$(d, '#checksbox').hidden);
+    ok('and the season check reads, under the figures', !$(d, '#summarybox').hidden);
     ok('both children have a result box on it, on one page',
        $$(d, '#tournlist .tourn .res').length === 2,
        [...$$(d, '#tournlist .tourn .res .rnm')].map(e => e.textContent).join());
@@ -3883,12 +3883,11 @@ group('Setup is a view of its own');
   ok('and Add a tournament', $(d, '#view-setup').contains($(d, '#addbox')));
   // a scheme is a standing fact about a shape of draw, so it keeps company with
   // the children and the tournaments rather than sitting over the season
-  ok('rewards move to Setup with the rest of what is settled',
-     $(d, '#view-setup').contains($(d, '#rewardsbox')));
-  ok('and the season gets a summary in their place',
-     $(d, '#view-matches').contains($(d, '#summarybox')));
-  ok('and so does the season check',
-     $(d, '#view-matches').contains($(d, '#checksbox')));
+  ok('rewards stay with the tournaments page, being the terms it is played on',
+     $(d, '#view-matches').contains($(d, '#rewardsbox')));
+  ok('and the summary carries the season check with it',
+     $(d, '#view-matches').contains($(d, '#summarybox')) &&
+     $(d, '#summarybox').contains($(d, '#mnotes')));
 
   goSetup(dom, d);
   ok('clicking it switches view', $(d, '#view-setup').classList.contains('on'));
@@ -4823,10 +4822,11 @@ group('where the season stands, per child');
   const d = dom.window.document;
   click(dom, $(d, '#nav-matches'));
 
-  ok('the season has a summary where the schemes used to be',
+  ok('the season has a summary above it',
      !!$(d, '#summarybox') && $(d, '#view-matches').contains($(d, '#summarybox')));
-  ok('and the schemes are on Setup instead',
-     $(d, '#view-setup').contains($(d, '#rewardsbox')));
+  ok('and the season check is inside it rather than a box of its own',
+     $(d, '#summarybox').contains($(d, '#mnotes')) && !$(d, '#checksbox'));
+  ok('the terms are shown with all players', !$(d, '#rewardsbox').hidden);
 
   ok('a child is counted across the whole season',
      sum(d, 'Ian').includes('3 tournaments') && sum(d, 'Ian').includes('2 results'),
@@ -4859,9 +4859,14 @@ group('where the season stands, per child');
   ok('a child picked is the only one summed',
      !!sum(d, 'Olivia') && !sum(d, 'Ian'),
      [...$$(d, '#sumrows .sumrow')].map(r => r.textContent).join(' | '));
+  // filtered to one child the question is how their season is going, and the
+  // terms the whole family plays on are not part of it
+  ok('and the terms step aside for them', $(d, '#rewardsbox').hidden);
+  ok('but the check still reads, under their figures',
+     $(d, '#summarybox').contains($(d, '#mnotes')));
 
   // and the money is no longer said twice
-  click(dom, kidBtn('All children'));
+  click(dom, kidBtn('All players'));
   ok('the season check no longer repeats the purses',
      !$(d, '#mnotes').textContent.includes('Rewards earned'), $(d, '#mnotes').textContent);
 }
@@ -4932,7 +4937,7 @@ group('one page, newest first, with what is over folded away');
   ok('a filter is not a lock: her row can still be typed into',
      !!$(d, '#tournlist .tourn .rwin'));
 
-  click(dom, kidBtn('All children'));
+  click(dom, kidBtn('All players'));
   ok('and back to both', names(d).join() === 'Later Still,Next Up', names(d).join());
 
   // filter by year
@@ -4952,7 +4957,7 @@ group('one page, newest first, with what is over folded away');
   ok('and the two filters work together', names(d).join() === 'Last Year', names(d).join());
 
   click(dom, yearBtn('All years'));
-  click(dom, kidBtn('All children'));
+  click(dom, kidBtn('All players'));
   ok('clearing both brings the whole season back, the fold still as it was left',
      names(d).join() === 'Later Still,Next Up,Last Year,Long Ago', names(d).join());
   click(dom, $(d, '#pastfold'));
