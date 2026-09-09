@@ -135,8 +135,20 @@ input[type=date],input[type=time]{
 }
 input[type=date]::-webkit-date-and-time-value{text-align:left}
 input[type=date]::-webkit-calendar-picker-indicator{opacity:.7}
-input[type=text]#blockname{min-width:190px}
-input[type=number]#days{width:74px}
+/* The block bar carries nine controls and a wrap leaves two of them stranded
+   on a line of their own, so it is packed a little tighter than the rest and
+   the name field gives up its width first — it is the one thing on the bar the
+   heading below already says. */
+#blockedit{gap:10px}
+#blockedit>button,#blockedit>select,#blockedit>input{padding-left:11px;padding-right:11px}
+#blockedit input[type=date]{width:118px}
+/* Wide enough for a block's name and no wider: the slack in the row belongs to
+   the gap that separates what the block is from what can be done with it. It
+   still gives up width first when the row runs out. */
+input[type=text]#blockname{flex:0 1 200px;min-width:0}
+/* A block filed under nobody asks one question more, and the name box gives up
+   the width for it rather than the row breaking in two. */
+#blockedit:has(#blockwho:not([hidden])) input[type=text]#blockname{flex-basis:110px}
 .lab{font-size:13px;color:var(--mute)}
 .spacer{flex:1}
 
@@ -935,14 +947,13 @@ input[type=number]#days{width:74px}
 
 <div class="blockbar" id="blockbar"></div>
 
-<div class="bar">
+<div class="bar" id="blockedit">
   <label class="lab" for="blockname">Block</label>
   <input type="text" id="blockname" maxlength="40">
   <label class="lab" for="start">Starts</label>
   <input type="date" id="start">
   <label class="lab" for="ends">Ends</label>
   <input type="date" id="ends">
-  <label class="lab" for="blockwho" id="blockwho-lab" hidden>Whose</label>
   <select id="blockwho" hidden></select>
   <div class="spacer"></div>
   <select id="copyto" hidden></select>
@@ -1324,6 +1335,12 @@ function blocksFor(who){
   return state.blocks.filter(b => !b.playerId || b.playerId === who);
 }
 function shownBlocks(){ return trainStrip() ? blocksFor(trainWho) : state.blocks; }
+/* Everyone is where the blocks are read across the children, and every question
+   the bar puts is about one of them: whose week this is, what it is called,
+   when it ends. So the bar belongs on a child's tab, and a block is made there
+   too — made here it would belong to nobody, and a block filed under nobody has
+   no age to read a load ceiling from. */
+function blockEditable(){ return !(trainStrip() && trainWho === null); }
 function blockOwner(b){
   return (b && b.playerId && state.players.find(p => p.id === b.playerId)) || null;
 }
@@ -2189,13 +2206,20 @@ function renderTrainWho(){
       render(); save();
     }));
 }
-// Whose block this is, set from the block's own bar. Only worth asking once
-// there are two children; below that every block is simply theirs.
+/* Whose block this is, asked only when the block cannot say. A block made on
+   a child's tab is theirs, and the tab it is read on names them — so the
+   question is already answered nearly every time it could be put, and a
+   control that only ever repeats the tab above it is one more thing to read.
+
+   It is still asked of a block filed under nobody: one made on the Everyone
+   tab, one left behind by a child who has gone, or one saved before the page
+   knew about children at all. Age is what the load ceilings are read from, so
+   an unclaimed block is a real question rather than a tidiness one. It carries
+   no label: reading "Nobody yet" is the question. */
 function renderBlockWho(b){
   const sel = document.getElementById('blockwho');
-  const lab = document.getElementById('blockwho-lab');
-  const on = trainStrip() && !!b;
-  sel.hidden = lab.hidden = !on;
+  const on = trainStrip() && !!b && !b.playerId;
+  sel.hidden = !on;
   if(!on) return;
   sel.innerHTML = '<option value="">Nobody yet</option>' +
     state.players.map(p=>
@@ -2251,6 +2275,7 @@ function renderBlockBar(){
     el.addEventListener('click', ()=>{ state.activeBlockId = b.id; render(); save(); });
     bar.appendChild(el);
   });
+  if(!blockEditable()) return;
   const add = document.createElement('button');
   add.className = 'btab btab-add';
   add.id = 'btn-add';
@@ -2272,6 +2297,11 @@ function renderTraining(){
   renderBlockBar();
   renderBlockWho(b);
   renderCopyTo(b);
+  /* With no block there is nothing to describe. The bar would otherwise keep
+     the last block's name and dates, and on a child who has none of their own
+     that is somebody else's camp shown as theirs. On Everyone there is nothing
+     to describe either: the tab is for reading across the children. */
+  document.getElementById('blockedit').hidden = !b || !blockEditable();
 
   if(!b){
     const who = state.players.find(p => p.id === trainWho);

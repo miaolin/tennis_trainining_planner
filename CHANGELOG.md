@@ -5,6 +5,65 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.26.1] — 2026-09-09
+
+### Changed
+
+- **The block bar reads left to right as what the block is, then what to do with
+  it.** The name box is a name box again rather than whatever width was left
+  over, and the slack in the row sits between the dates and the actions.
+
+- The owner picker, which only appears for a block filed under nobody, lost its
+  *Whose* label: reading *Nobody yet* is the question.
+
+## [2.26.0] — 2026-09-09
+
+### Changed
+
+- **Everyone reads; a child's tab edits.** Every question the block bar puts is
+  about one child — whose week this is, what it is called, when it ends — so it
+  has no business on the tab that shows all of them at once. The overview keeps
+  the blocks, the plan and the load figures; it no longer offers the bar.
+
+  *+ New block* goes with it. A block made on Everyone would belong to nobody,
+  and a block filed under nobody has no age to read a load ceiling from, so a
+  block is started on the tab of the child it is for.
+
+## [2.25.0] — 2026-09-09
+
+### Changed
+
+- **A block is no longer asked whose it is when it already knows.** The tab a
+  block is read on names the child, and the line under the title says it again
+  — a picker that only repeats them is one more thing to read on a bar that was
+  already full. A block made on a child's tab is theirs, and *Copy to…* is how
+  one gets to the other child.
+
+  The question is still put to a block filed under nobody: one left behind by a
+  child who has gone, or one saved before the page knew about children at all.
+  Age is what the load ceilings are read from, so an unclaimed block is a real
+  question and not a tidiness one.
+
+## [2.24.1] — 2026-09-09
+
+### Fixed
+
+- **Every child is asked the same questions about a block.** A child with no
+  block of their own was still shown the bar, holding the last block's name and
+  dates — somebody else's camp, presented as theirs, and presented without the
+  two controls that would have said whose it was. The bar describes a block, so
+  with no block there is now no bar: the page says there are none for this child
+  and offers to start one. When they do have one, they are asked exactly what
+  the other child is asked.
+
+### Changed
+
+- **The block bar holds one row again.** *Copy to…* was one control more than it
+  had room for, and the wrap left *Print* and *Delete block* stranded on a line
+  of their own. It is packed a little tighter now, and the name field gives up
+  its width first — it is the one thing on the bar the heading below already
+  says.
+
 ## [2.24.0] — 2026-09-09
 
 ### Added
