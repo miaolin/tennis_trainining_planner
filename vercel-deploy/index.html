@@ -660,6 +660,10 @@ input[type=number]#days{width:74px}
 .ttag.set{border-style:solid;border-color:var(--ball);color:var(--ball);font-style:normal}
 .ttag:hover{background:rgba(214,230,75,.14)}
 .ttag:disabled{cursor:default}
+/* The same fact, read-only, where the season is read. Untagged earns the warn
+   colour: it is the one value that means no money can be paid. */
+.tdraw{color:var(--ball)}
+.tdraw.none{color:var(--warn);font-style:italic}
 .tourn .trew{font-size:12px;color:var(--ball);margin-top:4px}
 .tourn .trew .only{
   font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
@@ -3741,6 +3745,16 @@ function renderTournList(list, ms, {setup, locked, who}){
     // own line rather than repeated under every child in it.
     const rlink = resultLink(m.id);
     if(rlink && !setup) meta.push(`<a class="tlink" href="${escapeHtml(rlink)}" target="_blank" rel="noopener noreferrer">Results</a>`);
+    /* What shape the draw is, which is what joins it to a scheme. It is set on
+       Setup, with the rest of what a tournament is — but it has to read here
+       too, or a row that pays nothing gives no account of itself. Untagged is
+       the case worth saying out loud, that being the one where no scheme
+       applies and no money can. */
+    if(!setup){
+      const tg = tagOf(m.id);
+      meta.push(tg ? `<span class="tdraw">${escapeHtml(tg)}</span>`
+                   : '<span class="tdraw none">untagged — set the draw type on Setup</span>');
+    }
     if(m.note) meta.push(`<span class="tnote">${escapeHtml(m.note)}</span>`);
 
     // A line on the row means this tournament pays something other than what
@@ -3824,7 +3838,7 @@ function renderTournList(list, ms, {setup, locked, who}){
         }${escapeHtml(m.name)}</div>
         ${meta.length ? `<div class="tmeta">${meta.join(' · ')}</div>` : ''}
         ${differs ? `<div class="trew"><span class="only">Only here</span>${escapeHtml(rewardsLine(own))}</div>` : ''}</div>
-      <div class="joins">${setup ? '' :
+      <div class="joins">${!setup ? '' :
         `<button class="ttag${tag ? ' set' : ''}" data-tag="${m.id}"
           aria-label="Draw type for ${escapeHtml(m.name)}"
           >${tag ? escapeHtml(tag) : 'untagged'}</button>`}${joins}${locked || setup ? '' :

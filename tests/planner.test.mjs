@@ -2646,11 +2646,22 @@ group('rewards belong to the shape of the draw');
     click(dom, $(d, '#r-ok'));
   };
   // A tournament says which shape of draw it is, and that is what joins it to a
-  // scheme. The prompt is answered for it.
+  // scheme. It is part of what a tournament is, so it is set on Setup — and the
+  // prompt is answered for it.
   const tagIt = (dom, d, t, tag) => {
+    const back = $(d, '#view-matches').classList.contains('on');
+    goSetup(dom, d);
     dom.window.prompt = () => tag;
-    click(dom, rowNamed(d, t).querySelector('[data-tag]'));
+    click(dom, $$(d, '#setuplist .tourn').find(r => r.textContent.includes(t))
+                 .querySelector('[data-tag]'));
+    if (back) click(dom, $(d, '#nav-matches'));
   };
+  // What the season says the draw is, which is read-only where the season is read
+  const drawOf = (d, t) => {
+    const el = rowNamed(d, t).querySelector('.tdraw');
+    return el ? el.textContent : '';
+  };
+  const setupTags = d => $$(d, '#setuplist .ttag.set').length;
   // Writing the scheme a tag is filed under. Adding one and editing one are the
   // same dialog, told apart by whether the tag is already on the page.
   const setTagRew = (dom, d, tag, o) => {
@@ -2838,7 +2849,7 @@ group('rewards belong to the shape of the draw');
     click(dom2, $(d2, '#nav-matches'));
     ok('the scheme comes back', tagLine(d2, 'group') === '$5 a win · 2nd $30 · Group stage',
        tagLine(d2, 'group'));
-    ok('and the tags with it', $$(d2, '.ttag.set').length === 2, $$(d2, '.ttag.set').length);
+    ok('and the tags with it', (goSetup(dom2, d2), setupTags(d2) === 2), setupTags(d2));
     ok('and it still pays', paid(d2, 'Series One', 'Ian') === '$30',
        paid(d2, 'Series One', 'Ian'));
 
@@ -2850,7 +2861,8 @@ group('rewards belong to the shape of the draw');
        tagRow(d2, 'group').textContent.includes('no scheme yet') &&
        paid(d2, 'Series One', 'Ian') === null, tagRow(d2, 'group').textContent);
     ok('the tournaments keep the tag, ready for a scheme written again',
-       $$(d2, '.ttag.set').length === 2, $$(d2, '.ttag.set').length);
+       (goSetup(dom2, d2), setupTags(d2) === 2), setupTags(d2));
+    click(dom2, $(d2, '#nav-matches'));
     tabTo(dom2, d2, 'Ian');   // the boxes are his, so they want his tab
     ok('and the six wins he recorded are untouched',
        resRow(d2, 'Series One', 'Ian').querySelector('.rwin').value === '6',
@@ -2902,7 +2914,8 @@ group('rewards belong to the shape of the draw');
     ok('the child’s old standard becomes the scheme for its shape',
        saved(dom2).schemes.group.perWin === 5, JSON.stringify(saved(dom2).schemes));
     ok('and every tournament it was paying takes that shape as its tag',
-       $$(d2, '.ttag.set').length === 2, $$(d2, '.ttag.set').length);
+       (goSetup(dom2, d2), setupTags(d2) === 2), setupTags(d2));
+    click(dom2, $(d2, '#nav-matches'));
     ok('so the same afternoons go on paying the same money',
        (click(dom2, $$(d2, '#whofilter button[data-who]')[1]),
         change(dom2, resRow(d2, 'Series One', 'Ian').querySelector('.rwin'), '3'),
@@ -3471,8 +3484,10 @@ group('a child’s tab scopes the whole view');
   const row = () => $$(d, '#tournlist .tourn')[0];
   // One scheme, tagged, paying whoever plays a draw of that shape. What tells
   // the two purses apart is the afternoon each of them had.
+  goSetup(dom, d);
   dom.window.prompt = () => 'group';
-  click(dom, row().querySelector('[data-tag]'));
+  click(dom, $(d, '#setuplist .tourn [data-tag]'));
+  click(dom, $(d, '#nav-matches'));
   click(dom, $(d, '.rewadd button'));
   input(dom, $(d, '#r-tag'), 'group');
   input(dom, $(d, '#r-win'), '5');
@@ -3625,9 +3640,11 @@ group('Everyone changes nothing');
     const { dom, d } = setup();
     addTourn(dom, d, { name: 'Club Open Day', start: `${Y - 1}-11-01` });   // while editable
     addKid(dom, d, 'Olivia', Y - 13);
-    click(dom, tabs(d)[1]);                                   // Ian
+    goSetup(dom, d);
     dom.window.prompt = () => 'group';
-    click(dom, $(d, '#tournlist .tourn [data-tag]'));
+    click(dom, $(d, '#setuplist .tourn [data-tag]'));
+    click(dom, $(d, '#nav-matches'));
+    click(dom, tabs(d)[1]);                                   // Ian
     click(dom, $(d, '.rewadd button'));
     input(dom, $(d, '#r-tag'), 'group');
     input(dom, $(d, '#r-win'), '5');
@@ -4463,6 +4480,59 @@ group('results do not wait on rewards');
      resOf(d2, 'Club Meet', 'Ian').querySelector('.rwin').value);
 }
 
+group('the shape of a draw is set where tournaments are');
+{
+  // What shape a draw is belongs to the event, so it is answered on Setup with
+  // the rest of what a tournament is — and the answer is worth having as the
+  // tournament goes on the list, not chased afterwards. The season still reads
+  // it, because a row that pays nothing has to give some account of itself.
+  const Y = new Date().getFullYear();
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Ian', Y - 9);
+  addTourn(dom, d, { name: 'Club Meet', start: `${Y}-03-07` });
+
+  goSetup(dom, d);
+  ok('Setup carries the chip', !!$(d, '#setuplist .tourn [data-tag]'));
+  ok('and it starts untagged, which is a state rather than a fault',
+     $(d, '#setuplist .ttag').textContent === 'untagged' &&
+     !$(d, '#setuplist .ttag').classList.contains('set'),
+     $(d, '#setuplist .ttag').textContent);
+
+  click(dom, $(d, '#nav-matches'));
+  ok('the season does not offer to change it', !$(d, '#tournlist .tourn [data-tag]'));
+  ok('but says so, an untagged tournament being one that cannot pay',
+     $(d, '#tournlist .tdraw').textContent.includes('untagged') &&
+     $(d, '#tournlist .tdraw').classList.contains('none'),
+     $(d, '#tournlist .tdraw').textContent);
+
+  goSetup(dom, d);
+  dom.window.prompt = () => 'knockout';
+  click(dom, $(d, '#setuplist .tourn [data-tag]'));
+  ok('answering it marks the chip', $(d, '#setuplist .ttag').classList.contains('set') &&
+     $(d, '#setuplist .ttag').textContent === 'knockout', $(d, '#setuplist .ttag').textContent);
+  ok('and it is stored against the tournament',
+     Object.values(saved(dom).matchTag).join() === 'knockout',
+     JSON.stringify(saved(dom).matchTag));
+
+  click(dom, $(d, '#nav-matches'));
+  ok('the season reads it back, plainly',
+     $(d, '#tournlist .tdraw').textContent === 'knockout' &&
+     !$(d, '#tournlist .tdraw').classList.contains('none'),
+     $(d, '#tournlist .tdraw').textContent);
+
+  // the tags already in use are offered, so the second of a kind is a copy
+  addTourn(dom, d, { name: 'Second Meet', start: `${Y}-04-07` });
+  goSetup(dom, d);
+  let asked = '';
+  dom.window.prompt = msg => { asked = msg; return null; };
+  click(dom, $$(d, '#setuplist .tourn').find(r => r.textContent.includes('Second'))
+               .querySelector('[data-tag]'));
+  ok('the prompt offers what is already in use', asked.includes('knockout'), asked);
+  ok('and cancelling it leaves the tournament untagged',
+     Object.keys(saved(dom).matchTag).length === 1, JSON.stringify(saved(dom).matchTag));
+}
+
 group('taking the figures the dialog offers');
 {
   // The grey figures are placeholders, so a dialog that looks filled in saves
@@ -4473,9 +4543,10 @@ group('taking the figures the dialog offers');
   const d = dom.window.document;
   addKid(dom, d, 'Ian', Y - 9);
   addTourn(dom, d, { name: 'Club Meet', start: `${Y}-03-07` });
-  click(dom, $(d, '#nav-matches'));
+  goSetup(dom, d);
   dom.window.prompt = () => 'group';
-  click(dom, $(d, '#tournlist .tourn [data-tag]'));
+  click(dom, $(d, '#setuplist .tourn [data-tag]'));
+  click(dom, $(d, '#nav-matches'));
 
   click(dom, $(d, '#rewrow [data-rewtag]'));
   ok('the lines show figures without holding them',

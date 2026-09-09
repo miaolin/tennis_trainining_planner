@@ -5,6 +5,20 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.18.1] — 2026-09-09
+
+### Changed
+
+- **The draw-type chip moved to Setup**, beside who a tournament is for. What
+  shape a draw is belongs to the event, like its dates and its venue, and Setup
+  is where a tournament is answered for at all — so it can be settled as the
+  tournament goes on the list rather than chased afterwards.
+
+- **The tournaments view reads the tag instead of setting it.** It shows on the
+  row beside the venue, and an untagged one says so outright: that is the case
+  where no scheme applies and no money can, and a row that pays nothing has to
+  give some account of itself.
+
 ## [2.18.0] — 2026-09-09
 
 ### Changed
