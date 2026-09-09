@@ -4776,6 +4776,202 @@ group('taking the figures the dialog offers');
      `${$(d, '#r-p3').value}/${$(d, '#r-p4').value}`);
 }
 
+group('reading a knockout draw off STA');
+{
+  /* A group sheet has to be pasted — it is a private file belonging to whoever
+     ran the event. A knockout does not: STA publish the draw, so for these
+     there is nothing to copy. The shape below is theirs, trimmed, including
+     their spelling of GeTournamentDrawDetails. */
+  const Y = new Date().getFullYear();
+  const pl = (name, won) => ({ name, isWinner: won, details: [{ name }] });
+  const pair = (a, b, won) => ({ name: `${a}/${b}`, isWinner: won,
+                                 details: [{ name: a }, { name: b }] });
+  const bye = { name: 'BYE', isWinner: false, details: null };
+  const DRAW = [
+    { roundOf: '128', matches: [
+      { players: [pl('SHA HUANG', false), pl('Olivia Lin', true)] },
+      { players: [pl('Olivia Koh', false), pl('Anya Lyu', true)] },
+      // a bye is a round nobody won, and must not count as one
+      { players: [pl('Mary Dolya', false), bye] } ] },
+    { roundOf: '64', matches: [
+      { players: [pl('Anya Lyu', true), pl('Olivia Lin', false)] },
+      { players: [pl('Mary Dolya', true), pl('Ivy Tan', false)] } ] },
+    { roundOf: '32', matches: [
+      { players: [pl('Anya Lyu', true), pl('Mary Dolya', false)] } ] },
+    // played to here; the rest is on the page with names in it and no winner
+    { roundOf: '16', matches: [
+      { players: [pl('Anya Lyu', false), pl('Ivy Tan', false)] } ] },
+    { roundOf: 'Quarterfinal', matches: [] },
+    { roundOf: 'Final', matches: [] },
+  ];
+  const DBL = [{ roundOf: '32', matches: [
+    { players: [pair('Emma Wong', 'Faith Lee', false),
+                pair('Ada Quill', 'Rory Vale', true)] } ] }];
+  const EVENTS = [
+    { id: 50, name: "10U Girls' Singles(Q)", eventType: 'Single', isQualifier: true },
+    { id: 12, name: "10U Girls' Singles", eventType: 'Single', isQualifier: false },
+    { id: 13, name: "10U Girls' Doubles", eventType: 'Double', isQualifier: false },
+  ];
+
+  let asked = [];
+  const staFetch = (fail) => (w) => {
+    w.fetch = url => {
+      const u = String(url);
+      asked.push(u);
+      if (fail) return Promise.resolve({ ok: false, status: 500 });
+      if (u.includes('GetTournamentEventLinkedList'))
+        return Promise.resolve({ ok: true, json: async () => ({ status: 'Success', data: EVENTS }) });
+      if (u.includes('GeTournamentDrawDetails')) {
+        const ev = /eventId=(\d+)/.exec(u)[1];
+        return Promise.resolve({ ok: true, json: async () => ({ status: 'Success',
+          data: ev === '13' ? DBL : DRAW }) });
+      }
+      return Promise.resolve({ ok: false, status: 404 });
+    };
+  };
+  const seedOf = kid => JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [{ id: 'b1', name: 'B', start: `${Y}-06-01`, days: 7, plan: {} }],
+    activeBlockId: 'b1',
+    players: [{ id: 'p1', name: kid, birthYear: Y - 9, colour: '#5B9BD5' }],
+    manualMatches: [{ id: 'sta-322', source: 'sta', name: 'BABOLAT SPEX 3rd Junior',
+                      start: `${Y}-09-05`, end: `${Y}-09-13` }],
+    entries: [], trips: [], rewards: {}, schemes: {}, matchTag: {},
+    // a Junior draw sits above a nine-year-old's age group, so she is named on
+    // it — which is what a parent does on Setup
+    forKids: { 'sta-322': ['p1'] },
+  });
+  const openDraw = (kid, fail) => {
+    asked = [];
+    const dom = boot({ [KEY]: seedOf(kid || 'Olivia Lin') }, staFetch(fail));
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    click(dom, $(d, '#tournlist .tourn [data-sc]'));
+    return { dom, d };
+  };
+  const settle = () => new Promise(r => setTimeout(r, 30));
+
+  {
+    const { d } = openDraw();
+    ok('an STA tournament is offered its draw', !$(d, '#s-fetchrow').hidden);
+  }
+
+  {
+    // a tournament of one's own has no draw anybody publishes
+    const dom = boot({}, staFetch());
+    const d = dom.window.document;
+    addKid(dom, d, 'Olivia Lin', Y - 9);
+    addTourn(dom, d, { name: 'Club Meet', start: `${Y}-03-07` });
+    click(dom, $(d, '#nav-matches'));
+    click(dom, $(d, '#tournlist .tourn [data-sc]'));
+    ok('a tournament that is not STA’s is not offered one', $(d, '#s-fetchrow').hidden);
+  }
+
+  {
+    const { dom, d } = openDraw();
+    click(dom, $(d, '#s-fetch'));
+    await settle();
+
+    const sta = asked.filter(u => u.includes('singtennis'));
+    ok('the events are asked for first',
+       sta[0].includes('GetTournamentEventLinkedList?id=322'), sta.join('\n'));
+    ok('and the qualifying draw is left out of it, being a way in rather than a result',
+       !asked.some(u => u.includes('eventId=50')), asked.join('\n'));
+    ok('every other event is read', asked.some(u => u.includes('eventId=12')) &&
+       asked.some(u => u.includes('eventId=13')), asked.join('\n'));
+
+    ok('the child is found and her rounds counted',
+       $(d, '#s-found').textContent.includes('found as Olivia Lin: 1 win, 64th'),
+       $(d, '#s-found').textContent);
+    ok('and the note says it was read rather than guessed',
+       $(d, '#s-hint').textContent.includes('rounds are counted rather than guessed'),
+       $(d, '#s-hint').textContent);
+
+    click(dom, $(d, '#s-ok'));
+    ok('saving writes the round she won', $(d, '#tournlist .rwin').value === '1',
+       $(d, '#tournlist .rwin').value);
+    ok('and where she went out', $(d, '#tournlist .rpl').value === '64',
+       $(d, '#tournlist .rpl').value);
+  }
+
+  {
+    // the trap this has to avoid: a draw is usually read while it is still on
+    const { dom, d } = openDraw('Anya Lyu');
+    click(dom, $(d, '#s-fetch'));
+    await settle();
+    ok('a player still in the draw is not reported as out of it',
+       $(d, '#s-found').textContent.includes('not in this paste'),
+       $(d, '#s-found').textContent);
+    click(dom, $(d, '#s-ok'));
+    ok('and nothing is written for her', saved(dom).entries.length === 0,
+       JSON.stringify(saved(dom).entries));
+  }
+
+  {
+    // a bye carries a player forward without their winning anything: Mary had
+    // one in the first round, then won once and went out in the round of 32
+    const { dom, d } = openDraw('Mary Dolya');
+    click(dom, $(d, '#s-fetch'));
+    await settle();
+    ok('a bye is not counted as a round won',
+       $(d, '#s-found').textContent.includes('found as Mary Dolya: 1 win, 32nd'),
+       $(d, '#s-found').textContent);
+  }
+
+  {
+    // a doubles pair is two children, each findable by their own name
+    const { dom, d } = openDraw('Faith Lee');
+    click(dom, $(d, '#s-fetch'));
+    await settle();
+    ok('a doubles pair is read as its players, not as a pair',
+       $(d, '#s-found').textContent.includes('found as Faith Lee: 0 wins, 32nd'),
+       $(d, '#s-found').textContent);
+  }
+
+  {
+    // two children of one name in one draw is a real thing, not a hypothetical
+    const { dom, d } = openDraw('Olivia');
+    click(dom, $(d, '#s-fetch'));
+    await settle();
+    ok('two Olivias in one draw are named, not guessed between',
+       $(d, '#s-found').textContent.includes('too close to call'),
+       $(d, '#s-found').textContent);
+    click(dom, $(d, '#s-ok'));
+    ok('and nothing is filled in', saved(dom).entries.length === 0,
+       JSON.stringify(saved(dom).entries));
+  }
+
+  {
+    // STA being down is not the end of it: the box below still works
+    const { dom, d } = openDraw('Olivia Lin', true);
+    click(dom, $(d, '#s-fetch'));
+    await settle();
+    ok('a refusal is reported rather than swallowed',
+       $(d, '#s-hint').textContent.includes('Could not read the draw'),
+       $(d, '#s-hint').textContent);
+    ok('and it says what still works',
+       $(d, '#s-hint').textContent.includes('scorecard box below still works'),
+       $(d, '#s-hint').textContent);
+    ok('the button comes back rather than staying spent',
+       !$(d, '#s-fetch').disabled && $(d, '#s-fetch').textContent === 'Read the draw from STA',
+       $(d, '#s-fetch').textContent);
+  }
+
+  {
+    // a paste is the more deliberate answer and takes over
+    const { dom, d } = openDraw();
+    click(dom, $(d, '#s-fetch'));
+    await settle();
+    change(dom, $(d, '#s-paste'),
+      ['GROUP A,,Won,Rank,', '1,Olivia Lin,7,2,'].join('\n'));
+    ok('typing into the box replaces what the draw said',
+       $(d, '#s-found').textContent.includes('7 wins, 2nd'), $(d, '#s-found').textContent);
+    click(dom, $(d, '#s-ok'));
+    ok('and it is the paste that is saved', $(d, '#tournlist .rwin').value === '7',
+       $(d, '#tournlist .rwin').value);
+  }
+}
+
 group('reading a scorecard');
 {
   // The shape of a real STA group sheet, with made-up players: a header naming

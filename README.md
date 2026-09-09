@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.19.4** · [Changelog](CHANGELOG.md)
+**Version 2.20.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -261,9 +261,23 @@ tournament's own line beside *Tournament page*. One per tournament, not one per
 child: the sheet is the event's and covers everybody in it. Only http(s) is
 kept, because it is rendered as a link.
 
-**The scorecard**, pasted. Open the sheet, copy the group's rows, and paste
-them in; the dialog says who it found before anything is written, and **Save**
-fills in the wins and the place for every child of yours it matched.
+**The draw, read off STA.** On a tournament that came from STA there is nothing
+to copy at all: press **Read the draw from STA** and it reads every event of the
+tournament — singles and doubles, qualifying draws left out, a qualifier being a
+way into the main draw rather than a result of its own. A doubles pair is read
+as its two players, so a child is found by their own name either way.
+
+Only a finished run is recorded. A draw is usually looked at while it is still
+being played, with the next round already on the page and no winner in it yet; a
+child waiting for that match has not gone out in it, so they are left out until
+they have either lost or won the thing. A bye is a round nobody won, and does
+not count as one.
+
+**The scorecard**, pasted, for everything else. Open the sheet, copy the group's
+rows, and paste them in; the dialog says who it found before anything is
+written, and **Save** fills in the wins and the place for every child of yours it
+matched. A paste is the more deliberate answer, so it takes over from a draw
+that was read.
 
 It is pasted rather than fetched, and that is not laziness. The sheet arrives as
 a private `.xlsx` belonging to whoever ran the event, so there is no address a

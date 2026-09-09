@@ -718,6 +718,8 @@ input[type=number]#days{width:74px}
 .sfound .sfok{color:var(--ok)}
 .sfound .sfno{color:var(--mute)}
 .sfound .sfamb{color:var(--warn)}
+#s-fetchrow button{font-size:12px;padding:5px 10px}
+#s-fetchrow button:disabled{cursor:default;opacity:.6}
 /* Group or knockout: two shapes of draw that pay for different things, so the
    dialog asks which before it asks for figures. A segmented pair rather than a
    select, because there are only two and both should read at once. */
@@ -1127,6 +1129,10 @@ input[type=number]#days{width:74px}
     <h3 id="s-title">Results</h3>
     <div class="mrow"><label class="lab" for="s-link">Link</label>
       <input type="url" id="s-link" inputmode="url" placeholder="link to the draw or result sheet"></div>
+    <div class="mrow" id="s-fetchrow" hidden>
+      <span class="lab">Draw</span>
+      <button type="button" id="s-fetch">Read the draw from STA</button>
+    </div>
     <label class="lab" for="s-paste">Scorecard</label>
     <textarea id="s-paste" rows="5" spellcheck="false"
       placeholder="Paste the group's scoring matrix here, header row included"></textarea>
@@ -2418,7 +2424,7 @@ const KID_COLOURS = ['#5B9BD5','#D6E64B','#9B87D4','#4FA97C','#E8A33D','#D9603F'
 const DEADLINE_WARN_DAYS = 21;
 // Rewards. A junior draw is a handful of matches, so the ceilings are only
 // there to stop a mistyped figure becoming a five-digit promise.
-const MAX_WINS = 99, MAX_PLACE = 64, MAX_MONEY = 10000, MAX_PLACES = 4;
+const MAX_WINS = 99, MAX_PLACE = 128, MAX_MONEY = 10000, MAX_PLACES = 4;
 // A knockout has no third place to play for, so its scheme carries two.
 const KO_PLACES = 2;
 // The first rung a knockout pays for is the last eight, and a recorded finish
@@ -3243,6 +3249,81 @@ function rewardsLine(r){
 }
 
 
+/* ---- reading a knockout draw off STA ----
+   A group sheet has to be pasted: it is a private file belonging to whoever ran
+   the event. A knockout does not. STA publish the draw itself, unauthenticated
+   and with Access-Control-Allow-Origin: *, which is how the page already reads
+   their calendar — so for these there is nothing to copy at all.
+
+   Their endpoint is spelled GeTournamentDrawDetails, a t short of Get. That is
+   their spelling and not a typo here. */
+const STA_EVENTS_API = 'https://api.singtennis.org.sg/web-api/Tournament/GetTournamentEventLinkedList';
+const STA_DRAW_API = 'https://api.singtennis.org.sg/web-api/Tournament/GeTournamentDrawDetails';
+// A tournament that came from STA carries their id in its own. Nothing else can
+// be looked up, because nothing else is theirs to answer for.
+function staIdOf(m){
+  const hit = /^sta-(\d+)$/.exec(m && m.id || '');
+  return hit ? hit[1] : null;
+}
+/* Where a player stopped, as a placing. The planner already reads a place as
+   "this far and no further" — 8 is the last eight — so a draw maps onto it
+   directly, and winning the final is the one that is not a round at all. */
+const ROUND_PLACE = {'128':128, '64':64, '32':32, '16':16,
+                     'Quarterfinal':8, 'Semifinal':4, 'Final':2};
+// Every name a player entry stands for. A singles entry is one child; a doubles
+// entry is a pair, and the pair's own name — "Emma Wong/Faith Lee" — is no use
+// for finding either of them.
+function drawNames(pl){
+  const from = Array.isArray(pl.details) ? pl.details.map(x => x && x.name).filter(Boolean) : [];
+  return from.length ? from : (pl.name ? [pl.name] : []);
+}
+/* One event's rounds, folded into a row per player: how many matches they won,
+   and where they stopped.
+
+   Only decided matches are read. A draw is usually looked at while it is still
+   being played — the round after the last one finished is already on the page,
+   with both names in it and no winner yet — and a player waiting for that match
+   has not gone out in it. Reading the round they merely appear in would record
+   them as beaten before they have played, and pay them for it.
+
+   So a player is out where they lost, and nowhere else. Still in the draw is
+   not a result at all, and they are left out until it is. A bye is a round
+   nobody won, which is exactly how it should count. */
+/* A placing in words. The podium is named outright up to eighth; past that a
+   draw runs to 16, 32, 64 and 128, and "32th" is how you know a page was
+   written for a podium and handed a draw. */
+function ordinal(n){
+  if(n >= 1 && n <= ORDINAL.length) return ORDINAL[n - 1];
+  const teen = n % 100;
+  const tail = (teen >= 11 && teen <= 13) ? 'th' : (['th','st','nd','rd'][n % 10] || 'th');
+  return n + tail;
+}
+function readDrawRounds(rounds){
+  const seen = new Map();
+  (rounds || []).forEach(r => (r.matches || []).forEach(m => {
+    const players = (m.players || []).filter(pl => pl && pl.name !== 'BYE');
+    // Nobody marked: not played yet, so it says nothing about anyone in it.
+    if(!players.some(pl => pl.isWinner)) return;
+    players.forEach(pl => {
+      drawNames(pl).forEach(name => {
+        const rec = seen.get(name) || {name, wins: 0, lost: null, wonFinal: false};
+        if(pl.isWinner){
+          rec.wins++;
+          if(r.roundOf === 'Final') rec.wonFinal = true;
+        } else rec.lost = r.roundOf;
+        seen.set(name, rec);
+      });
+    });
+  }));
+  return [...seen.values()]
+    .filter(r => r.wonFinal || r.lost !== null)      // still in it is not a result
+    .map(r => ({
+      name: r.name,
+      wins: r.wins,
+      place: r.wonFinal ? 1 : (ROUND_PLACE[r.lost] ?? null)
+    }));
+}
+
 /* ---- reading a scorecard ----
    The draw comes back as a spreadsheet from the organiser, and there is no way
    to fetch it: it is a private file belonging to whoever ran the event, it is
@@ -3481,11 +3562,18 @@ function matchRow(kidName, rows){
    an .xlsx, and full of other families' details — so the numbers arrive by
    paste, and only the matched child's two figures are ever kept. */
 let scoreTarget = null;    // match id, or null when the dialog is shut
+let scoreDrawn = null;     // rows read off STA, or null when none have been
 
 function openScores(mId){
   const m = allMatches().find(x => x.id === mId);
   if(!m || viewLocked()) return;
   scoreTarget = mId;
+  scoreDrawn = null;
+  // Only an STA tournament can be looked up: nothing else is theirs to answer
+  // for, and a group draw is not published anywhere to be read.
+  document.getElementById('s-fetchrow').hidden = !staIdOf(m);
+  document.getElementById('s-fetch').disabled = false;
+  document.getElementById('s-fetch').textContent = 'Read the draw from STA';
   document.getElementById('s-title').textContent = 'Results — ' + m.name;
   document.getElementById('s-link').value = resultLink(mId);
   document.getElementById('s-paste').value = '';
@@ -3499,8 +3587,12 @@ function closeScores(){
 }
 // What the paste says about each child on this tournament, as it is typed. It
 // reads and reports; nothing is written until Save.
+// A paste, once there is one, is the more deliberate of the two and wins. A
+// draw read off STA stands until then.
 function readFound(){
-  const rows = parseScorecard(document.getElementById('s-paste').value);
+  const typed = document.getElementById('s-paste').value.trim();
+  const rows = typed ? parseScorecard(typed) : (scoreDrawn || []);
+  if(!typed && scoreDrawn) rows.aimedBy = 'sta';
   const m = allMatches().find(x => x.id === scoreTarget);
   if(!m) return {rows, out: []};
   return {rows, out: kidsOnMatch(m).map(p => ({player: p, hit: matchRow(p.name, rows)}))};
@@ -3509,7 +3601,7 @@ function renderFound(){
   const box = document.getElementById('s-found');
   const hint = document.getElementById('s-hint');
   const {rows, out} = readFound();
-  if(!document.getElementById('s-paste').value.trim()){
+  if(!document.getElementById('s-paste').value.trim() && !scoreDrawn){
     box.innerHTML = '';
     hint.textContent = 'Open the sheet, copy the group’s rows, and paste them ' +
       'here. The header naming Won and Rank helps but is not needed — without ' +
@@ -3527,7 +3619,7 @@ function renderFound(){
     const r = hit.row;
     const bits = [];
     if(r.wins !== null) bits.push(`${r.wins} win${r.wins === 1 ? '' : 's'}`);
-    if(r.place !== null) bits.push(ORDINAL[r.place - 1] || `${r.place}th`);
+    if(r.place !== null) bits.push(ordinal(r.place));
     return `<div class="sf" style="--c:${player.colour}">${nm}` +
       `<span class="sfok">found as ${escapeHtml(r.name)}: ${bits.join(', ')}</span></div>`;
   }).join('');
@@ -3538,6 +3630,8 @@ function renderFound(){
   const how = rows.aimedBy === 'shape'
     ? ' No header in the paste, so the columns were worked out from the block —' +
       ' worth a glance at the numbers before saving.'
+    : rows.aimedBy === 'sta'
+    ? ' Read off the draw itself, so the rounds are counted rather than guessed.'
     : '';
   hint.textContent = rows.length
     ? `${rows.length} player${rows.length === 1 ? '' : 's'} read, ` +
@@ -3545,6 +3639,60 @@ function renderFound(){
     : 'No player rows found. Paste the group’s rows — the ones with a player ' +
       'per line — and include the header naming Won and Rank if you can.';
 }
+/* Read every event of the tournament and keep the players. A child could be in
+   any of them — the singles of their age group, a doubles pair, occasionally
+   both — and asking which is a question the parent should not have to answer
+   when the answer is a name in a list.
+
+   Qualifying draws are left out: a qualifier is a way into the main draw rather
+   than a result of its own, and counting both would pay twice for one weekend. */
+async function fetchDraw(){
+  const m = allMatches().find(x => x.id === scoreTarget);
+  const tid = m && staIdOf(m);
+  if(!tid) return;
+  const btn = document.getElementById('s-fetch');
+  const hint = document.getElementById('s-hint');
+  btn.disabled = true;
+  btn.textContent = 'Reading…';
+  try{
+    const events = await staJson(`${STA_EVENTS_API}?id=${tid}`);
+    const wanted = (Array.isArray(events) ? events : []).filter(e => e && !e.isQualifier);
+    if(!wanted.length) throw new Error('STA lists no events for this tournament.');
+    const rows = [];
+    for(const ev of wanted){
+      const rounds = await staJson(`${STA_DRAW_API}?id=${tid}&eventId=${ev.id}`);
+      if(Array.isArray(rounds)) rows.push(...readDrawRounds(rounds));
+    }
+    // One player can appear in two events. Their better afternoon is the one
+    // worth recording, and a placing counts down.
+    const best = new Map();
+    rows.forEach(r => {
+      const had = best.get(r.name);
+      if(!had || r.wins > had.wins ||
+         (r.wins === had.wins && r.place !== null && (had.place === null || r.place < had.place)))
+        best.set(r.name, r);
+    });
+    scoreDrawn = [...best.values()];
+    document.getElementById('s-paste').value = '';
+    btn.textContent = 'Read again';
+    renderFound();
+  }catch(err){
+    scoreDrawn = null;
+    btn.textContent = 'Read the draw from STA';
+    hint.textContent = 'Could not read the draw: ' + (err && err.message || 'no answer from STA') +
+      ' The scorecard box below still works.';
+  }finally{
+    btn.disabled = false;
+  }
+}
+// Their API wraps everything in {status, data}, except when it does not.
+async function staJson(url){
+  const r = await fetch(url, {headers: {'Content-Type': 'application/json'}});
+  if(!r.ok) throw new Error('STA answered ' + r.status + '.');
+  const j = await r.json();
+  return (j && typeof j === 'object' && 'data' in j) ? j.data : j;
+}
+
 function commitScores(){
   if(!scoreTarget) return;
   const mId = scoreTarget;
@@ -5186,10 +5334,16 @@ document.getElementById('rmodal').addEventListener('click', e=>{
 });
 document.getElementById('s-ok').addEventListener('click', commitScores);
 document.getElementById('s-cancel').addEventListener('click', closeScores);
+document.getElementById('s-fetch').addEventListener('click', fetchDraw);
 // input for typing and pasting, change for a paste committed by leaving the
 // box — both say the same thing, that the text under the preview has moved on.
 ['input', 'change'].forEach(ev =>
-  document.getElementById('s-paste').addEventListener(ev, renderFound));
+  document.getElementById('s-paste').addEventListener(ev, ()=>{
+    // Typing into the box is the more deliberate answer, so it takes over from
+    // whatever was read off the draw rather than sitting beside it.
+    if(document.getElementById('s-paste').value.trim()) scoreDrawn = null;
+    renderFound();
+  }));
 document.getElementById('smodal').addEventListener('click', e=>{
   if(e.target.id === 'smodal') closeScores();
 });
