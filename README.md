@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.21.0** · [Changelog](CHANGELOG.md)
+**Version 2.22.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -133,14 +133,24 @@ tests/                          jsdom harness + api tests — dev only, never de
   and nothing here could tell whether it had been. Who a tournament is for is
   changed on Setup — filtered to one child, taking them off a tournament would
   take the row and the chip to undo it with it.
-- **Rewards** — what each child plays for, and what they actually earned, kept
-  per child rather than pooled. Set once per child; a single tournament can pay
-  differently. See below.
+- **Summary** — where the season stands, a line per child: how many tournaments
+  they are in, how many results are written down, how many matches they have
+  won, and what it has paid. It follows the filters, so a year picked is a year
+  summed, and the purses are never added together — two children's winnings
+  totalled is a number nobody settles up with.
+
+  The season check says what wants *doing*; the summary says where things
+  *stand*. They are the two halves of one glance, so the summary reads above the
+  list and the check below it.
+
+  What a shape of draw pays is set on **Setup**, with the rest of what the
+  family has settled. It is a standing fact rather than part of the season, and
+  a wall of figures over the thing being read is in the way. See below.
 - **Season checks** — an entry deadline inside 21 days on a tournament a child
   is on, the same child booked into two overlapping tournaments, provisional dates,
   the longest clear gap between tournaments as the window to book travel, a
-  finished tournament whose result nobody has entered, and the season's running
-  reward total.
+  finished tournament whose result nobody has entered. What has been earned is
+  in the summary above, not repeated here.
 - A tournament falling inside a training block shows that block's name, so
   build-up blocks are visible from the list. On a child's tab it prefers their
   own block over a sibling's; on Everyone it names whose block it is.

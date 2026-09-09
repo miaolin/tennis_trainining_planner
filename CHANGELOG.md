@@ -5,6 +5,29 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.22.0] — 2026-09-09
+
+### Added
+
+- **A Summary at the top of the season**, a line per child: tournaments they are
+  in, results written down, matches won, and what it has paid. It follows the
+  filters, so a year picked is a year summed, and it keeps the purses apart —
+  two children's winnings added together is a number nobody settles up with.
+
+  The season check says what wants *doing*; the summary says where things
+  *stand*. They are the two halves of one glance, so one reads above the list
+  and the other below it.
+
+### Changed
+
+- **The rewards schemes move to Setup.** What a shape of draw pays is a standing
+  fact about the family, like who the children are and which tournaments exist —
+  not part of the season being read. A wall of figures over the top of the list
+  was in the way of it.
+
+- **The season check no longer totals what was earned.** The summary says it
+  once, in more detail, and the check is for what still wants doing.
+
 ## [2.21.0] — 2026-09-09
 
 ### Changed
