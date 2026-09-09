@@ -5,6 +5,49 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.19.1] — 2026-09-09
+
+### Changed
+
+- **The draw type is picked, not typed.** Both on the add form and on the row.
+  The shapes a season is made of are a short list and the same list every time,
+  so choosing from it is quicker than typing — and it is the only thing that
+  really stops one tag being written three ways, which a free-text field with a
+  suggestion list only discourages.
+
+  **Group** and **Knockout** are always offered, so the first tournament of a
+  season is a choice and not a spelling exercise. Anything else in use follows.
+  **Something else…** is the way to a shape nobody has used yet: it asks for a
+  name once, joins it to a tag already there if the two differ only in case, and
+  thereafter that name is on the list like the rest.
+
+  The prompt on the row is gone with it. Untagged is a choice in the list now
+  rather than an empty answer to a question.
+
+## [2.19.0] — 2026-09-09
+
+### Added
+
+- **The add form asks what shape of draw it is.** A **Draw type** field beside
+  the dates and the venue, answered while the rest of the tournament is being
+  typed rather than chased afterwards — which is how a tournament ends up
+  untagged and quietly paying nothing. The tags already in use are offered as
+  you type, so a season does not drift into three spellings of one thing.
+
+  Left blank it is untagged, which is a state and not a failure to add. The chip
+  on the row is still there for changing it later, and for everything the STA
+  import brings in, where there is no form to fill.
+
+### Removed
+
+- **Categories are no longer typed by hand.** Nothing there was worth typing:
+  the age groups come out of the tournament's name, and who an event is for is
+  answered by **For**, which states it outright instead of guessing.
+
+  The field is off the form, not out of the data. A pasted STA link still
+  records what STA publishes, and the bulk import always did — both still show
+  on the row, and the age rule still reads them.
+
 ## [2.18.2] — 2026-09-09
 
 ### Changed
