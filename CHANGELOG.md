@@ -5,6 +5,24 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.23.0] — 2026-09-09
+
+### Added
+
+- **A child can be renamed.** It was the one thing about them the app had no way
+  to change, so correcting a name cost the child themselves: removing and adding
+  again takes their entries, their results and every list naming them with it.
+  The name is a field on Setup now, beside the birth year.
+
+  Worth doing, not merely possible: a scorecard and an STA draw both name a
+  child in full, and *Ian Lin* is matched against those where *Ian* ties with
+  every other Ian in the draw — which happens, and which the reader then refuses
+  to guess between.
+
+  Renaming keeps the child. Their entries, their results and every list naming
+  them are held by who they are rather than by what they are called. Emptying
+  the box puts the old name back: a child with no name is nobody.
+
 ## [2.22.0] — 2026-09-09
 
 ### Added

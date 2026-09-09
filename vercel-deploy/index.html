@@ -493,7 +493,11 @@ input[type=number]#days{width:74px}
   border-radius:3px;background:rgba(255,255,255,.05);
   padding:8px 8px 8px 12px;
 }
-.kid .knm{font-weight:700;font-size:13px}
+.kid .knm{
+  font-weight:700;font-size:13px;width:112px;padding:3px 6px;
+  background:rgba(0,0,0,.18);border:1px solid var(--hair);border-radius:3px;
+  color:var(--court-line);font-family:inherit;
+}
 .kid .kyr{
   width:62px;padding:3px 6px;font-size:12px;
   background:rgba(0,0,0,.18);border-color:var(--hair);color:var(--court-line);
@@ -1522,7 +1526,7 @@ function sanitiseState(raw, allowEmptyBlocks){
 
   if(Array.isArray(raw.players)) st.players = raw.players
     .filter(p => p && typeof p.id === 'string' && typeof p.name === 'string' && p.name)
-    .map((p,i) => ({id:p.id, name:p.name.slice(0,24),
+    .map((p,i) => ({id:p.id, name:p.name.slice(0, MAX_NAME),
                     birthYear: (Number.isInteger(p.birthYear) && p.birthYear >= 1990 && p.birthYear <= 2030)
                                ? p.birthYear : null,
                     colour: /^#[0-9a-f]{6}$/i.test(p.colour) ? p.colour : KID_COLOURS[i % KID_COLOURS.length]}));
@@ -2459,6 +2463,9 @@ const DEADLINE_WARN_DAYS = 21;
 // Rewards. A junior draw is a handful of matches, so the ceilings are only
 // there to stop a mistyped figure becoming a five-digit promise.
 const MAX_WINS = 99, MAX_PLACE = 128, MAX_MONEY = 10000, MAX_PLACES = 4;
+// A child's name. Long enough for a full one — matching a draw sheet wants the
+// surname — and short enough to sit in a chip. The add form says 24 too.
+const MAX_NAME = 24;
 // A knockout has no third place to play for, so its scheme carries two.
 const KO_PLACES = 2;
 // The first rung a knockout pays for is the last eight, and a recorded finish
@@ -3035,6 +3042,23 @@ function addPlayer(name, birthYear){
   });
   render(); save();
   return true;
+}
+/* A name is the one thing about a child the app had no way to change, which
+   meant a correction — Ian to Ian Lin, so a draw sheet can be matched against
+   it — cost the child themselves: removing and adding again takes their
+   entries, their results and every list naming them with it.
+
+   Nothing else depends on the spelling. A child is their id everywhere it
+   matters, and the name is only ever read by a person or matched against a
+   scorecard, both of which are better off with the fuller one. */
+function setPlayerName(id, raw){
+  const p = state.players.find(x => x.id === id);
+  if(!p) return;
+  const name = String(raw || '').replace(/\s+/g, ' ').trim().slice(0, MAX_NAME);
+  // A child with no name is nobody. The box goes back to what it said.
+  if(!name || name === p.name){ render(); return; }
+  p.name = name;
+  render(); save();
 }
 function setPlayerYear(id, value){
   const p = state.players.find(x => x.id === id);
@@ -4210,7 +4234,9 @@ function renderSetup(){
   const kidrow = document.getElementById('kidrow');
   kidrow.innerHTML = state.players.map(p=>{
     const grp = primaryGroup(p, thisYear);
-    return `<span class="kid" style="--c:${p.colour}"><span class="knm">${escapeHtml(p.name)}</span>` +
+    return `<span class="kid" style="--c:${p.colour}">` +
+      `<input class="knm" type="text" maxlength="${MAX_NAME}" data-kid="${p.id}"` +
+      ` value="${escapeHtml(p.name)}" aria-label="Name">` +
       `<input class="kyr" type="number" min="1990" max="2030" step="1" data-kid="${p.id}"` +
       ` value="${p.birthYear || ''}" placeholder="year" aria-label="${escapeHtml(p.name)} birth year">` +
       `<span class="kgrp">${grp ? escapeHtml(groupLabel(grp)) : 'no age group'}</span>` +
@@ -4221,6 +4247,8 @@ function renderSetup(){
     btn.addEventListener('click', ()=>removePlayer(btn.dataset.kid)));
   kidrow.querySelectorAll('.kyr').forEach(inp=>
     inp.addEventListener('change', ()=>setPlayerYear(inp.dataset.kid, inp.value)));
+  kidrow.querySelectorAll('.knm').forEach(inp=>
+    inp.addEventListener('change', ()=>setPlayerName(inp.dataset.kid, inp.value)));
 
   document.getElementById('feednote').textContent = feedNote ||
     'No data/matches.json yet — tournaments added here are stored in this browser.';
