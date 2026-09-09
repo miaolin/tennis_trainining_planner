@@ -111,6 +111,9 @@ h1 em{font-style:normal;color:var(--ball)}
   display:flex;flex-wrap:wrap;gap:12px;align-items:center;
   margin-bottom:20px;
 }
+/* The actions sit under the fields rather than beside them, and closer to them
+   than to the palette below. */
+.bar.barbtns{margin-top:-9px}
 button, select, input[type=date], input[type=time], input[type=text], input[type=number],
 input[type=url]{
   font-family:'Karla',sans-serif;font-size:13px;
@@ -944,7 +947,12 @@ input[type=number]#days{width:74px}
   <input type="number" id="days" min="1" max="60" step="1">
   <label class="lab" for="blockwho" id="blockwho-lab" hidden>Whose</label>
   <select id="blockwho" hidden></select>
-  <div class="spacer"></div>
+</div>
+
+<!-- What the block is, then what can be done to it. One bar wrapped wherever
+     the window happened to end, so which buttons shared a line with the dates
+     changed with the width of the screen; two says the same thing at any. -->
+<div class="bar barbtns">
   <button id="btn-reset">Load suggested plan</button>
   <button id="btn-clear">Clear all</button>
   <button id="btn-copy">Copy as text</button>

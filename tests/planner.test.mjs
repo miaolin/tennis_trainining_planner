@@ -4790,6 +4790,28 @@ group('taking the figures the dialog offers');
      `${$(d, '#r-p3').value}/${$(d, '#r-p4').value}`);
 }
 
+group('the block bar says the same thing at any width');
+{
+  // One bar wrapped wherever the window happened to end, so which buttons
+  // shared a line with the dates changed with the width of the screen.
+  const dom = boot();
+  const d = dom.window.document;
+  const bars = $$(d, '#view-training .bar');
+  ok('the block is described on one row and acted on from another',
+     bars.length === 2, bars.length);
+  ok('the fields say what the block is',
+     ['blockname', 'start', 'days', 'blockwho'].every(id => bars[0].contains($(d, '#' + id))),
+     bars[0].textContent.trim());
+  ok('and no button is among them', !bars[0].querySelector('button'));
+  ok('every action is on the row below',
+     ['btn-reset', 'btn-clear', 'btn-copy', 'btn-print', 'btn-delete']
+       .every(id => bars[1].contains($(d, '#' + id))),
+     [...bars[1].querySelectorAll('button')].map(b => b.textContent).join('|'));
+  ok('starting with the one that fills the plan in',
+     bars[1].querySelector('button').id === 'btn-reset',
+     bars[1].querySelector('button').id);
+}
+
 group('a child can be renamed without losing them');
 {
   /* A name was the one thing about a child that could not be changed, so

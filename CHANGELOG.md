@@ -5,6 +5,16 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.23.1] — 2026-09-09
+
+### Changed
+
+- **The block bar is two rows: what the block is, then what can be done to it.**
+  It was one bar that wrapped wherever the window happened to end, so which
+  buttons shared a line with the dates changed with the width of the screen.
+  Two rows say the same thing at any width, and **Load suggested plan** now
+  opens the second rather than crowding the first.
+
 ## [2.23.0] — 2026-09-09
 
 ### Added
