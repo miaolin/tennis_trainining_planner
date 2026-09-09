@@ -2613,14 +2613,18 @@ group('tournament rewards');
        !!resRow(d2, 'Series One', 'Ian').querySelector('.rtodo'),
        resRow(d2, 'Series One', 'Ian').textContent);
 
-    // and a note is text, never markup
+    // a scheme carries figures and nothing else now: a stored note is dropped
+    // on the way in rather than shown, so there is no text to escape either
     const dom3 = boot({ [KEY]: JSON.stringify({ ...seed,
       rewards: { [one]: { perWin: 5, note: '<img src=x onerror=alert(1)>' } } }) });
     const d3 = dom3.window.document;
     click(dom3, $(d3, '#nav-matches'));
-    ok('a note is escaped, not rendered',
+    ok('a note left on an old scheme is not stored',
+       !JSON.stringify(saved(dom3).rewards).includes('img'),
+       JSON.stringify(saved(dom3).rewards));
+    ok('nor shown, nor rendered',
        !rowNamed(d3, 'Series One').querySelector('img') &&
-       rewLine(d3, 'Series One').includes('<img'), rewLine(d3, 'Series One'));
+       rewLine(d3, 'Series One') === '$5 a win', rewLine(d3, 'Series One'));
   }
 }
 

@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.19.3** · [Changelog](CHANGELOG.md)
+**Version 2.19.4** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -405,8 +405,7 @@ Two places, merged:
   `categories`, `entryDeadline`, `url`, `source` (`sta` / `jttl` / `manual`),
   `provisional`, `note` and `rewards` are optional. A `provisional: true` entry
   is badged as an estimate, and its `note` explains why. A `rewards` object
-  (`kind`, `initial`, `perWin`, `places`, `qf`, `improve`, `bestEver`, and a
-  `note` the dialog no longer asks for but still shows)
+  (`kind`, `initial`, `perWin`, `places`, `qf`, `improve`, `bestEver`)
   is the weakest suggestion there is: a
   tournament exception set in the browser beats it, and so does whatever the
   tournament's tag is filed under. `kind` is `group` or `knockout` and defaults to `group`; `initial`
