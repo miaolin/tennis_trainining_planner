@@ -234,28 +234,57 @@ group('delete a block');
 /* ------------------------------------------------------------------ */
 group('variable block length');
 {
+  /* A block is stored as a length, because that is what the grid and every
+     check are counted in — but it is asked for as the day it ends on, which is
+     what a camp actually has. The last day is a day of the block, so a block
+     ending the day it starts is one day long. */
   const dom = boot();
   const d = dom.window.document;
+  const start = $(d, '#start').value;
+  // local, not toISOString: east of UTC that hands back the day before
+  const plus = k => {
+    const x = new Date(start + 'T00:00:00');
+    x.setDate(x.getDate() + k);
+    const p2 = v => String(v).padStart(2, '0');
+    return `${x.getFullYear()}-${p2(x.getMonth() + 1)}-${p2(x.getDate())}`;
+  };
 
-  change(dom, $(d, '#days'), '7');
+  ok('the block is asked for by the day it ends', $(d, '#ends').type === 'date',
+     $(d, '#ends').type);
+  ok('and it shows the last day, not the day after',
+     $(d, '#ends').value === plus(13), $(d, '#ends').value);
+
+  change(dom, $(d, '#ends'), plus(6));
   ok('7 days renders 7 cells', realDays(d) === 7, realDays(d));
   ok('7-day block reports one week + block cap', $$(d, '.wcap').length === 2, $$(d, '.wcap').length);
   ok('7-day total is week 1 only (10.0)', $(d, '#tot').textContent === '10.0', $(d, '#tot').textContent);
 
-  change(dom, $(d, '#days'), '14');
+  change(dom, $(d, '#ends'), plus(13));
   ok('growing back restores the hidden days', $(d, '#tot').textContent === '19.0', $(d, '#tot').textContent);
 
-  change(dom, $(d, '#days'), '10');
+  change(dom, $(d, '#ends'), plus(9));
   ok('10 days -> 2 week caps (7 + 3)', $$(d, '.wcap').length === 3, $$(d, '.wcap').length);
   ok('10-day grid pads to whole weeks', $$(d, '#grid .day').length % 7 === 0,
      $$(d, '#grid .day').length);
 
-  change(dom, $(d, '#days'), '0');
-  ok('0 clamps to 1 day', realDays(d) === 1, realDays(d));
-  change(dom, $(d, '#days'), '999');
-  ok('999 clamps to 60 days', realDays(d) === 60, realDays(d));
-  change(dom, $(d, '#days'), 'abc');
-  ok('non-numeric falls back to 14', realDays(d) === 14, realDays(d));
+  change(dom, $(d, '#ends'), start);
+  ok('ending the day it starts is one day', realDays(d) === 1, realDays(d));
+
+  // neither end can be dragged past the other, nor the block past its ceiling
+  ok('the box will not offer a day before the start', $(d, '#ends').min === start,
+     $(d, '#ends').min);
+  change(dom, $(d, '#ends'), plus(-3));
+  ok('and one typed in anyway is refused', realDays(d) === 1, realDays(d));
+
+  change(dom, $(d, '#ends'), plus(99));
+  ok('a year away clamps to 60 days', realDays(d) === 60, realDays(d));
+  ok('and the box says the sixtieth day', $(d, '#ends').value === plus(59),
+     $(d, '#ends').value);
+  ok('which is as far as it will offer', $(d, '#ends').max === plus(59), $(d, '#ends').max);
+
+  change(dom, $(d, '#ends'), '');
+  ok('emptying it leaves the block as it was', realDays(d) === 60, realDays(d));
+  ok('and puts the date back', $(d, '#ends').value === plus(59), $(d, '#ends').value);
 }
 
 /* ------------------------------------------------------------------ */
@@ -310,8 +339,6 @@ group('buttons and placement');
   ok('rest clears the day it lands on', $(d, '#tot').textContent === '0.0', $(d, '#tot').textContent);
   ok('rest day renders as rest', $$(d, '#grid .day.rest').length === 1);
 
-  click(dom, $(d, '#btn-reset'));
-  ok('suggested plan reloads to 19.0', $(d, '#tot').textContent === '19.0', $(d, '#tot').textContent);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1246,16 +1273,24 @@ group('sync is off until it is turned on');
 /* ------------------------------------------------------------------ */
 group('suggested plan respects a short block');
 {
+  // The suggested shape is laid down once, when there is no plan at all to
+  // start from, so it is reached here the way the page reaches it rather than
+  // through a button — there is none.
   const dom = boot();
   const d = dom.window.document;
-  change(dom, $(d, '#days'), '5');
-  click(dom, $(d, '#btn-reset'));
-  ok('suggested only fills the first 5 days', realDays(d) === 5, realDays(d));
+  const w = dom.window;
+  const short = { id: 'sb', name: 'Short', start: '2026-11-26', days: 5, plan: {} };
+  w.applySuggested(short);
+  ok('suggested only fills the first 5 days',
+     Object.keys(short.plan).length === 5, Object.keys(short.plan).length);
   // days 0-4 of SUGGESTED: 1 + 2 + 2 + 2 + 2
-  ok('5-day suggested total is 9.0h', $(d, '#tot').textContent === '9.0', $(d, '#tot').textContent);
+  // a slot holds a list of sessions, each with its own length
+  const hours = plan => Object.values(plan).reduce((t, day) =>
+    t + ['am', 'pm', 'eve'].reduce((u, sl) =>
+      u + (day[sl] || []).reduce((v, x) => v + (x.type === 'rest' ? 0 : x.hrs), 0), 0), 0);
+  ok('5-day suggested total is 9.0h', hours(short.plan) === 9, hours(short.plan));
   ok('no sessions beyond the block end',
-     Object.keys(saved(dom).blocks.find(b => b.id === saved(dom).activeBlockId).plan)
-       .every(k => Number(k) < 5));
+     Object.keys(short.plan).every(k => Number(k) < 5), Object.keys(short.plan).join());
 }
 
 /* ------------------------------------------------------------------ */
@@ -1298,7 +1333,7 @@ group('timezone safety');
   const dom = boot();
   const d = dom.window.document;
   change(dom, $(d, '#start'), '2026-03-01');
-  change(dom, $(d, '#days'), '31');
+  change(dom, $(d, '#ends'), '2026-03-31');
   click(dom, $(d, '#btn-add'));
   ok('next block starts 1 Apr, not 31 Mar', $(d, '#start').value === '2026-04-01',
      $(d, '#start').value);
@@ -4788,6 +4823,86 @@ group('taking the figures the dialog offers');
   ok('and a knockout is given no third place, having none to award',
      $(d, '#r-p3').value === '' && $(d, '#r-p4').value === '',
      `${$(d, '#r-p3').value}/${$(d, '#r-p4').value}`);
+}
+
+group('a plan written for one child, fitted to the other');
+{
+  /* The weeks a block runs, the days it rests, the shape of a build-up — none
+     of that is different because the child is. What differs is an hour here and
+     a session there, which is an edit rather than a second afternoon's work. */
+  const dom = boot({ [KEY]: twoKidPlan() });
+  const d = dom.window.document;
+  const blocks = () => saved(dom).blocks;
+  const copier = () => $(d, '#copyto');
+  const opts = () => [...copier().options];
+
+  ok('the copier offers the child the block does not belong to',
+     !copier().hidden && opts().length === 2 && opts()[1].textContent === 'Ian',
+     opts().map(o => o.textContent).join('|'));
+  ok('and never the child it already belongs to',
+     !opts().some(o => o.value === 'pa'), opts().map(o => o.value).join('|'));
+
+  const before = JSON.parse(JSON.stringify(activeBlock(dom)));
+  change(dom, copier(), 'pb');
+
+  ok('a copy is made rather than the block being handed over',
+     blocks().length === 3, blocks().length);
+  const copy = activeBlock(dom);
+  ok('the page lands on the copy', copy.id !== before.id, copy.id);
+  ok('which belongs to the other child', copy.playerId === 'pb', copy.playerId);
+  ok('the original stays where it was',
+     JSON.stringify(blocks().find(b => b.id === 'ba')) === JSON.stringify(before),
+     JSON.stringify(blocks().find(b => b.id === 'ba')));
+  ok('the copy keeps the name, the start and the length',
+     copy.name === before.name && copy.start === before.start && copy.days === before.days,
+     [copy.name, copy.start, copy.days].join(' / '));
+  ok('and every session in the plan',
+     JSON.stringify(copy.plan) === JSON.stringify(before.plan),
+     JSON.stringify(copy.plan));
+
+  ok('the strip moves to the child it was copied to',
+     trainTabs(d).find(b => b.classList.contains('on')).textContent.startsWith('Ian'),
+     trainTabs(d).map(b => b.textContent.trim()).join('|'));
+  ok('and the copy is the block being shown',
+     blockTabs(d).find(b => b.classList.contains('on')).textContent.includes('Her block'),
+     blockTabs(d).map(b => b.textContent.trim()).join('|'));
+  ok('the copier now offers the child it came from',
+     opts().some(o => o.value === 'pa'), opts().map(o => o.textContent).join('|'));
+  ok('and it goes back to asking rather than holding an answer',
+     copier().value === '', copier().value);
+
+  // The two go their own ways from the moment the copy is made — which is the
+  // whole point of making one.
+  tap(dom, 'g2', daySlots(d, 1)[0]);
+  ok('editing the copy leaves the original alone',
+     JSON.stringify(blocks().find(b => b.id === 'ba')) === JSON.stringify(before),
+     JSON.stringify(blocks().find(b => b.id === 'ba')));
+  ok('and the copy is the one that changed',
+     JSON.stringify(activeBlock(dom).plan) !== JSON.stringify(before.plan),
+     JSON.stringify(activeBlock(dom).plan));
+}
+
+group('with one child there is nobody to copy a plan to');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  ok('the copier stays out of the way', $(d, '#copyto').hidden);
+}
+
+group('the block bar is one row');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  const bars = $$(d, '#view-training .bar');
+  ok('the block is described and acted on from one bar', bars.length === 1, bars.length);
+  ok('the fields and the actions are all in it',
+     ['blockname', 'start', 'ends', 'blockwho', 'copyto', 'btn-clear', 'btn-copy',
+      'btn-print', 'btn-delete'].every(id => bars[0].contains($(d, '#' + id))),
+     bars[0].textContent.trim());
+  // A plan is somebody's work by the time they would think of reloading over it.
+  ok('and nothing offers to lay the suggested plan down again',
+     !$(d, '#btn-reset') && !bars[0].textContent.includes('suggested'),
+     bars[0].textContent.trim());
 }
 
 group('a child can be renamed without losing them');

@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.23.0** · [Changelog](CHANGELOG.md)
+**Version 2.24.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -499,11 +499,21 @@ to remove it. On a phone, tap a session to arm it and then tap a slot — the gr
 stacks to one day per row.
 
 Pick a block from the tab row, or **+ New block**. **Starts** shifts the whole
-block — the grid, header range and day labels all follow. **Days** changes its
-length; shortening a block hides the trailing days rather than deleting them, so
-lengthening it again brings the sessions back. **Load suggested plan** fills the
-built-in fortnight (only as far as the block is long), **Clear all** empties it,
+block — the grid, header range and day labels all follow. **Ends** is the last
+day of it, and the last day counts: a block ending the day it starts is one day
+long. Shortening a block hides the trailing days rather than deleting them, so
+moving the end back out brings the sessions with it.
+
+A block is stored as a length, which is what the grid and every check are
+counted in, but it is asked for as a date, because a date is what a camp has: it
+runs to the Sunday, not for thirteen days. Neither end can be dragged past the
+other, and sixty days is as far as the box will offer. **Clear all** empties the plan,
 **Delete block** removes it after a confirm.
+
+The built-in fortnight is laid down once, on the very first plan, and nothing
+offers to lay it down again: by the time anyone would think of pressing such a
+button the plan is their own work, and the button's whole effect is to throw it
+away.
 
 Everything is keyboard reachable: sessions and slots are focusable, and Enter or
 Space arms and places.
@@ -549,7 +559,7 @@ The knobs are constants near the top of the `<script>` block in `index.html`:
 | `MAX_DAYS` | Upper clamp on block length (60) |
 | `DAY_CAP` | Daily hour ceiling before a day is flagged as heavy |
 | `WEEK_CAP` | Weekly hour ceiling, applied per full 7-day week |
-| `SUGGESTED` | The plan loaded by "Load suggested plan" |
+| `SUGGESTED` | The fortnight the very first plan is laid down with |
 | `DEFAULT_START` | Start date used before the user picks one |
 | `STORE_KEY` | `localStorage` key holding all blocks (`tennis-season-v2`) |
 | `LEGACY_KEY` | v1.0.0 key, read once for migration and never written |

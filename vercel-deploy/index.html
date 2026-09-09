@@ -940,12 +940,12 @@ input[type=number]#days{width:74px}
   <input type="text" id="blockname" maxlength="40">
   <label class="lab" for="start">Starts</label>
   <input type="date" id="start">
-  <label class="lab" for="days">Days</label>
-  <input type="number" id="days" min="1" max="60" step="1">
+  <label class="lab" for="ends">Ends</label>
+  <input type="date" id="ends">
   <label class="lab" for="blockwho" id="blockwho-lab" hidden>Whose</label>
   <select id="blockwho" hidden></select>
   <div class="spacer"></div>
-  <button id="btn-reset">Load suggested plan</button>
+  <select id="copyto" hidden></select>
   <button id="btn-clear">Clear all</button>
   <button id="btn-copy">Copy as text</button>
   <button id="btn-print">Print</button>
@@ -1724,6 +1724,9 @@ function load(){
   state.activeBlockId = b.id;
 }
 
+/* The shape a first plan arrives in. Laid down once, when there is no plan at
+   all to start from — there is no button to lay it down again, a plan being
+   somebody's work by the time they would think of pressing one. */
 function applySuggested(b){
   b.plan = {};
   for(const k in SUGGESTED){
@@ -2199,6 +2202,37 @@ function renderBlockWho(b){
       `<option value="${p.id}"${b.playerId === p.id ? ' selected' : ''}>${escapeHtml(p.name)}</option>`).join('');
   sel.value = b.playerId || '';
 }
+/* A plan is written once and then fitted to the other child. The weeks a camp
+   runs, the days it rests, the shape of a build-up — none of that is different
+   because the child is; what differs is an hour here and a session there, which
+   is an edit rather than a second afternoon's work.
+
+   So it is a copy and not a link. The two go their own ways from the moment it
+   is made, which is the whole point of making it. */
+function renderCopyTo(b){
+  const sel = document.getElementById('copyto');
+  const others = trainStrip() && b ? state.players.filter(p => p.id !== b.playerId) : [];
+  sel.hidden = !others.length;
+  if(!others.length) return;
+  sel.innerHTML = '<option value="">Copy to…</option>' +
+    others.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  sel.value = '';
+}
+function copyBlockTo(playerId){
+  const b = active();
+  const p = state.players.find(x => x.id === playerId);
+  if(!b || !p) return;
+  const copy = newBlock(b.name, b.start, b.days, p.id);
+  // Deep, because a plan is days of arrays of sessions and a shallow one would
+  // hand the two children the same afternoons to edit.
+  copy.plan = JSON.parse(JSON.stringify(b.plan));
+  state.blocks.push(copy);
+  // Land on it. The copy exists to be changed, and it is filed under the other
+  // child, so leaving the page where it was would put it out of sight.
+  state.activeBlockId = copy.id;
+  trainWho = p.id;
+  render(); save();
+}
 function renderBlockBar(){
   const bar = document.getElementById('blockbar');
   bar.innerHTML = '';
@@ -2237,6 +2271,7 @@ function renderTraining(){
   renderTrainWho();
   renderBlockBar();
   renderBlockWho(b);
+  renderCopyTo(b);
 
   if(!b){
     const who = state.players.find(p => p.id === trainWho);
@@ -2256,10 +2291,16 @@ function renderTraining(){
   document.getElementById('range').textContent = `${fmt(dateFor(b,0))} – ${fmt(dateFor(b,b.days-1))}`;
   const nameEl = document.getElementById('blockname');
   const startEl = document.getElementById('start');
-  const daysEl = document.getElementById('days');
+  const endsEl = document.getElementById('ends');
   if(document.activeElement !== nameEl) nameEl.value = b.name;
   if(document.activeElement !== startEl) startEl.value = b.start;
-  if(document.activeElement !== daysEl) daysEl.value = b.days;
+  // A block is stored as a length, because that is what the grid and every
+  // check are counted in. It is asked for as a date, because a date is what a
+  // camp has: it runs to the Sunday, not for thirteen days.
+  if(document.activeElement !== endsEl) endsEl.value = iso(dateFor(b, b.days - 1));
+  // Neither end can be dragged past the other, nor the block past its ceiling.
+  endsEl.min = b.start;
+  endsEl.max = iso(dateFor(b, MAX_DAYS - 1));
 
   // A block can start on any weekday, so the leading gap is the start day's
   // column and the trailing gap pads out to a whole week.
@@ -5445,10 +5486,6 @@ function deleteBlock(){
 }
 
 /* ------------------------------------------------------------ wiring --- */
-document.getElementById('btn-reset').addEventListener('click', ()=>{
-  const b = active(); if(!b) return;
-  applySuggested(b); render(); save();
-});
 document.getElementById('btn-clear').addEventListener('click', ()=>{
   const b = active(); if(!b) return;
   b.plan = {}; render(); save();
@@ -5517,6 +5554,11 @@ document.getElementById('start').addEventListener('change', e=>{
   if(/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) b.start = e.target.value;
   render(); save();
 });
+document.getElementById('copyto').addEventListener('change', e=>{
+  const id = e.target.value;
+  e.target.value = '';                 // a doing, not a setting: it goes back to asking
+  if(id) copyBlockTo(id);
+});
 document.getElementById('blockwho').addEventListener('change', e=>{
   const b = active(); if(!b) return;
   const id = e.target.value;
@@ -5527,10 +5569,16 @@ document.getElementById('blockwho').addEventListener('change', e=>{
   state.activeBlockId = b.id;
   render(); save();
 });
-document.getElementById('days').addEventListener('change', e=>{
+document.getElementById('ends').addEventListener('change', e=>{
   const b = active(); if(!b) return;
-  const n = parseInt(e.target.value, 10);
-  b.days = Math.min(MAX_DAYS, Math.max(1, isNaN(n) ? DEFAULT_DAYS : n));
+  /* The last day is a day of the block, so a block ending the day it starts is
+     one day long. An emptied or impossible date leaves the block as it was —
+     render puts the box back to what it says. */
+  const iso = e.target.value;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)){ render(); return; }
+  const len = daysBetween(b.start, iso) + 1;
+  if(!(len >= 1)){ render(); return; }
+  b.days = Math.min(MAX_DAYS, len);
   render(); save();
 });
 document.getElementById('btn-copy').addEventListener('click', async ()=>{

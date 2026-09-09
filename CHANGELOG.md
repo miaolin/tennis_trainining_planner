@@ -5,6 +5,42 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.0] — 2026-09-09
+
+### Added
+
+- **A plan written for one child can be copied to the other.** The weeks a
+  block runs, the days it rests, the shape of a build-up — none of that is
+  different because the child is. What differs is an hour here and a session
+  there, which is an edit rather than a second afternoon's work.
+
+  *Copy to…* in the block bar offers whichever children the block does not
+  belong to, and lands the page on the copy, filed under its new owner and
+  ready to be changed. It is a copy and not a link: the two go their own ways
+  from the moment it is made, which is the whole point of making one.
+
+## [2.23.1] — 2026-09-09
+
+### Changed
+
+- **A block is asked for by the day it ends, not by a number of days.** A camp
+  runs to the Sunday; nobody counts that it is thirteen days long and types
+  thirteen. It is still *stored* as a length, which is what the grid and every
+  check are counted in — only the question changed.
+
+  The last day counts, so a block ending the day it starts is one day long.
+  Neither end can be dragged past the other, sixty days is as far as the box
+  will offer, and an emptied or impossible date leaves the block as it was.
+
+- **The block bar keeps to one row**, which it now has room for.
+
+### Removed
+
+- **Load suggested plan.** The built-in fortnight is laid down once, on the very
+  first plan, and nothing offers to lay it down again: by the time anyone would
+  think of pressing such a button the plan is their own work, and the button's
+  whole effect is to throw it away.
+
 ## [2.23.0] — 2026-09-09
 
 ### Added
