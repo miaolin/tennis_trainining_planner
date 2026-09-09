@@ -142,7 +142,13 @@ input[type=date]::-webkit-calendar-picker-indicator{opacity:.7}
 #blockedit{gap:10px}
 #blockedit>button,#blockedit>select,#blockedit>input{padding-left:11px;padding-right:11px}
 #blockedit input[type=date]{width:118px}
-input[type=text]#blockname{flex:1 1 60px;min-width:0}
+/* Wide enough for a block's name and no wider: the slack in the row belongs to
+   the gap that separates what the block is from what can be done with it. It
+   still gives up width first when the row runs out. */
+input[type=text]#blockname{flex:0 1 200px;min-width:0}
+/* A block filed under nobody asks one question more, and the name box gives up
+   the width for it rather than the row breaking in two. */
+#blockedit:has(#blockwho:not([hidden])) input[type=text]#blockname{flex-basis:110px}
 .lab{font-size:13px;color:var(--mute)}
 .spacer{flex:1}
 
@@ -948,8 +954,8 @@ input[type=text]#blockname{flex:1 1 60px;min-width:0}
   <input type="date" id="start">
   <label class="lab" for="ends">Ends</label>
   <input type="date" id="ends">
-  <label class="lab" for="blockwho" id="blockwho-lab" hidden>Whose</label>
   <select id="blockwho" hidden></select>
+  <div class="spacer"></div>
   <select id="copyto" hidden></select>
   <button id="btn-clear">Clear all</button>
   <button id="btn-copy">Copy as text</button>
@@ -2208,12 +2214,12 @@ function renderTrainWho(){
    It is still asked of a block filed under nobody: one made on the Everyone
    tab, one left behind by a child who has gone, or one saved before the page
    knew about children at all. Age is what the load ceilings are read from, so
-   an unclaimed block is a real question rather than a tidiness one. */
+   an unclaimed block is a real question rather than a tidiness one. It carries
+   no label: reading "Nobody yet" is the question. */
 function renderBlockWho(b){
   const sel = document.getElementById('blockwho');
-  const lab = document.getElementById('blockwho-lab');
   const on = trainStrip() && !!b && !b.playerId;
-  sel.hidden = lab.hidden = !on;
+  sel.hidden = !on;
   if(!on) return;
   sel.innerHTML = '<option value="">Nobody yet</option>' +
     state.players.map(p=>

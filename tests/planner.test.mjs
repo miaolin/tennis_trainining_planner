@@ -3815,6 +3815,9 @@ group('handing a block to a child');
   click(dom, trainTabs(d)[0]);
   click(dom, blockTabs(d)[0]);                       // Her block, still unowned
   ok('a block filed under nobody is asked whose it is', !$(d, '#blockwho').hidden);
+  ok('and needs no label, "Nobody yet" being the question and the answer at once',
+     !$(d, '#blockwho-lab') && $(d, '#blockwho').selectedOptions[0].textContent === 'Nobody yet',
+     $(d, '#blockwho').selectedOptions[0].textContent);
   change(dom, $(d, '#blockwho'), kids[0].id);
   ok('the picker assigns it',
      saved(dom).blocks.find(b => b.id === 'ba').playerId === kids[0].id);

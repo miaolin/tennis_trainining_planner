@@ -5,6 +5,17 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.26.1] — 2026-09-09
+
+### Changed
+
+- **The block bar reads left to right as what the block is, then what to do with
+  it.** The name box is a name box again rather than whatever width was left
+  over, and the slack in the row sits between the dates and the actions.
+
+- The owner picker, which only appears for a block filed under nobody, lost its
+  *Whose* label: reading *Nobody yet* is the question.
+
 ## [2.26.0] — 2026-09-09
 
 ### Changed
