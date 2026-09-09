@@ -449,6 +449,24 @@ input[type=number]#days{width:74px}
 }
 .whotab:hover{background:rgba(255,255,255,.06);color:var(--court-line)}
 .whotab.on{color:var(--court-line);border-bottom-color:var(--c,var(--ball));background:rgba(255,255,255,.05)}
+/* Two filters, side by side and told apart by a gap rather than a rule: they
+   narrow the same list and neither is a mode. */
+.whotabs .filtset{display:flex;flex-wrap:wrap;gap:2px;align-items:flex-end}
+.whotabs .filtset + .filtset{margin-left:26px}
+.whotab.yr{font-size:14px;letter-spacing:.07em}
+/* What is finished, folded away. It is the larger half of a season by the end
+   of a year and the half nobody is looking for, so it reads as a quiet line
+   rather than as a heading. */
+.pastfold{
+  display:block;width:100%;text-align:left;
+  background:transparent;border:none;border-top:1px solid var(--hair);
+  color:var(--mute);font-size:12.5px;padding:12px 2px 10px;cursor:pointer;
+  font-family:'Barlow Condensed',sans-serif;letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.pastfold:hover{color:var(--court-line)}
+.pastfold.on{color:var(--court-line)}
+.pastwrap[hidden]{display:none}
 .whotab .whodot{width:8px;height:8px;border-radius:50%;background:var(--c);display:block;opacity:.55}
 .whotab.on .whodot{opacity:1}
 .whotab .ct{
@@ -1913,8 +1931,7 @@ function closeRewards(){
   rewardTarget = null;
 }
 function commitRewards(){
-  // The lock is about a child's own things, and a scheme is nobody's.
-  if(!rewardTarget || (viewLocked() && rewardTarget.kind !== 'tag')) return;
+  if(!rewardTarget) return;
   const v = id => document.getElementById(id).value;
   const r = normRewards({
     kind: rewardKind,
@@ -1962,8 +1979,7 @@ function commitRewards(){
    no third place, and filling a hidden line would promise money for something
    the draw cannot award. */
 function useSuggested(){
-  // The lock is about a child's own things, and a scheme is nobody's.
-  if(!rewardTarget || (viewLocked() && rewardTarget.kind !== 'tag')) return;
+  if(!rewardTarget) return;
   const tpl = KIND_TEMPLATE[rewardKind];
   const put = (el, v) => {
     const box = document.getElementById(el);
@@ -1993,8 +2009,7 @@ function pickTag(mId, value){
 }
 
 function clearRewards(){
-  // The lock is about a child's own things, and a scheme is nobody's.
-  if(!rewardTarget || (viewLocked() && rewardTarget.kind !== 'tag')) return;
+  if(!rewardTarget) return;
   if(rewardTarget.kind === 'tag'){
     // The tournaments keep the tag. It is a fact about the draw, and a scheme
     // written for it again later should find them still wearing it.
@@ -2876,45 +2891,63 @@ function renderForRow(){
    whose money is that. Everyone stays first, because the travel window and the
    clash checks are family-wide facts that cannot be worked out one child at a
    time. With one child there is nothing to choose between, so no strip. */
-let whoFilter = null;        // null = everyone, otherwise a player id
+/* The season is one page. It used to be a tab each and an Everyone that could
+   be read but not touched, which meant the overview — the one view where a
+   parent can see both children's weekends against each other — was the one view
+   where nothing could be corrected. Every edit belongs to a child, but that is
+   an argument about which row a change lands on, not about which page it can be
+   made from.
+
+   So: everything on one page, everything editable, and the tabs become filters.
+   A filter narrows what is shown and changes nothing about what may be done. */
+let whoFilter = null;        // null = every child, otherwise a player id
+let yearFilter = null;       // null = every year, otherwise a four-digit year
 function whoShown(){
   return state.players.find(p => p.id === whoFilter) || null;
-}
-// The strip only exists once there are two children to tell apart. With one
-// child there is nothing to choose between, so the page stays as it was: one
-// view, everything on it.
-function hasStrip(){ return state.players.length >= 2; }
-// Everyone reads the whole season at once, and every edit on this page belongs
-// to whichever child it is about, so it changes nothing — it is the overview.
-// With one child there is no strip and nothing to choose between, so the view
-// stays as editable as it ever was.
-//
-// Every mutator on this page checks this, not only the buttons: hiding a
-// control stops a person, and stopping the write is what stops everything else.
-function viewLocked(){
-  return hasStrip() && whoFilter === null;
 }
 // The tournaments one child could enter — the same rule the list itself uses.
 function matchesFor(p){
   return allMatches().filter(m => !p || kidOnMatch(p, m, Number(m.start.slice(0,4))));
 }
+// Every year the season has anything in, newest first — the same order the list
+// itself runs in, so the two read together.
+function seasonYears(){
+  return [...new Set(allMatches().map(m => m.start.slice(0, 4)))].sort().reverse();
+}
+// What the filters leave. Order is the list's business, not this function's.
+function filteredMatches(){
+  const who = whoShown();
+  return matchesFor(who).filter(m => !yearFilter || m.start.slice(0, 4) === yearFilter);
+}
+/* Two filters, and neither of them locks anything. With one child there is
+   nobody to choose between, and with one season there is no year to pick, so
+   each row appears only once it has something to say. */
 function renderWhoFilter(){
   const row = document.getElementById('whofilter');
-  if(state.players.length < 2){ row.innerHTML = ''; return; }
-  const tab = (id, label, colour) => {
-    const n = matchesFor(state.players.find(p => p.id === id) || null).length;
-    return `<button class="whotab${whoFilter === id ? ' on' : ''}"` +
-      (colour ? ` style="--c:${colour}"` : '') + ` data-who="${id === null ? '' : id}">` +
-      (colour ? '<i class="whodot"></i>' : '') + escapeHtml(label) +
-      (n ? `<span class="ct">${n}</span>` : '') + '</button>';
-  };
-  row.innerHTML = tab(null, 'Everyone', null) +
-    state.players.map(p => tab(p.id, p.name, p.colour)).join('');
+  const years = seasonYears();
+  const kidBtns = state.players.length < 2 ? '' :
+    [{id: null, label: 'All children', colour: null}]
+      .concat(state.players.map(p => ({id: p.id, label: p.name, colour: p.colour})))
+      .map(o => {
+        const n = matchesFor(state.players.find(p => p.id === o.id) || null)
+          .filter(m => !yearFilter || m.start.slice(0, 4) === yearFilter).length;
+        return `<button class="whotab${whoFilter === o.id ? ' on' : ''}"` +
+          (o.colour ? ` style="--c:${o.colour}"` : '') +
+          ` data-who="${o.id === null ? '' : o.id}">` +
+          (o.colour ? '<i class="whodot"></i>' : '') + escapeHtml(o.label) +
+          (n ? `<span class="ct">${n}</span>` : '') + '</button>';
+      }).join('');
+  const yearBtns = years.length < 2 ? '' :
+    [''].concat(years).map(y =>
+      `<button class="whotab yr${(yearFilter || '') === y ? ' on' : ''}" data-year="${y}">` +
+      (y || 'All years') + '</button>').join('');
+  row.innerHTML = (kidBtns && yearBtns)
+    ? `<div class="filtset">${kidBtns}</div><div class="filtset">${yearBtns}</div>`
+    : kidBtns + yearBtns;
   row.querySelectorAll('button[data-who]').forEach(el=>
-    el.addEventListener('click', ()=>{
-      whoFilter = el.dataset.who || null;
-      render();
-    }));
+    el.addEventListener('click', ()=>{ whoFilter = el.dataset.who || null; render(); }));
+  row.querySelectorAll('button[data-year]').forEach(el=>
+    el.addEventListener('click', ()=>{ yearFilter = el.dataset.year || null; render(); }));
 }
 function impNote(msg, cls){
   const el = document.getElementById('impnote');
@@ -3566,7 +3599,7 @@ let scoreDrawn = null;     // rows read off STA, or null when none have been
 
 function openScores(mId){
   const m = allMatches().find(x => x.id === mId);
-  if(!m || viewLocked()) return;
+  if(!m) return;
   scoreTarget = mId;
   scoreDrawn = null;
   // Only an STA tournament can be looked up: nothing else is theirs to answer
@@ -3733,7 +3766,6 @@ function pruneEntry(matchId, playerId){
   if(!('wins' in e) && !('place' in e)) state.entries.splice(i, 1);
 }
 function setResult(matchId, playerId, field, raw){
-  if(viewLocked()) return;
   const e = entryFor(matchId, playerId);
   const v = parseInt(raw, 10);
   const lo = field === 'wins' ? 0 : 1;
@@ -3935,7 +3967,12 @@ function blockCovering(m, who){
 /* One row renderer, two lists. Setup asks what exists — no statuses, no
    results, no rewards, and the × that removes one. The tournaments page asks
    how the season is going, for whoever's tab you are on. */
-function renderTournList(list, ms, {setup, locked, who}){
+/* Whether the tournaments already played are showing. A view preference and
+   not a fact about the season, so it lives here and resets on a reload — the
+   same as which child is filtered for. */
+let pastOpen = false;
+function renderTournList(list, ms, {setup, who}){
+  const locked = false;
   // Anything we hold locally can be deleted, however it got here. Only the
   // generated feed is read-only.
   const editable = new Set((state.manualMatches || []).map(m=>m.id));
@@ -3954,11 +3991,28 @@ function renderTournList(list, ms, {setup, locked, who}){
   }
 
   const today = todayIso();
-  let html = '', lastMonth = '';
-  ms.forEach(m=>{
+  /* Newest first. A season is read from the end it is happening at: the next
+     weekend and the last result are the two things worth seeing, and both are at
+     the top this way round. What is finished folds away underneath — it is the
+     larger half by the end of a year, and it is the half nobody is looking for.
+
+     Setup is the other way about. It is a list of what exists, read to find a
+     row and fix it, and a list you are searching reads better in the order the
+     season runs. */
+  const rowsOf = list2 => {
+    let out = '', month = '';
+    list2.forEach(m => { out += rowHtml(m, month); month = monthOf(m); });
+    return out;
+  };
+  const monthOf = m => {
     const d = new Date(m.start + 'T00:00:00');
-    const monthKey = `${MON[d.getMonth()]} ${d.getFullYear()}`;
-    if(monthKey !== lastMonth){ html += `<div class="monthhead">${monthKey}</div>`; lastMonth = monthKey; }
+    return `${MON[d.getMonth()]} ${d.getFullYear()}`;
+  };
+  const rowHtml = (m, lastMonth) => {
+    let html = '';
+    const d = new Date(m.start + 'T00:00:00');
+    const monthKey = monthOf(m);
+    if(monthKey !== lastMonth) html += `<div class="monthhead">${monthKey}</div>`;
 
     const past = m.end < today;
     const dl = m.entryDeadline ? daysBetween(today, m.entryDeadline) : null;
@@ -4063,7 +4117,9 @@ function renderTournList(list, ms, {setup, locked, who}){
     // season is being read: their own tab lists only what they are on, so their
     // name against every row of it says nothing. With one child there is no tab
     // to be on and the whole page is theirs, which comes to the same thing.
-    const reading = who || (hasStrip() ? null : state.players[0]);
+    // Filtered to one child, their name against every row says nothing. With one
+    // child in the family the whole page is theirs, which comes to the same.
+    const reading = who || (state.players.length < 2 ? state.players[0] : null);
     const others = onKids.filter(p => !reading || p.id !== reading.id);
     const joins = setup
       ? (onKids.length ? '' : nobody) + state.players.map(chip).join('')
@@ -4088,8 +4144,21 @@ function renderTournList(list, ms, {setup, locked, who}){
         ? `<button class="tdel" data-del="${m.id}" aria-label="Delete">&times;</button>` : ''}</div>
       ${results ? `<div class="results">${results}</div>` : ''}
     </div>`;
-  });
-  list.innerHTML = html;
+    return html;
+  };
+
+  const done = m => m.end < today;
+  const ordered = setup ? ms : ms.slice().reverse();
+  const live = setup ? ordered : ordered.filter(m => !done(m));
+  const over = setup ? [] : ordered.filter(done);
+  list.innerHTML = rowsOf(live) +
+    (over.length
+      ? `<button class="pastfold${pastOpen ? ' on' : ''}" id="pastfold" aria-expanded="${pastOpen}">` +
+        `${pastOpen ? '\u25be' : '\u25b8'} ${over.length} finished</button>` +
+        `<div class="pastwrap"${pastOpen ? '' : ' hidden'}>${rowsOf(over)}</div>`
+      : '');
+  const fold = document.getElementById('pastfold');
+  if(fold) fold.addEventListener('click', ()=>{ pastOpen = !pastOpen; render(); });
 
   // Locked means no handler at all, not merely a disabled button: the attribute
   // stops a real click, but nothing should be listening in the first place.
@@ -4141,11 +4210,10 @@ function renderSetup(){
   renderTagList();
 
   renderTournList(document.getElementById('setuplist'), allMatches(),
-                  {setup:true, locked:false, who:null});
+                  {setup:true, who:null});
 }
 
 function renderMatches(){
-  const locked = viewLocked();
 
   /* One row per scheme, and a scheme belongs to a shape of draw rather than to
      a child: both children on a knockout play for the same terms, and one child
@@ -4172,19 +4240,14 @@ function renderMatches(){
   rewrow.querySelectorAll('[data-rewtag]').forEach(btn=>
     btn.addEventListener('click', ()=>openRewards('tag', btn.dataset.rewtag)));
 
-  const lock = document.getElementById('wholock');
-  lock.hidden = !locked;
-  if(locked) lock.textContent =
-    'Everyone is the whole season, read only. Pick a child above to change what is ' +
-    'theirs — their results. The schemes above belong to no one child, so they can ' +
-    'be set from here.';
+  document.getElementById('wholock').hidden = true;
 
   renderWhoFilter();
 
   const who = whoShown();
-  const ms = matchesFor(who);
+  const ms = filteredMatches();
   document.getElementById('nav-ct').textContent = ms.length ? ms.length : '';
-  renderTournList(document.getElementById('tournlist'), ms, {setup:false, locked, who});
+  renderTournList(document.getElementById('tournlist'), ms, {setup:false, who});
   runSeasonChecks(ms);
 }
 
@@ -4192,10 +4255,10 @@ function runSeasonChecks(ms){
   const out = [];
   const today = todayIso();
   const upcoming = ms.filter(m => m.end >= today);
-  // The checks that walk the children are scoped to whoever's tab this is. The
-  // ones that read the list alone — the travel window, provisional dates —
-  // need no scoping: the list is already that child's, so the gap they report
-  // is the gap in that child's season.
+  // The checks that walk the children are scoped to whoever is filtered for. The
+  // ones that read the list alone — the travel window, provisional dates — need
+  // no scoping: the list is already narrowed, so the gap they report is the gap
+  // in what is being looked at.
   const kids = whoShown() ? [whoShown()] : state.players;
 
   if(!state.players.length){
@@ -4622,11 +4685,8 @@ function renderHeader(){
     document.getElementById('title').textContent = 'Tournaments';
     document.getElementById('range').textContent = upcoming.length
       ? `next ${spanLabel(upcoming[0])}` : 'season';
-    // The line has to describe the tab you are on: telling someone to click a
-    // child on a row is wrong on the one tab where clicking does nothing.
-    sub.textContent = viewLocked()
-      ? 'Every tournament and who is going, across both children. Pick a child above to change anything.'
-      : 'Every tournament and who is going. Change who one is for on Setup.';
+    sub.textContent = 'The whole season, newest first — what is finished folds ' +
+      'away below. Change who a tournament is for on Setup.';
     document.getElementById('tot').textContent = upcoming.length;
     document.getElementById('ondays').textContent = state.players.length;
     // One child on one tournament, counted across the season. Two children on

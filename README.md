@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.20.0** · [Changelog](CHANGELOG.md)
+**Version 2.21.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -95,32 +95,44 @@ tests/                          jsdom harness + api tests — dev only, never de
   but not into every event they are technically old enough for. Naming a child
   on a tournament beats the age rule, and a child with no birth year is shown
   everywhere.
-- **A tab per child, once you have two kids** — **Everyone**, then one each:
+- **One page, and filters over it.** The whole season is on the tournaments
+  view and every part of it can be edited from there. It used to be a tab per
+  child plus an **Everyone** that could be read but not touched — which meant
+  the one view where both children's weekends could be seen against each other
+  was the one view where nothing could be corrected. Every edit belongs to a
+  child, but that is an argument about which row a change lands on, not about
+  which page it can be made from.
 
-  | Tab | What it is |
+  Two filters narrow what is shown, and neither locks anything:
+
+  | Filter | What it does |
   | --- | --- |
-  | Everyone | the whole season, read only |
-  | A child | their tournaments, their rewards, their results — theirs to edit |
+  | By child | one child's tournaments, once there are two children |
+  | By year | one season's, once there is more than one year on the list |
 
-  Every edit belongs somewhere. What is one child's is on that child's tab;
-  what is the family's — who the children are, which tournaments exist — is on
-  the Setup page. Everyone changes nothing, so it can be read without care.
+  Setting up is still its own page: who the children are and which tournaments
+  exist belong to the family rather than to the season.
 
-  A child's row shows who **else** is playing, because that is a fact about the
-  event — but never the child whose tab it is: their own tab lists only the
-  tournaments they are on, so their name against every row of it says nothing.
-  **Everyone** names everybody, that being what it is for. With one child there
-  is no strip at all and no chip either, the whole page being theirs. A
+  A row shows who **else** is playing, because that is a fact about the event —
+  but never the child being filtered for, whose name against every row of their
+  own list says nothing. With nobody filtered for, everybody is named; with one
+  child in the family there is no chip at all, the whole page being theirs. A
   tournament nobody is on still says so, whoever is reading.
 - **Tournaments** — name, dates, venue, categories and entry deadline, grouped
-  by month. Past ones dim.
+  by month, **newest first**. A season is read from the end it is happening at:
+  the next weekend and the last result are the two things worth seeing, and both
+  are at the top this way round.
+- **What is finished folds away** under a line saying how many. It is the larger
+  half of a season by the end of a year, and the half nobody is looking for.
+  Press it to read the results underneath; it stays as you leave it while the
+  page is open. Setup runs the other way about, oldest first and folding
+  nothing: it is a list read to find a row and fix it.
 - **Who's going** — a chip per child on each row, saying who is playing it.
   Being on a tournament is the whole of the statement: there is no entry to
   confirm on top of it, because the entry is submitted at the organiser's end
   and nothing here could tell whether it had been. Who a tournament is for is
-  changed on Setup — a child's own tab lists only the tournaments they are on,
-  so taking them off one there would take the row and the chip to undo it with
-  it.
+  changed on Setup — filtered to one child, taking them off a tournament would
+  take the row and the chip to undo it with it.
 - **Rewards** — what each child plays for, and what they actually earned, kept
   per child rather than pooled. Set once per child; a single tournament can pay
   differently. See below.
