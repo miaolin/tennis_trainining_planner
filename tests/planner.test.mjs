@@ -4790,6 +4790,78 @@ group('taking the figures the dialog offers');
      `${$(d, '#r-p3').value}/${$(d, '#r-p4').value}`);
 }
 
+group('a child can be renamed without losing them');
+{
+  /* A name was the one thing about a child that could not be changed, so
+     correcting one — Ian to Ian Lin, so a draw sheet can be matched against
+     it — cost the child themselves: removing and adding again takes their
+     entries, their results and every list naming them with it. */
+  const Y = new Date().getFullYear();
+  const seed = JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [{ id: 'b1', name: 'B', start: `${Y}-06-01`, days: 7, plan: {} }],
+    activeBlockId: 'b1',
+    players: [{ id: 'p1', name: 'Ian', birthYear: Y - 9, colour: '#5B9BD5' },
+              { id: 'p2', name: 'Olivia', birthYear: Y - 9, colour: '#D6E64B' }],
+    manualMatches: [{ id: 'm1', source: 'manual', name: 'Club Meet',
+                      start: `${Y - 1}-03-07`, end: `${Y - 1}-03-08` }],
+    entries: [{ matchId: 'm1', playerId: 'p1', wins: 4, place: 2 }],
+    trips: [], rewards: {}, forKids: { m1: ['p1'] },
+    schemes: { Group: { kind: 'group', perWin: 5, places: [], improve: 0, bestEver: 0 } },
+    matchTag: { m1: 'Group' },
+  });
+  const dom = boot({ [KEY]: seed });
+  const d = dom.window.document;
+  goSetup(dom, d);
+
+  const box = name => $$(d, '#kidrow .knm').find(i => i.value === name);
+  ok('a name is a field, not a label', !!box('Ian') && box('Ian').tagName === 'INPUT',
+     box('Ian') && box('Ian').tagName);
+
+  change(dom, box('Ian'), 'Ian Lin');
+  ok('the new name is stored', saved(dom).players[0].name === 'Ian Lin',
+     saved(dom).players[0].name);
+  ok('and the child is the same child', saved(dom).players[0].id === 'p1',
+     saved(dom).players[0].id);
+  ok('their result is untouched',
+     JSON.stringify(saved(dom).entries) ===
+       JSON.stringify([{ matchId: 'm1', playerId: 'p1', wins: 4, place: 2 }]),
+     JSON.stringify(saved(dom).entries));
+  ok('and the list naming them still names them',
+     JSON.stringify(saved(dom).forKids.m1) === '["p1"]',
+     JSON.stringify(saved(dom).forKids));
+
+  click(dom, $(d, '#nav-matches'));
+  click(dom, $(d, '#pastfold'));
+  ok('the season reads the new name',
+     $(d, '#tournlist .res .rnm').textContent === 'Ian Lin',
+     $(d, '#tournlist .res .rnm').textContent);
+  ok('and goes on paying what it paid',
+     $(d, '#tournlist .rpay').textContent === '$20', $(d, '#tournlist .rpay').textContent);
+  ok('the summary reads it too',
+     $(d, '#sumrows').textContent.includes('Ian Lin'), $(d, '#sumrows').textContent);
+  ok('and the filter', $$(d, '#whofilter button[data-who]')
+       .some(b => b.textContent.trim().startsWith('Ian Lin')),
+     $$(d, '#whofilter button[data-who]').map(b => b.textContent.trim()).join('|'));
+
+  // a name is not a thing that can be taken away
+  goSetup(dom, d);
+  change(dom, box('Ian Lin'), '   ');
+  ok('emptying it puts the name back rather than leaving nobody',
+     saved(dom).players[0].name === 'Ian Lin', saved(dom).players[0].name);
+  ok('and the box says so', !!box('Ian Lin'),
+     $$(d, '#kidrow .knm').map(i => i.value).join('|'));
+
+  change(dom, box('Ian Lin'), '  Ian   Lin  ');
+  ok('stray spaces are tidied rather than stored',
+     saved(dom).players[0].name === 'Ian Lin', JSON.stringify(saved(dom).players[0].name));
+
+  change(dom, $$(d, '#kidrow .knm').find(i => i.value === 'Olivia'), 'Olivia Lin');
+  ok('the other child is renamed on their own',
+     saved(dom).players.map(p => p.name).join() === 'Ian Lin,Olivia Lin',
+     saved(dom).players.map(p => p.name).join());
+}
+
 group('where the season stands, per child');
 {
   /* The season check says what wants doing. The summary says where things

@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.22.0** · [Changelog](CHANGELOG.md)
+**Version 2.23.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -344,6 +344,12 @@ of its own, and nothing on it is ever read-only.
   age reached during the season year, so 10&U in 2026 means born 2016 or later.
   The birth year is what lets a tournament offer only the children who can enter
   it, and what the training load checks read to know how hard a day is.
+
+  **The name can be corrected in place**, and it is worth writing the full one:
+  a scorecard and an STA draw both name a child in full, and *Ian Lin* is matched
+  against those where *Ian* would tie with every other Ian in the draw. Renaming
+  keeps the child — their entries, their results and every list naming them are
+  held by who they are rather than by what they are called.
 - **Every tournament there is**, whoever can enter it, each with a **×**. This is
   the only place one can be deleted: removing a tournament is setting up, not
   running a season. A tournament that repeats one already on the list is badged
