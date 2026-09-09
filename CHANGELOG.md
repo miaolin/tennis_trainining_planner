@@ -5,6 +5,25 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.19.1] — 2026-09-09
+
+### Changed
+
+- **The draw type is picked, not typed.** Both on the add form and on the row.
+  The shapes a season is made of are a short list and the same list every time,
+  so choosing from it is quicker than typing — and it is the only thing that
+  really stops one tag being written three ways, which a free-text field with a
+  suggestion list only discourages.
+
+  **Group** and **Knockout** are always offered, so the first tournament of a
+  season is a choice and not a spelling exercise. Anything else in use follows.
+  **Something else…** is the way to a shape nobody has used yet: it asks for a
+  name once, joins it to a tag already there if the two differ only in case, and
+  thereafter that name is on the list like the rest.
+
+  The prompt on the row is gone with it. Untagged is a choice in the list now
+  rather than an empty answer to a question.
+
 ## [2.19.0] — 2026-09-09
 
 ### Added

@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.19.0** · [Changelog](CHANGELOG.md)
+**Version 2.19.1** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -141,16 +141,23 @@ every rung climbed. Those are facts about the draw — so two children on the sa
 shape play for the same terms, and one child who plays both shapes is paid by
 each, which a single scheme per child could never do.
 
-A **tag** joins them. A tournament carries one — the **Draw type** field on the
-add form, answered as the tournament goes on the list, or the chip on its row on
+A **tag** joins them. A tournament carries one — the **Draw type** picker on the
+add form, answered as the tournament goes on the list, or the one on its row on
 **Setup** afterwards and for anything the STA import brought in — and a scheme
-is filed under one, in the **Rewards** box at the top of the tournaments view. The tags already in use are offered when a new one is asked
+is filed under one, in the **Rewards** box at the top of the tournaments view.
+
+It is picked, not typed. **Group** and **Knockout** are always offered, so the
+first tournament of a season is a choice and not a spelling exercise, and
+anything else in use follows. **Something else…** is the way to a shape nobody
+has used yet; it asks for a name once, and thereafter that name is on the list
+like the rest. The tags already in use are offered when a new one is asked
 for, so the second event of a kind is a copy rather than a spelling test.
 
-A tag is written the way you would write it — **Group**, **Knockout**, *Red ball
-group* — and read back that way. Matching ignores case, so *Group* and *group*
-are one tag and not two quietly paying different money; the spelling that shows
-is the one you typed first, and renaming a scheme is how you change it.
+A tag keeps the spelling it was given — **Group**, **Knockout**, *Red ball
+group* — and reads back that way. Matching ignores case, so a name typed as
+*group* under **Something else…** joins the *Group* already there rather than
+becoming a second tag quietly paying different money. Renaming a scheme is how
+a spelling changes, and it carries its tournaments with it.
 
 The tournaments view reads the tag but does not set it: it shows on the row
 beside the venue, and an untagged one says so there, because a row that pays
@@ -334,10 +341,11 @@ of its own, and nothing on it is ever read-only.
   is offered when the last child goes — with an empty list every tournament
   trivially serves nobody, and a season should outlast a list being briefly
   empty.
-- **What shape of draw it is** — the **Draw type** field on the add form, and the
-  chip beside the children on each row afterwards. It is what joins a tournament
-  to a rewards scheme, and it is asked here because it is a fact about the event,
-  like its dates and its venue. The tags already in use are offered as you type.
+- **What shape of draw it is** — the **Draw type** picker on the add form, and
+  the one beside the children on each row afterwards. It is what joins a
+  tournament to a rewards scheme, and it is asked here because it is a fact about
+  the event, like its dates and its venue. Group and Knockout are always on the
+  list, with anything else in use; **Something else…** names a new one.
   Untagged is a state and not a fault, though it does mean nothing can be paid.
 - **Categories are not typed by hand.** The add form does not ask: the age groups
   come out of the tournament's name, and who it is for is answered by **For**. A
