@@ -2536,8 +2536,10 @@ group('tournament rewards');
     // the season checks
     setRes(dom, d, 'Series Two', 'Ian', 'wins', '4');
     setRes(dom, d, 'Series Two', 'Ian', 'place', '2');
-    ok('the season check totals what was earned',
-       $(d, '#mnotes').textContent.includes('$70 across 2 results'), $(d, '#mnotes').textContent);
+    ok('the summary totals what was earned',
+       $(d, '#sumrows').textContent.includes('$70') &&
+       $(d, '#sumrows').textContent.includes('2 results'),
+       $(d, '#sumrows').textContent);
   }
 
   {
@@ -2887,11 +2889,12 @@ group('rewards belong to the shape of the draw');
     ok('the same terms pay them both, and the placing tells them apart',
        paid(d, 'Series One', 'Ian') === '$20' && paid(d, 'Series One', 'Olivia') === '$40',
        [paid(d, 'Series One', 'Ian'), paid(d, 'Series One', 'Olivia')].join(' / '));
-    ok('and the season total keeps the two purses apart',
-       $(d, '#mnotes').textContent.includes('Ian $20 across 1 result; Olivia $40 across 1 result'),
-       $(d, '#mnotes').textContent);
+    const sums = [...$$(d, '#sumrows .sumrow')].map(r => r.textContent);
+    ok('and the summary keeps the two purses apart',
+       sums.some(t => t.startsWith('Ian') && t.includes('$20')) &&
+       sums.some(t => t.startsWith('Olivia') && t.includes('$40')), sums.join(' | '));
     ok('the pooled figure is nowhere on the page',
-       !$(d, '#mnotes').textContent.includes('$60'), $(d, '#mnotes').textContent);
+       !$(d, '#summarybox').textContent.includes('$60'), $(d, '#summarybox').textContent);
   }
 
   {
@@ -3514,19 +3517,19 @@ group('a child’s tab scopes the whole view');
   ok('each carries the count of what it would leave',
      tabs(d)[0].querySelector('.ct').textContent === '1', tabs(d)[0].textContent);
 
-  // on Everyone, everything is shown
-  ok('Everyone lists both purses',
-     notes(d).includes('Ian $15 across 1 result; Olivia $10 across 1 result'), notes(d));
-  ok('the rewards box names schemes, which belong to no child',
-     rewNames(d).join(',') === 'Group', rewNames(d).join(','));
+  // with nobody filtered for, everything is shown
+  const sumOf = kid => ([...$$(d, '#sumrows .sumrow')]
+    .find(r => r.textContent.trim().startsWith(kid)) || {}).textContent || '';
+  ok('the summary lists both purses',
+     sumOf('Ian').includes('$15') && sumOf('Olivia').includes('$10'),
+     [...$$(d, '#sumrows .sumrow')].map(r => r.textContent).join(' | '));
   ok('and both result boxes', row().querySelectorAll('.res').length === 2);
 
   // on Ian's tab, only Ian
   click(dom, tabNamed(d, 'Ian'));
-  ok('his tab shows his purse alone',
-     notes(d).includes('Ian $15 across 1 result') && !notes(d).includes('Olivia'), notes(d));
-  ok('and the schemes are the same wherever you stand',
-     rewNames(d).join(',') === 'Group', rewNames(d).join(','));
+  ok('filtering to him shows his purse alone',
+     sumOf('Ian').includes('$15') && !sumOf('Olivia'),
+     [...$$(d, '#sumrows .sumrow')].map(r => r.textContent).join(' | '));
   // who else is in it is a fact about the event; his own name on his own tab
   // is not, that tab holding only the tournaments he is on
   ok('the row still shows who else is in it',
@@ -3537,8 +3540,9 @@ group('a child’s tab scopes the whole view');
 
   // and back
   click(dom, tabs(d)[0]);
-  ok('Everyone brings the other child back',
-     notes(d).includes('Olivia $10'), notes(d));
+  ok('clearing the filter brings the other child back',
+     sumOf('Olivia').includes('$10'),
+     [...$$(d, '#sumrows .sumrow')].map(r => r.textContent).join(' | '));
 
   // the family-wide check belongs to Everyone, but the adding does not
   goTab('Ian');
@@ -3666,8 +3670,8 @@ group('Everyone changes nothing');
     ok('it totals up with nobody filtered for',
        ian().querySelector('.rpay').textContent === '$20',
        ian().querySelector('.rpay').textContent);
-    ok('and the season check reads',
-       $(d, '#mnotes').textContent.includes('Ian $20 across 1 result'), $(d, '#mnotes').textContent);
+    ok('and the summary reads',
+       $(d, '#sumrows').textContent.includes('$20'), $(d, '#sumrows').textContent);
   }
 }
 
@@ -3877,8 +3881,12 @@ group('Setup is a view of its own');
   ok('the Kids box lives there', $(d, '#view-setup').contains($(d, '#kidsbox')));
   ok('so does Import from STA', $(d, '#view-setup').contains($(d, '#importbox')));
   ok('and Add a tournament', $(d, '#view-setup').contains($(d, '#addbox')));
-  ok('rewards stay with the tournaments page',
-     $(d, '#view-matches').contains($(d, '#rewardsbox')));
+  // a scheme is a standing fact about a shape of draw, so it keeps company with
+  // the children and the tournaments rather than sitting over the season
+  ok('rewards move to Setup with the rest of what is settled',
+     $(d, '#view-setup').contains($(d, '#rewardsbox')));
+  ok('and the season gets a summary in their place',
+     $(d, '#view-matches').contains($(d, '#summarybox')));
   ok('and so does the season check',
      $(d, '#view-matches').contains($(d, '#checksbox')));
 
@@ -4781,6 +4789,91 @@ group('taking the figures the dialog offers');
   ok('and a knockout is given no third place, having none to award',
      $(d, '#r-p3').value === '' && $(d, '#r-p4').value === '',
      `${$(d, '#r-p3').value}/${$(d, '#r-p4').value}`);
+}
+
+group('where the season stands, per child');
+{
+  /* The season check says what wants doing. The summary says where things
+     stand, which is the other half of the same glance — and it reads above the
+     list rather than under it. The schemes went the other way, to Setup: what a
+     shape of draw pays is a standing fact about the family, not a wall of
+     figures to hold over the season being read. */
+  const Y = new Date().getFullYear();
+  const sum = (d, kid) => ([...$$(d, '#sumrows .sumrow')]
+    .find(r => r.textContent.trim().startsWith(kid)) || {}).textContent || '';
+  const seed = JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [{ id: 'b1', name: 'B', start: `${Y}-06-01`, days: 7, plan: {} }],
+    activeBlockId: 'b1',
+    players: [{ id: 'p1', name: 'Ian', birthYear: Y - 9, colour: '#5B9BD5' },
+              { id: 'p2', name: 'Olivia', birthYear: Y - 9, colour: '#D6E64B' }],
+    manualMatches: [
+      { id: 'm1', source: 'manual', name: 'Old One', start: `${Y - 1}-03-01`, end: `${Y - 1}-03-02` },
+      { id: 'm2', source: 'manual', name: 'Old Two', start: `${Y - 1}-05-01`, end: `${Y - 1}-05-02` },
+      { id: 'm3', source: 'manual', name: 'To Come', start: `${Y + 1}-04-01`, end: `${Y + 1}-04-02` }],
+    entries: [{ matchId: 'm1', playerId: 'p1', wins: 3, place: 2 },
+              { matchId: 'm2', playerId: 'p1', wins: 4, place: 1 },
+              { matchId: 'm1', playerId: 'p2', wins: 1, place: 6 }],
+    trips: [], rewards: {},
+    forKids: { m1: ['p1', 'p2'], m2: ['p1'], m3: ['p1', 'p2'] },
+    schemes: { Group: { kind: 'group', perWin: 5, places: [], improve: 0, bestEver: 0 } },
+    matchTag: { m1: 'Group', m2: 'Group', m3: 'Group' },
+  });
+  const dom = boot({ [KEY]: seed });
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-matches'));
+
+  ok('the season has a summary where the schemes used to be',
+     !!$(d, '#summarybox') && $(d, '#view-matches').contains($(d, '#summarybox')));
+  ok('and the schemes are on Setup instead',
+     $(d, '#view-setup').contains($(d, '#rewardsbox')));
+
+  ok('a child is counted across the whole season',
+     sum(d, 'Ian').includes('3 tournaments') && sum(d, 'Ian').includes('2 results'),
+     sum(d, 'Ian'));
+  ok('their wins are added up', sum(d, 'Ian').includes('7 wins'), sum(d, 'Ian'));
+  ok('and so is what it paid', sum(d, 'Ian').includes('$35'), sum(d, 'Ian'));
+  ok('the other child is counted separately',
+     sum(d, 'Olivia').includes('2 tournaments') && sum(d, 'Olivia').includes('1 result') &&
+     sum(d, 'Olivia').includes('$5'), sum(d, 'Olivia'));
+  ok('one is singular and more than one is not',
+     sum(d, 'Olivia').includes('1 result') && !sum(d, 'Olivia').includes('1 results'),
+     sum(d, 'Olivia'));
+  ok('the two purses are never added together',
+     !$(d, '#summarybox').textContent.includes('$40'), $(d, '#summarybox').textContent);
+
+  // it follows the filters, a year picked being a year summed
+  const yearBtn = y => $$(d, '#whofilter button[data-year]')
+    .find(b => b.textContent.trim() === y);
+  click(dom, yearBtn(String(Y + 1)));
+  ok('a year picked is a year summed',
+     sum(d, 'Ian').includes('1 tournament') && sum(d, 'Ian').includes('0 results'),
+     sum(d, 'Ian'));
+  ok('and nothing earned says so rather than showing nought',
+     sum(d, 'Ian').includes('nothing yet'), sum(d, 'Ian'));
+
+  click(dom, yearBtn('All years'));
+  const kidBtn = name => $$(d, '#whofilter button[data-who]')
+    .find(b => b.textContent.trim().startsWith(name));
+  click(dom, kidBtn('Olivia'));
+  ok('a child picked is the only one summed',
+     !!sum(d, 'Olivia') && !sum(d, 'Ian'),
+     [...$$(d, '#sumrows .sumrow')].map(r => r.textContent).join(' | '));
+
+  // and the money is no longer said twice
+  click(dom, kidBtn('All children'));
+  ok('the season check no longer repeats the purses',
+     !$(d, '#mnotes').textContent.includes('Rewards earned'), $(d, '#mnotes').textContent);
+}
+
+group('a season with nobody in it yet');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-matches'));
+  ok('the summary says where to start rather than showing an empty row',
+     $(d, '#sumrows').textContent.includes('Add a child on Setup'),
+     $(d, '#sumrows').textContent);
 }
 
 group('one page, newest first, with what is over folded away');

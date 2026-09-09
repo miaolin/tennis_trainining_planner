@@ -668,6 +668,21 @@ input[type=number]#days{width:74px}
 /* How many tournaments a scheme is actually paying. A scheme nothing carries is
    worth spotting, and so is a tag with no scheme behind it. */
 .rewkid .rkuse{font-size:11.5px;color:var(--mute);margin-left:auto}
+/* Where the season stands, per child. It reads as a row of plain figures rather
+   than a table: four numbers is not a table, and a name with money at the end of
+   it is the shape a purse already has on every tournament row. */
+.sumrow{
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;
+  font-size:12.5px;color:var(--mute);padding:7px 0;
+}
+.sumrow + .sumrow{border-top:1px solid var(--hair)}
+.sumrow .sumnm{
+  font-weight:700;color:var(--court-line);border-left:3px solid var(--c);
+  padding-left:8px;min-width:78px;
+}
+.sumrow .sumfig b{color:var(--court-line);font-weight:700}
+.sumrow .sumpay{margin-left:auto;color:var(--ball);font-weight:700;font-size:14px}
+.sumrow .sumnil{margin-left:auto;font-style:italic}
 .rewkid .rkuse + button{margin-left:12px}
 .rewadd{justify-content:flex-start;gap:12px}
 .rewadd button{margin-left:0}
@@ -960,12 +975,9 @@ input[type=number]#days{width:74px}
   <div class="whotabs" id="whofilter"></div>
   <p class="hint" id="wholock" hidden></p>
 
-  <div class="kids" id="rewardsbox">
-    <h2>Rewards</h2>
-    <div class="rewrow" id="rewrow"></div>
-    <p class="hint">What each child plays for, at every tournament. One event can
-      pay something different &mdash; press <b>Rewards</b> on its row, and only that
-      row shows a line.</p>
+  <div class="checks" id="summarybox">
+    <h2>Summary</h2>
+    <div id="sumrows"></div>
   </div>
 
   <div id="tournlist"></div>
@@ -978,6 +990,14 @@ input[type=number]#days{width:74px}
 </section>
 
 <section class="view" id="view-setup">
+
+  <div class="kids" id="rewardsbox">
+    <h2>Rewards</h2>
+    <div class="rewrow" id="rewrow"></div>
+    <p class="hint">What a shape of draw pays, whichever child is playing it. A
+      tournament joins one by its draw type, below. One event can pay something
+      different &mdash; press <b>Rewards</b> on its row under Tournaments.</p>
+  </div>
 
   <div class="kids" id="kidsbox">
     <h2>Kids</h2>
@@ -4208,17 +4228,20 @@ function renderSetup(){
   renderAgeRow();
   renderForRow();
   renderTagList();
+  renderSchemes();
 
   renderTournList(document.getElementById('setuplist'), allMatches(),
                   {setup:true, who:null});
 }
 
-function renderMatches(){
+/* One row per scheme, and a scheme belongs to a shape of draw rather than to a
+   child: both children on a knockout play for the same terms, and one child who
+   plays both shapes is paid by each. Which shape a tournament is comes from the
+   tag it carries — which is answered on this page too, on each row.
 
-  /* One row per scheme, and a scheme belongs to a shape of draw rather than to
-     a child: both children on a knockout play for the same terms, and one child
-     who plays both shapes is paid by each. Which shape a tournament is comes
-     from the tag it carries. */
+   It sits with the rest of what the family has settled rather than over the
+   season, where it was a standing wall of figures above the thing being read. */
+function renderSchemes(){
   const rewrow = document.getElementById('rewrow');
   const tags = knownTags();
   rewrow.innerHTML = tags.map(t=>{
@@ -4239,7 +4262,47 @@ function renderMatches(){
     '</div>';
   rewrow.querySelectorAll('[data-rewtag]').forEach(btn=>
     btn.addEventListener('click', ()=>openRewards('tag', btn.dataset.rewtag)));
+}
 
+/* What the season has come to, per child: how much of it they are in, how much
+   of it is written down, and what it has paid. The season check says what wants
+   doing; this says where things stand, which is the other half of the same
+   glance and reads better above the list than under it.
+
+   It follows the filters. A year picked is a year summed. */
+function renderSummary(ms){
+  const rows = document.getElementById('sumrows');
+  const kids = whoShown() ? [whoShown()] : state.players;
+  if(!kids.length){
+    rows.innerHTML = '<p class="hint" style="margin:0">Add a child on Setup and ' +
+      'their season adds itself up here.</p>';
+    return;
+  }
+  rows.innerHTML = kids.map(p=>{
+    let on = 0, done = 0, wins = 0, paid = 0;
+    ms.forEach(m=>{
+      if(!kidOnMatch(p, m, Number(m.start.slice(0,4)))) return;
+      on++;
+      const res = resultOf(m.id, p.id);
+      if(res && (res.wins !== null || res.place !== null)) done++;
+      if(res && res.wins !== null) wins += res.wins;
+      const pay = payout(m, p);
+      if(pay) paid += pay.total;
+    });
+    const fig = (v, one, many) =>
+      `<span class="sumfig"><b>${v}</b> ${v === 1 ? one : many}</span>`;
+    return `<div class="sumrow" style="--c:${p.colour}">` +
+      `<span class="sumnm">${escapeHtml(p.name)}</span>` +
+      fig(on, 'tournament', 'tournaments') +
+      fig(done, 'result', 'results') +
+      fig(wins, 'win', 'wins') +
+      (paid ? `<span class="sumpay">${money(paid)}</span>`
+            : '<span class="sumnil">nothing yet</span>') +
+      '</div>';
+  }).join('');
+}
+
+function renderMatches(){
   document.getElementById('wholock').hidden = true;
 
   renderWhoFilter();
@@ -4247,6 +4310,7 @@ function renderMatches(){
   const who = whoShown();
   const ms = filteredMatches();
   document.getElementById('nav-ct').textContent = ms.length ? ms.length : '';
+  renderSummary(ms);
   renderTournList(document.getElementById('tournlist'), ms, {setup:false, who});
   runSeasonChecks(ms);
 }
@@ -4318,24 +4382,6 @@ function runSeasonChecks(ms){
   });
   if(owed.length) out.push(['warn','Results not in',
     owed.join('; ') + '. Add the wins and the final place to settle what is owed.']);
-
-  // Per child, never pooled. Two children's winnings added together is a number
-  // nobody settles up with — they are paid one at a time.
-  const purses = kids.map(p=>{
-    let total = 0, counted = 0;
-    ms.forEach(m=>{
-      // A result kept against a child since taken off the tournament is not
-      // money owed. It is left in the save file so putting them back restores
-      // the afternoon, but until then it is not part of anyone's season.
-      if(!kidOnMatch(p, m, Number(m.start.slice(0,4)))) return;
-      const pay = payout(m, p);
-      if(pay){ total += pay.total; counted++; }
-    });
-    return {name:p.name, total, counted};
-  }).filter(x => x.counted);
-  if(purses.length) out.push(['ok','Rewards earned',
-    purses.map(x => `${x.name} ${money(x.total)} across ${x.counted} result${x.counted===1?'':'s'}`)
-          .join('; ') + '.']);
 
   if(!out.length && ms.length) out.push(['ok','Season looks clear',
     `${upcoming.length} tournament${upcoming.length===1?'':'s'} ahead, no deadline or clash problems.`]);
