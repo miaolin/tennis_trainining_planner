@@ -2423,7 +2423,7 @@ group('tournament rewards');
   const saveRew = (dom, d, o = {}) => {
     for (const [id, v] of Object.entries({
       'r-win': o.win, 'r-p1': o.p1, 'r-p2': o.p2,
-      'r-p3': o.p3, 'r-imp': o.imp, 'r-note': o.note,
+      'r-p3': o.p3, 'r-imp': o.imp,
     })) input(dom, $(d, '#' + id), v ?? '');
     click(dom, $(d, '#r-ok'));
   };
@@ -2471,11 +2471,11 @@ group('tournament rewards');
     ok('the dialog says it is for this tournament alone',
        $(d, '#r-title').textContent === 'Rewards, only here — U10 Red Ball Series One',
        $(d, '#r-title').textContent);
-    saveRew(dom, d, { win: 5, p1: 50, p2: 30, imp: 5, note: 'Red ball, played in group' });
+    saveRew(dom, d, { win: 5, p1: 50, p2: 30, imp: 5 });
 
     ok('the rewards line reads the whole scheme',
        rewLine(d, 'Series One') ===
-         '$5 a win · 1st $50 · 2nd $30 · $5 for beating last count · Red ball, played in group',
+         '$5 a win · 1st $50 · 2nd $30 · $5 for beating last count',
        rewLine(d, 'Series One'));
     ok('the row is now marked as an exception', isException(d, 'Series One'));
     ok('the scheme is saved under the match id',
@@ -2584,13 +2584,13 @@ group('tournament rewards');
     // a scheme and a result survive a reload
     const { dom, d } = setup();
     openRew(dom, d, 'Series One');
-    saveRew(dom, d, { win: 5, p2: 30, note: 'Group stage' });
+    saveRew(dom, d, { win: 5, p2: 30 });
     enter(dom, d, 'Series One');
     setRes(dom, d, 'Series One', 'Ian', 'wins', '6');
     const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
     const d2 = dom2.window.document;
     click(dom2, $(d2, '#nav-matches'));
-    ok('the scheme comes back', rewLine(d2, 'Series One') === '$5 a win · 2nd $30 · Group stage',
+    ok('the scheme comes back', rewLine(d2, 'Series One') === '$5 a win · 2nd $30',
        rewLine(d2, 'Series One'));
     ok('and so does the result', paid(d2, 'Series One', 'Ian') === '$30',
        paid(d2, 'Series One', 'Ian'));
@@ -2642,7 +2642,7 @@ group('rewards belong to the shape of the draw');
   const fillRew = (dom, d, o) => {
     for (const [id, v] of Object.entries({
       'r-win': o.win, 'r-p1': o.p1, 'r-p2': o.p2,
-      'r-p3': o.p3, 'r-imp': o.imp, 'r-note': o.note,
+      'r-p3': o.p3, 'r-imp': o.imp,
     })) input(dom, $(d, '#' + id), v ?? '');
     click(dom, $(d, '#r-ok'));
   };
@@ -2735,11 +2735,9 @@ group('rewards belong to the shape of the draw');
        tagRow(d, 'Group').textContent.includes('2 tournaments'),
        tagRow(d, 'Group').textContent);
 
-    setTagRew(dom, d, 'Group',
-      { win: 5, p1: 50, p2: 30, imp: 5, note: 'Red ball, played in group' });
+    setTagRew(dom, d, 'Group', { win: 5, p1: 50, p2: 30, imp: 5 });
     ok('the scheme is listed once, up in the box',
-       tagLine(d, 'Group') ===
-         '$5 a win · 1st $50 · 2nd $30 · $5 for beating last count · Red ball, played in group',
+       tagLine(d, 'Group') === '$5 a win · 1st $50 · 2nd $30 · $5 for beating last count',
        tagLine(d, 'Group'));
     ok('and is stored under its tag, on no child and no tournament',
        saved(dom).schemes.Group.perWin === 5 &&
@@ -2842,13 +2840,13 @@ group('rewards belong to the shape of the draw');
   {
     // deleting a scheme, and what survives a reload
     const { dom, d } = setup();
-    setTagRew(dom, d, 'Group', { win: 5, p2: 30, note: 'Group stage' });
+    setTagRew(dom, d, 'Group', { win: 5, p2: 30 });
     setRes(dom, d, 'Series One', 'Ian', 'wins', '6');
 
     const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
     const d2 = dom2.window.document;
     click(dom2, $(d2, '#nav-matches'));
-    ok('the scheme comes back', tagLine(d2, 'Group') === '$5 a win · 2nd $30 · Group stage',
+    ok('the scheme comes back', tagLine(d2, 'Group') === '$5 a win · 2nd $30',
        tagLine(d2, 'Group'));
     ok('and the tags with it', (goSetup(dom2, d2), setupTags(d2) === 2), setupTags(d2));
     ok('and it still pays', paid(d2, 'Series One', 'Ian') === '$30',
@@ -2947,7 +2945,7 @@ group('a group draw and a knockout draw pay for different things');
     for (const [id, v] of Object.entries({
       'r-init': o.init, 'r-win': o.win, 'r-qf': o.qf, 'r-p1': o.p1,
       'r-p2': o.p2, 'r-p3': o.p3, 'r-p4': o.p4, 'r-imp': o.imp,
-      'r-best': o.best, 'r-note': o.note,
+      'r-best': o.best,
     })) input(dom, $(d, '#' + id), v ?? '');
     click(dom, $(d, '#r-ok'));
   };
@@ -3187,7 +3185,7 @@ group('beating last time and beating everything are different achievements');
     click(dom, $(d, '#r-kind-group'));
     for (const [id, v] of Object.entries({
       'r-win': o.win, 'r-p1': o.p1, 'r-p2': o.p2, 'r-p3': o.p3, 'r-p4': o.p4,
-      'r-imp': o.imp, 'r-best': o.best, 'r-note': o.note,
+      'r-imp': o.imp, 'r-best': o.best,
     })) input(dom, $(d, '#' + id), v ?? '');
     click(dom, $(d, '#r-ok'));
   };
@@ -4742,8 +4740,6 @@ group('taking the figures the dialog offers');
      $(d, '#r-win').value === '5' && $(d, '#r-p1').value === '50' &&
      $(d, '#r-p3').value === '10' && $(d, '#r-best').value === '20',
      [$(d, '#r-win').value, $(d, '#r-p1').value, $(d, '#r-p3').value].join());
-  ok('the format line too', $(d, '#r-note').value === 'Red ball, played in group',
-     $(d, '#r-note').value);
   ok('but not a line this shape has no way to pay',
      $(d, '#r-qf').value === '' && $(d, '#r-init').value === '',
      `${$(d, '#r-qf').value}/${$(d, '#r-init').value}`);
