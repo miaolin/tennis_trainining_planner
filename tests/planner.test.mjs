@@ -3786,11 +3786,19 @@ group('a training tab per child');
   click(dom, trainTabs(d)[0]);
   ok('Everyone sees both', blockTabs(d).length === 2, blockTabs(d).length);
 
-  // Everyone stays editable: a block names its own owner, so an edit made from
-  // the overview is never ambiguous about who it is for.
-  input(dom, $(d, '#blockname'), 'Renamed from Everyone');
-  ok('and can still edit from there',
-     saved(dom).blocks.some(b => b.name === 'Renamed from Everyone'));
+  /* Everyone reads; a child's tab edits. Every question the bar puts is about
+     one child — whose week this is, what it is called, when it ends — and a
+     block made here would belong to nobody, which leaves no age to read a load
+     ceiling from. */
+  ok('the overview is not where a block is described', $(d, '#blockedit').hidden);
+  ok('nor where one is started', !$(d, '#btn-add'));
+  ok('but the blocks themselves are all still here and readable',
+     blockTabs(d).length === 2 && !!$(d, '#grid .day'), blockTabs(d).length);
+
+  click(dom, trainTabs(d)[1]);
+  ok('her tab asks the questions again', !$(d, '#blockedit').hidden && !!$(d, '#btn-add'));
+  input(dom, $(d, '#blockname'), 'Renamed on her tab');
+  ok('and takes the answers', saved(dom).blocks.some(b => b.name === 'Renamed on her tab'));
 }
 
 group('handing a block to a child');

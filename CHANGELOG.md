@@ -5,6 +5,19 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.26.0] — 2026-09-09
+
+### Changed
+
+- **Everyone reads; a child's tab edits.** Every question the block bar puts is
+  about one child — whose week this is, what it is called, when it ends — so it
+  has no business on the tab that shows all of them at once. The overview keeps
+  the blocks, the plan and the load figures; it no longer offers the bar.
+
+  *+ New block* goes with it. A block made on Everyone would belong to nobody,
+  and a block filed under nobody has no age to read a load ceiling from, so a
+  block is started on the tab of the child it is for.
+
 ## [2.25.0] — 2026-09-09
 
 ### Changed
@@ -15,10 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   already full. A block made on a child's tab is theirs, and *Copy to…* is how
   one gets to the other child.
 
-  The question is still put to a block filed under nobody: one made on the
-  Everyone tab, one left behind by a child who has gone, or one saved before
-  the page knew about children at all. Age is what the load ceilings are read
-  from, so an unclaimed block is a real question and not a tidiness one.
+  The question is still put to a block filed under nobody: one left behind by a
+  child who has gone, or one saved before the page knew about children at all.
+  Age is what the load ceilings are read from, so an unclaimed block is a real
+  question and not a tidiness one.
 
 ## [2.24.1] — 2026-09-09
 

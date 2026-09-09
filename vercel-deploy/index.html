@@ -1329,6 +1329,12 @@ function blocksFor(who){
   return state.blocks.filter(b => !b.playerId || b.playerId === who);
 }
 function shownBlocks(){ return trainStrip() ? blocksFor(trainWho) : state.blocks; }
+/* Everyone is where the blocks are read across the children, and every question
+   the bar puts is about one of them: whose week this is, what it is called,
+   when it ends. So the bar belongs on a child's tab, and a block is made there
+   too — made here it would belong to nobody, and a block filed under nobody has
+   no age to read a load ceiling from. */
+function blockEditable(){ return !(trainStrip() && trainWho === null); }
 function blockOwner(b){
   return (b && b.playerId && state.players.find(p => p.id === b.playerId)) || null;
 }
@@ -2263,6 +2269,7 @@ function renderBlockBar(){
     el.addEventListener('click', ()=>{ state.activeBlockId = b.id; render(); save(); });
     bar.appendChild(el);
   });
+  if(!blockEditable()) return;
   const add = document.createElement('button');
   add.className = 'btab btab-add';
   add.id = 'btn-add';
@@ -2286,8 +2293,9 @@ function renderTraining(){
   renderCopyTo(b);
   /* With no block there is nothing to describe. The bar would otherwise keep
      the last block's name and dates, and on a child who has none of their own
-     that is somebody else's camp shown as theirs. */
-  document.getElementById('blockedit').hidden = !b;
+     that is somebody else's camp shown as theirs. On Everyone there is nothing
+     to describe either: the tab is for reading across the children. */
+  document.getElementById('blockedit').hidden = !b || !blockEditable();
 
   if(!b){
     const who = state.players.find(p => p.id === trainWho);
