@@ -4561,6 +4561,41 @@ group('reading a scorecard');
        '4\tOtto Vane\t5\t11\t8\t12\t5\t6\t2\t2',
      ].join('\n')).length === 0);
 
+  /* A second sheet, laid out differently: rows labelled by group and position
+     rather than by number, and a points difference sitting between Won and
+     Rank. Invented players, real shape. */
+  const DIFF_ROWS = [
+    'D1\tHarvey Ashby\t\t\t6\t1\t7\t6\t5\t4\t8\t3\t6\t2\t4\t5\t5\t4\t6\t16\t2',
+    'D2\tKelly Quill\t1\t6\t\t\t5\t6\t3\t4\t5\t7\t6\t5\t3\t5\t3\t10\t1\t-17\t8',
+    'D3\tMarc Vale\t6\t7\t6\t5\t\t\t4\t7\t3\t8\t4\t6\t7\t4\t3\t4\t2\t-8\t7',
+    'D4\tNeev Testwood\t4\t5\t4\t3\t7\t4\t\t\t3\t4\t5\t6\t4\t7\t4\t5\t2\t-3\t6',
+    'D5\tOlivia Marchetti\t3\t8\t7\t5\t8\t3\t4\t3\t\t\t5\t6\t4\t6\t6\t4\t4\t2\t4',
+    'D6\tRachel Dolya\t2\t6\t5\t6\t6\t4\t6\t5\t6\t5\t\t\t3\t6\t6\t5\t4\t-3\t3',
+    'D7\tRafael Sung\t5\t4\t5\t3\t4\t7\t7\t4\t6\t4\t6\t3\t\t\t7\t3\t6\t12\t1',
+    'D8\tRuoyu Pemberton\t4\t5\t10\t3\t4\t3\t5\t4\t4\t6\t5\t6\t3\t7\t\t\t3\t1\t5',
+  ];
+  // The header carries a blank between each opponent, the sheet merging the
+  // score pair, so it lines up with the rows beneath it.
+  const DIFF_HEAD =
+    '\tGroup D\t1\t\t2\t\t3\t\t4\t\t5\t\t6\t\t7\t\t8\t\tWon\tDiff\tRank';
+  const TRUTH = '6/2,1/8,2/7,2/6,4/4,4/3,6/1,3/5';
+  const readOut = t => parse(t).map(r => `${r.wins}/${r.place}`).join();
+
+  ok('a row labelled D1 is not read as a player called D1',
+     parse(DIFF_HEAD + '\n' + DIFF_ROWS.join('\n'))[0].name === 'Harvey Ashby',
+     parse(DIFF_HEAD + '\n' + DIFF_ROWS.join('\n'))[0].name);
+  ok('a header skips the difference to reach Rank',
+     readOut(DIFF_HEAD + '\n' + DIFF_ROWS.join('\n')) === TRUTH,
+     readOut(DIFF_HEAD + '\n' + DIFF_ROWS.join('\n')));
+  ok('and without a header the shape does the same',
+     readOut(DIFF_ROWS.join('\n')) === TRUTH, readOut(DIFF_ROWS.join('\n')));
+  ok('a difference is never mistaken for a count of wins',
+     parse(DIFF_ROWS.join('\n')).every(r => r.wins < 8),
+     parse(DIFF_ROWS.join('\n')).map(r => r.wins).join());
+  ok('and the child is found by her first name',
+     match('Olivia', DIFF_ROWS.join('\n')).row.name === 'Olivia Marchetti',
+     JSON.stringify(match('Olivia', DIFF_ROWS.join('\n'))));
+
   ok('a first name finds the player it starts',
      match('Ian', both).row.name === 'Ian Testwood',
      JSON.stringify(match('Ian', both)));

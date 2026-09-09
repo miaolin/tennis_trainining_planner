@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.17.0** · [Changelog](CHANGELOG.md)
+**Version 2.17.1** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -245,7 +245,8 @@ What it reads:
 | --- | --- |
 | The header | the row naming **Won** and **Rank** says which columns hold the numbers. Several groups can be pasted at once — each header re-aims the columns for the rows beneath it, so groups of different sizes are fine |
 | No header | the block is read for its shape instead. Down a group **Rank** runs 1, 2, 3 … once each, which no column of scores ever does, so the rightmost column whose values are distinct and inside the size of the group is the placing, and Won is beside it. Fewer than four rows is left alone: two rows can agree by chance. The dialog says when the columns were worked out rather than read |
-| A player row | the first cell that reads as a name, then those two columns. A name quoted because it holds a comma survives whole |
+| A player row | the first cell that reads as a name, then those two columns. A name quoted because it holds a comma survives whole. A row opens with the player's place in the group, written as a bare number on some sheets and as the group letter and the number on others — `D1`, `D2` — and neither is mistaken for the name |
+| A column between them | some sheets put a points difference between **Won** and **Rank**. Won is looked for leftwards rather than immediately beside: it cannot be missing where a placing is given, nor larger than the players there were to beat, and a difference fails both |
 | A dash | a player who never turned up. Not a nought, so the row is skipped |
 | Tabs or commas | a spreadsheet copies tab-separated and an exported CSV comes comma-separated; both read |
 
