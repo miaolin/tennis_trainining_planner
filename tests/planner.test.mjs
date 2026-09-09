@@ -2716,8 +2716,8 @@ group('rewards belong to the shape of the draw');
     addTourn(dom, d, { name: 'U10 Red Ball Series One', start: `${PAST}-11-14` });
     addTourn(dom, d, { name: 'U10 Red Ball Series Two', start: `${Y}-03-07` });
     // Both are group draws, which is what joins them to a scheme.
-    tagIt(dom, d, 'Series One', 'group');
-    tagIt(dom, d, 'Series Two', 'group');
+    tagIt(dom, d, 'Series One', 'Group');
+    tagIt(dom, d, 'Series Two', 'Group');
     click(dom, $$(d, '#whofilter button[data-who]')[0]);
     return { dom, d };
   };
@@ -2725,23 +2725,23 @@ group('rewards belong to the shape of the draw');
   {
     const { dom, d } = setup();
     ok('a tag in use gets a line in the rewards box, whoever plays it',
-       $$(d, '.rewkid .rknm').map(e => e.textContent).join() === 'group',
+       $$(d, '.rewkid .rknm').map(e => e.textContent).join() === 'Group',
        $$(d, '.rewkid .rknm').map(e => e.textContent).join());
     ok('and starts with no scheme behind it',
-       tagRow(d, 'group').textContent.includes('no scheme yet'),
-       tagRow(d, 'group').textContent);
+       tagRow(d, 'Group').textContent.includes('no scheme yet'),
+       tagRow(d, 'Group').textContent);
     ok('it says how many tournaments carry it',
-       tagRow(d, 'group').textContent.includes('2 tournaments'),
-       tagRow(d, 'group').textContent);
+       tagRow(d, 'Group').textContent.includes('2 tournaments'),
+       tagRow(d, 'Group').textContent);
 
-    setTagRew(dom, d, 'group',
+    setTagRew(dom, d, 'Group',
       { win: 5, p1: 50, p2: 30, imp: 5, note: 'Red ball, played in group' });
     ok('the scheme is listed once, up in the box',
-       tagLine(d, 'group') ===
+       tagLine(d, 'Group') ===
          '$5 a win · 1st $50 · 2nd $30 · $5 for beating last count · Red ball, played in group',
-       tagLine(d, 'group'));
+       tagLine(d, 'Group'));
     ok('and is stored under its tag, on no child and no tournament',
-       saved(dom).schemes.group.perWin === 5 &&
+       saved(dom).schemes.Group.perWin === 5 &&
        Object.keys(saved(dom).rewards).length === 0 &&
        !('rewards' in saved(dom).players[0]),
        JSON.stringify(saved(dom).schemes));
@@ -2780,17 +2780,17 @@ group('rewards belong to the shape of the draw');
   {
     // one child, two shapes of draw — the thing a scheme per child could not do
     const { dom, d } = setup();
-    setTagRew(dom, d, 'group', { win: 5 });
-    tagIt(dom, d, 'Series Two', 'knockout');
+    setTagRew(dom, d, 'Group', { win: 5 });
+    tagIt(dom, d, 'Series Two', 'Knockout');
     click(dom, $(d, '.rewadd button'));
-    input(dom, $(d, '#r-tag'), 'knockout');
+    input(dom, $(d, '#r-tag'), 'Knockout');
     click(dom, $(d, '#r-kind-knockout'));
     input(dom, $(d, '#r-win'), '20');
     input(dom, $(d, '#r-init'), '20');
     click(dom, $(d, '#r-ok'));
 
     ok('both schemes stand side by side',
-       $$(d, '.rewkid .rknm').map(e => e.textContent).sort().join() === 'group,knockout',
+       $$(d, '.rewkid .rknm').map(e => e.textContent).sort().join() === 'Group,Knockout',
        $$(d, '.rewkid .rknm').map(e => e.textContent).join());
     tabTo(dom, d, 'Ian');
     setRes(dom, d, 'Series One', 'Ian', 'wins', '3');
@@ -2804,7 +2804,7 @@ group('rewards belong to the shape of the draw');
   {
     // one tournament paying differently
     const { dom, d } = setup();
-    setTagRew(dom, d, 'group', { win: 5, imp: 5 });
+    setTagRew(dom, d, 'Group', { win: 5, imp: 5 });
     setRes(dom, d, 'Series One', 'Ian', 'wins', '3');
 
     setMatchRew(dom, d, 'Series Two', { win: 10 });
@@ -2813,7 +2813,7 @@ group('rewards belong to the shape of the draw');
     ok('and is badged as such', isException(d, 'Series Two'));
     ok('the other tournament is untouched', rewLine(d, 'Series One') === '');
     ok('the tag’s own line is unchanged',
-       tagLine(d, 'group') === '$5 a win · $5 for beating last count', tagLine(d, 'group'));
+       tagLine(d, 'Group') === '$5 a win · $5 for beating last count', tagLine(d, 'Group'));
     setRes(dom, d, 'Series Two', 'Ian', 'wins', '4');
     ok('the exception is what pays, bonus and all',
        paid(d, 'Series Two', 'Ian') === '$40', paid(d, 'Series Two', 'Ian'));
@@ -2841,25 +2841,25 @@ group('rewards belong to the shape of the draw');
   {
     // deleting a scheme, and what survives a reload
     const { dom, d } = setup();
-    setTagRew(dom, d, 'group', { win: 5, p2: 30, note: 'Group stage' });
+    setTagRew(dom, d, 'Group', { win: 5, p2: 30, note: 'Group stage' });
     setRes(dom, d, 'Series One', 'Ian', 'wins', '6');
 
     const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
     const d2 = dom2.window.document;
     click(dom2, $(d2, '#nav-matches'));
-    ok('the scheme comes back', tagLine(d2, 'group') === '$5 a win · 2nd $30 · Group stage',
-       tagLine(d2, 'group'));
+    ok('the scheme comes back', tagLine(d2, 'Group') === '$5 a win · 2nd $30 · Group stage',
+       tagLine(d2, 'Group'));
     ok('and the tags with it', (goSetup(dom2, d2), setupTags(d2) === 2), setupTags(d2));
     ok('and it still pays', paid(d2, 'Series One', 'Ian') === '$30',
        paid(d2, 'Series One', 'Ian'));
 
-    click(dom2, tagRow(d2, 'group').querySelector('button'));
+    click(dom2, tagRow(d2, 'Group').querySelector('button'));
     ok('a scheme’s own dialog offers to delete it',
        $(d2, '#r-clear').textContent === 'Delete', $(d2, '#r-clear').textContent);
     click(dom2, $(d2, '#r-clear'));
     ok('deleting it stops everything carrying the tag paying',
-       tagRow(d2, 'group').textContent.includes('no scheme yet') &&
-       paid(d2, 'Series One', 'Ian') === null, tagRow(d2, 'group').textContent);
+       tagRow(d2, 'Group').textContent.includes('no scheme yet') &&
+       paid(d2, 'Series One', 'Ian') === null, tagRow(d2, 'Group').textContent);
     ok('the tournaments keep the tag, ready for a scheme written again',
        (goSetup(dom2, d2), setupTags(d2) === 2), setupTags(d2));
     click(dom2, $(d2, '#nav-matches'));
@@ -2872,7 +2872,7 @@ group('rewards belong to the shape of the draw');
   {
     // two children on one draw: one bargain, two purses
     const { dom, d } = setup();
-    setTagRew(dom, d, 'group', { win: 5, p1: 20 });
+    setTagRew(dom, d, 'Group', { win: 5, p1: 20 });
     setRes(dom, d, 'Series One', 'Ian', 'wins', '4');
     setRes(dom, d, 'Series One', 'Olivia', 'wins', '4');
     setRes(dom, d, 'Series One', 'Olivia', 'place', '1');
@@ -2891,13 +2891,13 @@ group('rewards belong to the shape of the draw');
     // rubbish under a tag must not reach the page
     const { dom } = setup();
     const seed = saved(dom);
-    seed.schemes = { group: { perWin: 'five', places: 'nope', improve: -1, note: {} } };
+    seed.schemes = { Group: { perWin: 'five', places: 'nope', improve: -1, note: {} } };
     const dom2 = boot({ [KEY]: JSON.stringify(seed) });
     const d2 = dom2.window.document;
     click(dom2, $(d2, '#nav-matches'));
     ok('a broken scheme reads as none at all',
-       tagRow(d2, 'group').textContent.includes('no scheme yet'),
-       tagRow(d2, 'group').textContent);
+       tagRow(d2, 'Group').textContent.includes('no scheme yet'),
+       tagRow(d2, 'Group').textContent);
   }
 
   {
@@ -2912,7 +2912,7 @@ group('rewards belong to the shape of the draw');
     const d2 = dom2.window.document;
     click(dom2, $(d2, '#nav-matches'));
     ok('the child’s old standard becomes the scheme for its shape',
-       saved(dom2).schemes.group.perWin === 5, JSON.stringify(saved(dom2).schemes));
+       saved(dom2).schemes.Group.perWin === 5, JSON.stringify(saved(dom2).schemes));
     ok('and every tournament it was paying takes that shape as its tag',
        (goSetup(dom2, d2), setupTags(d2) === 2), setupTags(d2));
     click(dom2, $(d2, '#nav-matches'));
@@ -3158,16 +3158,16 @@ group('a group draw and a knockout draw pay for different things');
     // a scheme filed under a tag carries a shape as well
     const { dom, d } = setup();
     click(dom, $(d, '.rewadd button'));
-    input(dom, $(d, '#r-tag'), 'knockout');
+    input(dom, $(d, '#r-tag'), 'Knockout');
     saveRew(dom, d, 'knockout', { init: 20, win: 20, qf: 30, p1: 100 });
     ok('a blank improvement line is simply not paid',
-       saved(dom).schemes.knockout.bestEver === 0,
+       saved(dom).schemes.Knockout.bestEver === 0,
        JSON.stringify(saved(dom).schemes));
     ok('a scheme can be a knockout one',
-       saved(dom).schemes.knockout.kind === 'knockout',
+       saved(dom).schemes.Knockout.kind === 'knockout',
        JSON.stringify(saved(dom).schemes));
     const line = [...$$(d, '.rewkid')]
-      .find(r => r.textContent.trim().startsWith('knockout')).querySelector('.rkline');
+      .find(r => r.textContent.trim().startsWith('Knockout')).querySelector('.rkline');
     ok('and reads as one in the rewards box',
        line.textContent === '$20 to start · $20 a round · quarterfinal $30 · 1st $100',
        line.textContent);
@@ -3455,7 +3455,7 @@ group('a suggested scheme is the weakest one');
     // the buttons name what they act on
     const { d } = await paidOn(STANDARD, undefined);
     ok('a scheme’s button names its tag',
-       $(d, '[data-rewtag]').getAttribute('aria-label') === 'Edit the group scheme',
+       $(d, '[data-rewtag]').getAttribute('aria-label') === 'Edit the Group scheme',
        $(d, '[data-rewtag]').getAttribute('aria-label'));
     ok('and a row’s button names the tournament',
        $(d, '[data-rew]').getAttribute('aria-label') === 'Rewards for U10 Red Ball Feed Event',
@@ -3485,11 +3485,11 @@ group('a child’s tab scopes the whole view');
   // One scheme, tagged, paying whoever plays a draw of that shape. What tells
   // the two purses apart is the afternoon each of them had.
   goSetup(dom, d);
-  dom.window.prompt = () => 'group';
+  dom.window.prompt = () => 'Group';
   click(dom, $(d, '#setuplist .tourn [data-tag]'));
   click(dom, $(d, '#nav-matches'));
   click(dom, $(d, '.rewadd button'));
-  input(dom, $(d, '#r-tag'), 'group');
+  input(dom, $(d, '#r-tag'), 'Group');
   input(dom, $(d, '#r-win'), '5');
   click(dom, $(d, '#r-ok'));
   // both are on it already, the age rule having nothing against either, so each
@@ -3510,7 +3510,7 @@ group('a child’s tab scopes the whole view');
   ok('Everyone lists both purses',
      notes(d).includes('Ian $15 across 1 result; Olivia $10 across 1 result'), notes(d));
   ok('the rewards box names schemes, which belong to no child',
-     rewNames(d).join(',') === 'group', rewNames(d).join(','));
+     rewNames(d).join(',') === 'Group', rewNames(d).join(','));
   ok('and both result boxes', row().querySelectorAll('.res').length === 2);
 
   // on Ian's tab, only Ian
@@ -3518,7 +3518,7 @@ group('a child’s tab scopes the whole view');
   ok('his tab shows his purse alone',
      notes(d).includes('Ian $15 across 1 result') && !notes(d).includes('Olivia'), notes(d));
   ok('and the schemes are the same wherever you stand',
-     rewNames(d).join(',') === 'group', rewNames(d).join(','));
+     rewNames(d).join(',') === 'Group', rewNames(d).join(','));
   // who else is in it is a fact about the event; his own name on his own tab
   // is not, that tab holding only the tournaments he is on
   ok('the row still shows who else is in it',
@@ -3641,12 +3641,12 @@ group('Everyone changes nothing');
     addTourn(dom, d, { name: 'Club Open Day', start: `${Y - 1}-11-01` });   // while editable
     addKid(dom, d, 'Olivia', Y - 13);
     goSetup(dom, d);
-    dom.window.prompt = () => 'group';
+    dom.window.prompt = () => 'Group';
     click(dom, $(d, '#setuplist .tourn [data-tag]'));
     click(dom, $(d, '#nav-matches'));
     click(dom, tabs(d)[1]);                                   // Ian
     click(dom, $(d, '.rewadd button'));
-    input(dom, $(d, '#r-tag'), 'group');
+    input(dom, $(d, '#r-tag'), 'Group');
     input(dom, $(d, '#r-win'), '5');
     click(dom, $(d, '#r-ok'));
     change(dom, $(d, '#tournlist .tourn .rwin'), '4');
@@ -4507,17 +4507,17 @@ group('the shape of a draw is set where tournaments are');
      $(d, '#tournlist .tdraw').textContent);
 
   goSetup(dom, d);
-  dom.window.prompt = () => 'knockout';
+  dom.window.prompt = () => 'Knockout';
   click(dom, $(d, '#setuplist .tourn [data-tag]'));
   ok('answering it marks the chip', $(d, '#setuplist .ttag').classList.contains('set') &&
-     $(d, '#setuplist .ttag').textContent === 'knockout', $(d, '#setuplist .ttag').textContent);
+     $(d, '#setuplist .ttag').textContent === 'Knockout', $(d, '#setuplist .ttag').textContent);
   ok('and it is stored against the tournament',
-     Object.values(saved(dom).matchTag).join() === 'knockout',
+     Object.values(saved(dom).matchTag).join() === 'Knockout',
      JSON.stringify(saved(dom).matchTag));
 
   click(dom, $(d, '#nav-matches'));
   ok('the season reads it back, plainly',
-     $(d, '#tournlist .tdraw').textContent === 'knockout' &&
+     $(d, '#tournlist .tdraw').textContent === 'Knockout' &&
      !$(d, '#tournlist .tdraw').classList.contains('none'),
      $(d, '#tournlist .tdraw').textContent);
 
@@ -4528,9 +4528,100 @@ group('the shape of a draw is set where tournaments are');
   dom.window.prompt = msg => { asked = msg; return null; };
   click(dom, $$(d, '#setuplist .tourn').find(r => r.textContent.includes('Second'))
                .querySelector('[data-tag]'));
-  ok('the prompt offers what is already in use', asked.includes('knockout'), asked);
+  ok('the prompt offers what is already in use', asked.includes('Knockout'), asked);
   ok('and cancelling it leaves the tournament untagged',
      Object.keys(saved(dom).matchTag).length === 1, JSON.stringify(saved(dom).matchTag));
+}
+
+group('a tag is spelled the way it is written');
+{
+  // Matching ignores case, so Group and group are one tag and not two quietly
+  // paying different money. The spelling that shows is the one somebody typed.
+  const Y = new Date().getFullYear();
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Ian', Y - 9);
+  addTourn(dom, d, { name: 'First Meet', start: `${Y}-03-07` });
+  addTourn(dom, d, { name: 'Second Meet', start: `${Y}-04-07` });
+  const setupRow = t => $$(d, '#setuplist .tourn').find(r => r.textContent.includes(t));
+  const tagIt = (t, tag) => { dom.window.prompt = () => tag; click(dom, setupRow(t).querySelector('[data-tag]')); };
+
+  goSetup(dom, d);
+  tagIt('First', 'Knockout');
+  ok('the capital is kept, not flattened away',
+     setupRow('First').querySelector('.ttag').textContent === 'Knockout',
+     setupRow('First').querySelector('.ttag').textContent);
+
+  // the second of a kind joins the first however it is typed
+  tagIt('Second', 'knockout');
+  ok('a different spelling joins the tag already there',
+     setupRow('Second').querySelector('.ttag').textContent === 'Knockout',
+     setupRow('Second').querySelector('.ttag').textContent);
+  ok('so there is one tag stored and not two',
+     new Set(Object.values(saved(dom).matchTag)).size === 1,
+     JSON.stringify(saved(dom).matchTag));
+
+  click(dom, $(d, '#nav-matches'));
+  ok('and one line in the rewards box',
+     $$(d, '.rewkid .rknm').map(e => e.textContent).join() === 'Knockout',
+     $$(d, '.rewkid .rknm').map(e => e.textContent).join());
+
+  // one scheme, written against the other spelling, still pays both
+  click(dom, $(d, '.rewadd button'));
+  input(dom, $(d, '#r-tag'), 'KNOCKOUT');
+  click(dom, $(d, '#r-kind-knockout'));
+  input(dom, $(d, '#r-win'), '20');
+  click(dom, $(d, '#r-ok'));
+  ok('a scheme written in another case files under the tag that exists',
+     Object.keys(saved(dom).schemes).join() === 'Knockout',
+     Object.keys(saved(dom).schemes).join());
+  change(dom, $$(d, '#tournlist .rwin')[0], '2');
+  ok('and pays the tournaments carrying it',
+     $(d, '#tournlist .rpay').textContent === '$40', $(d, '#tournlist .rpay').textContent);
+
+  // renaming is the one time the typed spelling wins outright
+  click(dom, $(d, '#rewrow [data-rewtag]'));
+  input(dom, $(d, '#r-tag'), 'Knock-out');
+  click(dom, $(d, '#r-ok'));
+  ok('a rename takes the tournaments with it',
+     new Set(Object.values(saved(dom).matchTag)).has('Knock-out'),
+     JSON.stringify(saved(dom).matchTag));
+  ok('and the money never lapses', $(d, '#tournlist .rpay').textContent === '$40',
+     $(d, '#tournlist .rpay').textContent);
+}
+
+group('tags written before they kept their case');
+{
+  // Everything used to be flattened on the way in. The two the app names itself
+  // get their capitals back; anything a parent chose is left as they wrote it.
+  const Y = new Date().getFullYear();
+  const seed = JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [{ id: 'b1', name: 'B', start: `${Y}-06-01`, days: 7, plan: {} }],
+    activeBlockId: 'b1',
+    players: [{ id: 'p1', name: 'Ian', birthYear: Y - 9, colour: '#5B9BD5' }],
+    manualMatches: [
+      { id: 'm1', source: 'manual', name: 'One', start: `${Y}-11-02`, end: `${Y}-11-02` },
+      { id: 'm2', source: 'manual', name: 'Two', start: `${Y}-11-09`, end: `${Y}-11-09` },
+      { id: 'm3', source: 'manual', name: 'Three', start: `${Y}-11-16`, end: `${Y}-11-16` }],
+    entries: [], trips: [], rewards: {}, forKids: {},
+    schemes: { group: { kind: 'group', perWin: 5, places: [], improve: 0, bestEver: 0, note: '' } },
+    matchTag: { m1: 'group', m2: 'knockout', m3: 'red ball group' },
+  });
+  const dom = boot({ [KEY]: seed });
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-matches'));
+  const st = saved(dom);
+  ok('the two the app names itself are capitalised',
+     st.matchTag.m1 === 'Group' && st.matchTag.m2 === 'Knockout', JSON.stringify(st.matchTag));
+  ok('a tag of somebody’s own choosing is left alone',
+     st.matchTag.m3 === 'red ball group', st.matchTag.m3);
+  ok('and the scheme moves with its tag',
+     Object.keys(st.schemes).join() === 'Group', Object.keys(st.schemes).join());
+  ok('so it still pays what it did',
+     (change(dom, $$(d, '#tournlist .rwin')[0], '3'),
+      $(d, '#tournlist .rpay').textContent === '$15'),
+     $(d, '#tournlist .rpay').textContent);
 }
 
 group('taking the figures the dialog offers');
@@ -4544,7 +4635,7 @@ group('taking the figures the dialog offers');
   addKid(dom, d, 'Ian', Y - 9);
   addTourn(dom, d, { name: 'Club Meet', start: `${Y}-03-07` });
   goSetup(dom, d);
-  dom.window.prompt = () => 'group';
+  dom.window.prompt = () => 'Group';
   click(dom, $(d, '#setuplist .tourn [data-tag]'));
   click(dom, $(d, '#nav-matches'));
 
@@ -4562,7 +4653,7 @@ group('taking the figures the dialog offers');
   // the box still says so and no tournament pays.
   ok('saving them untouched leaves nothing set',
      $(d, '#rewrow').textContent.includes('no scheme yet'), $(d, '#rewrow').textContent);
-  ok('and no line is paid', (saved(dom).schemes.group || {}).perWin === 0,
+  ok('and no line is paid', (saved(dom).schemes.Group || {}).perWin === 0,
      JSON.stringify(saved(dom).schemes));
 
   click(dom, $(d, '#rewrow [data-rewtag]'));
@@ -4578,7 +4669,7 @@ group('taking the figures the dialog offers');
      `${$(d, '#r-qf').value}/${$(d, '#r-init').value}`);
 
   click(dom, $(d, '#r-ok'));
-  ok('and saving now stores the scheme', saved(dom).schemes.group.perWin === 5,
+  ok('and saving now stores the scheme', saved(dom).schemes.Group.perWin === 5,
      JSON.stringify(saved(dom).schemes));
   ok('so the box at the top reads it back',
      $(d, '#rewrow').textContent.includes('$5 a win'), $(d, '#rewrow').textContent);

@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.18.1** · [Changelog](CHANGELOG.md)
+**Version 2.18.2** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -146,6 +146,11 @@ A **tag** joins them. A tournament carries one — press the chip on its row on
 all — and a scheme is filed under one, in the **Rewards** box at the top of the
 tournaments view. The tags already in use are offered when a new one is asked
 for, so the second event of a kind is a copy rather than a spelling test.
+
+A tag is written the way you would write it — **Group**, **Knockout**, *Red ball
+group* — and read back that way. Matching ignores case, so *Group* and *group*
+are one tag and not two quietly paying different money; the spelling that shows
+is the one you typed first, and renaming a scheme is how you change it.
 
 The tournaments view reads the tag but does not set it: it shows on the row
 beside the venue, and an untagged one says so there, because a row that pays
