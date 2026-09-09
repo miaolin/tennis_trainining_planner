@@ -5,6 +5,78 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.21.0] — 2026-09-09
+
+### Changed
+
+- **The season is one page, and the tabs are filters.** There was a tab per
+  child and an **Everyone** that could be read but not touched — so the one view
+  where both children's weekends could be seen against each other was the one
+  view where nothing could be corrected. Every edit belongs to a child, but that
+  is an argument about which row a change lands on, not about which page it can
+  be made from.
+
+  Everything is on one page now and all of it is editable. The strip becomes a
+  filter by child, with a filter by year beside it once the list runs to more
+  than one season. A filter narrows what is shown and changes nothing about what
+  may be done, which is the whole difference between a filter and a mode.
+
+- **The season reads newest first.** It is read from the end it is happening at:
+  the next weekend and the last result are the two things worth seeing, and both
+  are at the top this way round.
+
+- **What is finished folds away**, under a line saying how many. It is the
+  larger half of a season by the end of a year and the half nobody is looking
+  for. It stays as you leave it while the page is open, and a filter change does
+  not shut it.
+
+  Setup keeps the order the season runs in and folds nothing: it is a list read
+  to find a row and fix it, and that reads better in order.
+
+### Removed
+
+- **Nothing on the tournaments page is read-only any more.** The lock, the line
+  explaining it, and the guard every mutator carried against it are all gone —
+  there is no state left for them to describe.
+
+## [2.20.0] — 2026-09-09
+
+### Added
+
+- **A knockout draw is read straight off STA.** A group sheet has to be pasted —
+  it is a private file belonging to whoever ran the event. A knockout is not:
+  STA publish the draw itself, unauthenticated and with
+  `Access-Control-Allow-Origin: *`, which is how the page already reads their
+  calendar. So on a tournament that came from STA there is nothing to copy at
+  all. **Read the draw from STA** in the Results dialog fills in the rounds won
+  and the placing.
+
+  Every event of the tournament is read, singles and doubles. A doubles pair is
+  read as its two players, so a child is found by their own name either way.
+  Qualifying draws are left out: a qualifier is a way into the main draw rather
+  than a result of its own, and counting both would pay twice for one weekend.
+
+  **Only a finished run is recorded.** A draw is usually looked at while it is
+  still being played — the round after the last one finished is already on the
+  page, with both names in it and no winner yet — and a child waiting for that
+  match has not gone out in it. Reading the round they merely appear in would
+  record them as beaten before they had played, and pay them for it. So a player
+  is out where they lost, and still being in the draw is not a result at all. A
+  bye is a round nobody won, and does not count as one.
+
+  A paste still wins where there is one: it is the more deliberate answer of the
+  two. And if STA cannot be reached the dialog says so and points at the box
+  below, which is unaffected.
+
+### Fixed
+
+- **A placing past eighth is spelled properly.** Draws run to 16, 32, 64 and
+  128, and the page could only name a podium — *32th* is how you know it was
+  written for one and handed a draw.
+
+- **A place can be as far down as 128.** It was capped at 64, which a 128 draw
+  quietly exceeds in its first round.
+
 ## [2.19.4] — 2026-09-09
 
 ### Removed

@@ -449,6 +449,24 @@ input[type=number]#days{width:74px}
 }
 .whotab:hover{background:rgba(255,255,255,.06);color:var(--court-line)}
 .whotab.on{color:var(--court-line);border-bottom-color:var(--c,var(--ball));background:rgba(255,255,255,.05)}
+/* Two filters, side by side and told apart by a gap rather than a rule: they
+   narrow the same list and neither is a mode. */
+.whotabs .filtset{display:flex;flex-wrap:wrap;gap:2px;align-items:flex-end}
+.whotabs .filtset + .filtset{margin-left:26px}
+.whotab.yr{font-size:14px;letter-spacing:.07em}
+/* What is finished, folded away. It is the larger half of a season by the end
+   of a year and the half nobody is looking for, so it reads as a quiet line
+   rather than as a heading. */
+.pastfold{
+  display:block;width:100%;text-align:left;
+  background:transparent;border:none;border-top:1px solid var(--hair);
+  color:var(--mute);font-size:12.5px;padding:12px 2px 10px;cursor:pointer;
+  font-family:'Barlow Condensed',sans-serif;letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.pastfold:hover{color:var(--court-line)}
+.pastfold.on{color:var(--court-line)}
+.pastwrap[hidden]{display:none}
 .whotab .whodot{width:8px;height:8px;border-radius:50%;background:var(--c);display:block;opacity:.55}
 .whotab.on .whodot{opacity:1}
 .whotab .ct{
@@ -718,6 +736,8 @@ input[type=number]#days{width:74px}
 .sfound .sfok{color:var(--ok)}
 .sfound .sfno{color:var(--mute)}
 .sfound .sfamb{color:var(--warn)}
+#s-fetchrow button{font-size:12px;padding:5px 10px}
+#s-fetchrow button:disabled{cursor:default;opacity:.6}
 /* Group or knockout: two shapes of draw that pay for different things, so the
    dialog asks which before it asks for figures. A segmented pair rather than a
    select, because there are only two and both should read at once. */
@@ -1127,6 +1147,10 @@ input[type=number]#days{width:74px}
     <h3 id="s-title">Results</h3>
     <div class="mrow"><label class="lab" for="s-link">Link</label>
       <input type="url" id="s-link" inputmode="url" placeholder="link to the draw or result sheet"></div>
+    <div class="mrow" id="s-fetchrow" hidden>
+      <span class="lab">Draw</span>
+      <button type="button" id="s-fetch">Read the draw from STA</button>
+    </div>
     <label class="lab" for="s-paste">Scorecard</label>
     <textarea id="s-paste" rows="5" spellcheck="false"
       placeholder="Paste the group's scoring matrix here, header row included"></textarea>
@@ -1907,8 +1931,7 @@ function closeRewards(){
   rewardTarget = null;
 }
 function commitRewards(){
-  // The lock is about a child's own things, and a scheme is nobody's.
-  if(!rewardTarget || (viewLocked() && rewardTarget.kind !== 'tag')) return;
+  if(!rewardTarget) return;
   const v = id => document.getElementById(id).value;
   const r = normRewards({
     kind: rewardKind,
@@ -1956,8 +1979,7 @@ function commitRewards(){
    no third place, and filling a hidden line would promise money for something
    the draw cannot award. */
 function useSuggested(){
-  // The lock is about a child's own things, and a scheme is nobody's.
-  if(!rewardTarget || (viewLocked() && rewardTarget.kind !== 'tag')) return;
+  if(!rewardTarget) return;
   const tpl = KIND_TEMPLATE[rewardKind];
   const put = (el, v) => {
     const box = document.getElementById(el);
@@ -1987,8 +2009,7 @@ function pickTag(mId, value){
 }
 
 function clearRewards(){
-  // The lock is about a child's own things, and a scheme is nobody's.
-  if(!rewardTarget || (viewLocked() && rewardTarget.kind !== 'tag')) return;
+  if(!rewardTarget) return;
   if(rewardTarget.kind === 'tag'){
     // The tournaments keep the tag. It is a fact about the draw, and a scheme
     // written for it again later should find them still wearing it.
@@ -2418,7 +2439,7 @@ const KID_COLOURS = ['#5B9BD5','#D6E64B','#9B87D4','#4FA97C','#E8A33D','#D9603F'
 const DEADLINE_WARN_DAYS = 21;
 // Rewards. A junior draw is a handful of matches, so the ceilings are only
 // there to stop a mistyped figure becoming a five-digit promise.
-const MAX_WINS = 99, MAX_PLACE = 64, MAX_MONEY = 10000, MAX_PLACES = 4;
+const MAX_WINS = 99, MAX_PLACE = 128, MAX_MONEY = 10000, MAX_PLACES = 4;
 // A knockout has no third place to play for, so its scheme carries two.
 const KO_PLACES = 2;
 // The first rung a knockout pays for is the last eight, and a recorded finish
@@ -2870,45 +2891,63 @@ function renderForRow(){
    whose money is that. Everyone stays first, because the travel window and the
    clash checks are family-wide facts that cannot be worked out one child at a
    time. With one child there is nothing to choose between, so no strip. */
-let whoFilter = null;        // null = everyone, otherwise a player id
+/* The season is one page. It used to be a tab each and an Everyone that could
+   be read but not touched, which meant the overview — the one view where a
+   parent can see both children's weekends against each other — was the one view
+   where nothing could be corrected. Every edit belongs to a child, but that is
+   an argument about which row a change lands on, not about which page it can be
+   made from.
+
+   So: everything on one page, everything editable, and the tabs become filters.
+   A filter narrows what is shown and changes nothing about what may be done. */
+let whoFilter = null;        // null = every child, otherwise a player id
+let yearFilter = null;       // null = every year, otherwise a four-digit year
 function whoShown(){
   return state.players.find(p => p.id === whoFilter) || null;
-}
-// The strip only exists once there are two children to tell apart. With one
-// child there is nothing to choose between, so the page stays as it was: one
-// view, everything on it.
-function hasStrip(){ return state.players.length >= 2; }
-// Everyone reads the whole season at once, and every edit on this page belongs
-// to whichever child it is about, so it changes nothing — it is the overview.
-// With one child there is no strip and nothing to choose between, so the view
-// stays as editable as it ever was.
-//
-// Every mutator on this page checks this, not only the buttons: hiding a
-// control stops a person, and stopping the write is what stops everything else.
-function viewLocked(){
-  return hasStrip() && whoFilter === null;
 }
 // The tournaments one child could enter — the same rule the list itself uses.
 function matchesFor(p){
   return allMatches().filter(m => !p || kidOnMatch(p, m, Number(m.start.slice(0,4))));
 }
+// Every year the season has anything in, newest first — the same order the list
+// itself runs in, so the two read together.
+function seasonYears(){
+  return [...new Set(allMatches().map(m => m.start.slice(0, 4)))].sort().reverse();
+}
+// What the filters leave. Order is the list's business, not this function's.
+function filteredMatches(){
+  const who = whoShown();
+  return matchesFor(who).filter(m => !yearFilter || m.start.slice(0, 4) === yearFilter);
+}
+/* Two filters, and neither of them locks anything. With one child there is
+   nobody to choose between, and with one season there is no year to pick, so
+   each row appears only once it has something to say. */
 function renderWhoFilter(){
   const row = document.getElementById('whofilter');
-  if(state.players.length < 2){ row.innerHTML = ''; return; }
-  const tab = (id, label, colour) => {
-    const n = matchesFor(state.players.find(p => p.id === id) || null).length;
-    return `<button class="whotab${whoFilter === id ? ' on' : ''}"` +
-      (colour ? ` style="--c:${colour}"` : '') + ` data-who="${id === null ? '' : id}">` +
-      (colour ? '<i class="whodot"></i>' : '') + escapeHtml(label) +
-      (n ? `<span class="ct">${n}</span>` : '') + '</button>';
-  };
-  row.innerHTML = tab(null, 'Everyone', null) +
-    state.players.map(p => tab(p.id, p.name, p.colour)).join('');
+  const years = seasonYears();
+  const kidBtns = state.players.length < 2 ? '' :
+    [{id: null, label: 'All children', colour: null}]
+      .concat(state.players.map(p => ({id: p.id, label: p.name, colour: p.colour})))
+      .map(o => {
+        const n = matchesFor(state.players.find(p => p.id === o.id) || null)
+          .filter(m => !yearFilter || m.start.slice(0, 4) === yearFilter).length;
+        return `<button class="whotab${whoFilter === o.id ? ' on' : ''}"` +
+          (o.colour ? ` style="--c:${o.colour}"` : '') +
+          ` data-who="${o.id === null ? '' : o.id}">` +
+          (o.colour ? '<i class="whodot"></i>' : '') + escapeHtml(o.label) +
+          (n ? `<span class="ct">${n}</span>` : '') + '</button>';
+      }).join('');
+  const yearBtns = years.length < 2 ? '' :
+    [''].concat(years).map(y =>
+      `<button class="whotab yr${(yearFilter || '') === y ? ' on' : ''}" data-year="${y}">` +
+      (y || 'All years') + '</button>').join('');
+  row.innerHTML = (kidBtns && yearBtns)
+    ? `<div class="filtset">${kidBtns}</div><div class="filtset">${yearBtns}</div>`
+    : kidBtns + yearBtns;
   row.querySelectorAll('button[data-who]').forEach(el=>
-    el.addEventListener('click', ()=>{
-      whoFilter = el.dataset.who || null;
-      render();
-    }));
+    el.addEventListener('click', ()=>{ whoFilter = el.dataset.who || null; render(); }));
+  row.querySelectorAll('button[data-year]').forEach(el=>
+    el.addEventListener('click', ()=>{ yearFilter = el.dataset.year || null; render(); }));
 }
 function impNote(msg, cls){
   const el = document.getElementById('impnote');
@@ -3243,6 +3282,81 @@ function rewardsLine(r){
 }
 
 
+/* ---- reading a knockout draw off STA ----
+   A group sheet has to be pasted: it is a private file belonging to whoever ran
+   the event. A knockout does not. STA publish the draw itself, unauthenticated
+   and with Access-Control-Allow-Origin: *, which is how the page already reads
+   their calendar — so for these there is nothing to copy at all.
+
+   Their endpoint is spelled GeTournamentDrawDetails, a t short of Get. That is
+   their spelling and not a typo here. */
+const STA_EVENTS_API = 'https://api.singtennis.org.sg/web-api/Tournament/GetTournamentEventLinkedList';
+const STA_DRAW_API = 'https://api.singtennis.org.sg/web-api/Tournament/GeTournamentDrawDetails';
+// A tournament that came from STA carries their id in its own. Nothing else can
+// be looked up, because nothing else is theirs to answer for.
+function staIdOf(m){
+  const hit = /^sta-(\d+)$/.exec(m && m.id || '');
+  return hit ? hit[1] : null;
+}
+/* Where a player stopped, as a placing. The planner already reads a place as
+   "this far and no further" — 8 is the last eight — so a draw maps onto it
+   directly, and winning the final is the one that is not a round at all. */
+const ROUND_PLACE = {'128':128, '64':64, '32':32, '16':16,
+                     'Quarterfinal':8, 'Semifinal':4, 'Final':2};
+// Every name a player entry stands for. A singles entry is one child; a doubles
+// entry is a pair, and the pair's own name — "Emma Wong/Faith Lee" — is no use
+// for finding either of them.
+function drawNames(pl){
+  const from = Array.isArray(pl.details) ? pl.details.map(x => x && x.name).filter(Boolean) : [];
+  return from.length ? from : (pl.name ? [pl.name] : []);
+}
+/* One event's rounds, folded into a row per player: how many matches they won,
+   and where they stopped.
+
+   Only decided matches are read. A draw is usually looked at while it is still
+   being played — the round after the last one finished is already on the page,
+   with both names in it and no winner yet — and a player waiting for that match
+   has not gone out in it. Reading the round they merely appear in would record
+   them as beaten before they have played, and pay them for it.
+
+   So a player is out where they lost, and nowhere else. Still in the draw is
+   not a result at all, and they are left out until it is. A bye is a round
+   nobody won, which is exactly how it should count. */
+/* A placing in words. The podium is named outright up to eighth; past that a
+   draw runs to 16, 32, 64 and 128, and "32th" is how you know a page was
+   written for a podium and handed a draw. */
+function ordinal(n){
+  if(n >= 1 && n <= ORDINAL.length) return ORDINAL[n - 1];
+  const teen = n % 100;
+  const tail = (teen >= 11 && teen <= 13) ? 'th' : (['th','st','nd','rd'][n % 10] || 'th');
+  return n + tail;
+}
+function readDrawRounds(rounds){
+  const seen = new Map();
+  (rounds || []).forEach(r => (r.matches || []).forEach(m => {
+    const players = (m.players || []).filter(pl => pl && pl.name !== 'BYE');
+    // Nobody marked: not played yet, so it says nothing about anyone in it.
+    if(!players.some(pl => pl.isWinner)) return;
+    players.forEach(pl => {
+      drawNames(pl).forEach(name => {
+        const rec = seen.get(name) || {name, wins: 0, lost: null, wonFinal: false};
+        if(pl.isWinner){
+          rec.wins++;
+          if(r.roundOf === 'Final') rec.wonFinal = true;
+        } else rec.lost = r.roundOf;
+        seen.set(name, rec);
+      });
+    });
+  }));
+  return [...seen.values()]
+    .filter(r => r.wonFinal || r.lost !== null)      // still in it is not a result
+    .map(r => ({
+      name: r.name,
+      wins: r.wins,
+      place: r.wonFinal ? 1 : (ROUND_PLACE[r.lost] ?? null)
+    }));
+}
+
 /* ---- reading a scorecard ----
    The draw comes back as a spreadsheet from the organiser, and there is no way
    to fetch it: it is a private file belonging to whoever ran the event, it is
@@ -3481,11 +3595,18 @@ function matchRow(kidName, rows){
    an .xlsx, and full of other families' details — so the numbers arrive by
    paste, and only the matched child's two figures are ever kept. */
 let scoreTarget = null;    // match id, or null when the dialog is shut
+let scoreDrawn = null;     // rows read off STA, or null when none have been
 
 function openScores(mId){
   const m = allMatches().find(x => x.id === mId);
-  if(!m || viewLocked()) return;
+  if(!m) return;
   scoreTarget = mId;
+  scoreDrawn = null;
+  // Only an STA tournament can be looked up: nothing else is theirs to answer
+  // for, and a group draw is not published anywhere to be read.
+  document.getElementById('s-fetchrow').hidden = !staIdOf(m);
+  document.getElementById('s-fetch').disabled = false;
+  document.getElementById('s-fetch').textContent = 'Read the draw from STA';
   document.getElementById('s-title').textContent = 'Results — ' + m.name;
   document.getElementById('s-link').value = resultLink(mId);
   document.getElementById('s-paste').value = '';
@@ -3499,8 +3620,12 @@ function closeScores(){
 }
 // What the paste says about each child on this tournament, as it is typed. It
 // reads and reports; nothing is written until Save.
+// A paste, once there is one, is the more deliberate of the two and wins. A
+// draw read off STA stands until then.
 function readFound(){
-  const rows = parseScorecard(document.getElementById('s-paste').value);
+  const typed = document.getElementById('s-paste').value.trim();
+  const rows = typed ? parseScorecard(typed) : (scoreDrawn || []);
+  if(!typed && scoreDrawn) rows.aimedBy = 'sta';
   const m = allMatches().find(x => x.id === scoreTarget);
   if(!m) return {rows, out: []};
   return {rows, out: kidsOnMatch(m).map(p => ({player: p, hit: matchRow(p.name, rows)}))};
@@ -3509,7 +3634,7 @@ function renderFound(){
   const box = document.getElementById('s-found');
   const hint = document.getElementById('s-hint');
   const {rows, out} = readFound();
-  if(!document.getElementById('s-paste').value.trim()){
+  if(!document.getElementById('s-paste').value.trim() && !scoreDrawn){
     box.innerHTML = '';
     hint.textContent = 'Open the sheet, copy the group’s rows, and paste them ' +
       'here. The header naming Won and Rank helps but is not needed — without ' +
@@ -3527,7 +3652,7 @@ function renderFound(){
     const r = hit.row;
     const bits = [];
     if(r.wins !== null) bits.push(`${r.wins} win${r.wins === 1 ? '' : 's'}`);
-    if(r.place !== null) bits.push(ORDINAL[r.place - 1] || `${r.place}th`);
+    if(r.place !== null) bits.push(ordinal(r.place));
     return `<div class="sf" style="--c:${player.colour}">${nm}` +
       `<span class="sfok">found as ${escapeHtml(r.name)}: ${bits.join(', ')}</span></div>`;
   }).join('');
@@ -3538,6 +3663,8 @@ function renderFound(){
   const how = rows.aimedBy === 'shape'
     ? ' No header in the paste, so the columns were worked out from the block —' +
       ' worth a glance at the numbers before saving.'
+    : rows.aimedBy === 'sta'
+    ? ' Read off the draw itself, so the rounds are counted rather than guessed.'
     : '';
   hint.textContent = rows.length
     ? `${rows.length} player${rows.length === 1 ? '' : 's'} read, ` +
@@ -3545,6 +3672,60 @@ function renderFound(){
     : 'No player rows found. Paste the group’s rows — the ones with a player ' +
       'per line — and include the header naming Won and Rank if you can.';
 }
+/* Read every event of the tournament and keep the players. A child could be in
+   any of them — the singles of their age group, a doubles pair, occasionally
+   both — and asking which is a question the parent should not have to answer
+   when the answer is a name in a list.
+
+   Qualifying draws are left out: a qualifier is a way into the main draw rather
+   than a result of its own, and counting both would pay twice for one weekend. */
+async function fetchDraw(){
+  const m = allMatches().find(x => x.id === scoreTarget);
+  const tid = m && staIdOf(m);
+  if(!tid) return;
+  const btn = document.getElementById('s-fetch');
+  const hint = document.getElementById('s-hint');
+  btn.disabled = true;
+  btn.textContent = 'Reading…';
+  try{
+    const events = await staJson(`${STA_EVENTS_API}?id=${tid}`);
+    const wanted = (Array.isArray(events) ? events : []).filter(e => e && !e.isQualifier);
+    if(!wanted.length) throw new Error('STA lists no events for this tournament.');
+    const rows = [];
+    for(const ev of wanted){
+      const rounds = await staJson(`${STA_DRAW_API}?id=${tid}&eventId=${ev.id}`);
+      if(Array.isArray(rounds)) rows.push(...readDrawRounds(rounds));
+    }
+    // One player can appear in two events. Their better afternoon is the one
+    // worth recording, and a placing counts down.
+    const best = new Map();
+    rows.forEach(r => {
+      const had = best.get(r.name);
+      if(!had || r.wins > had.wins ||
+         (r.wins === had.wins && r.place !== null && (had.place === null || r.place < had.place)))
+        best.set(r.name, r);
+    });
+    scoreDrawn = [...best.values()];
+    document.getElementById('s-paste').value = '';
+    btn.textContent = 'Read again';
+    renderFound();
+  }catch(err){
+    scoreDrawn = null;
+    btn.textContent = 'Read the draw from STA';
+    hint.textContent = 'Could not read the draw: ' + (err && err.message || 'no answer from STA') +
+      ' The scorecard box below still works.';
+  }finally{
+    btn.disabled = false;
+  }
+}
+// Their API wraps everything in {status, data}, except when it does not.
+async function staJson(url){
+  const r = await fetch(url, {headers: {'Content-Type': 'application/json'}});
+  if(!r.ok) throw new Error('STA answered ' + r.status + '.');
+  const j = await r.json();
+  return (j && typeof j === 'object' && 'data' in j) ? j.data : j;
+}
+
 function commitScores(){
   if(!scoreTarget) return;
   const mId = scoreTarget;
@@ -3585,7 +3766,6 @@ function pruneEntry(matchId, playerId){
   if(!('wins' in e) && !('place' in e)) state.entries.splice(i, 1);
 }
 function setResult(matchId, playerId, field, raw){
-  if(viewLocked()) return;
   const e = entryFor(matchId, playerId);
   const v = parseInt(raw, 10);
   const lo = field === 'wins' ? 0 : 1;
@@ -3787,7 +3967,12 @@ function blockCovering(m, who){
 /* One row renderer, two lists. Setup asks what exists — no statuses, no
    results, no rewards, and the × that removes one. The tournaments page asks
    how the season is going, for whoever's tab you are on. */
-function renderTournList(list, ms, {setup, locked, who}){
+/* Whether the tournaments already played are showing. A view preference and
+   not a fact about the season, so it lives here and resets on a reload — the
+   same as which child is filtered for. */
+let pastOpen = false;
+function renderTournList(list, ms, {setup, who}){
+  const locked = false;
   // Anything we hold locally can be deleted, however it got here. Only the
   // generated feed is read-only.
   const editable = new Set((state.manualMatches || []).map(m=>m.id));
@@ -3806,11 +3991,28 @@ function renderTournList(list, ms, {setup, locked, who}){
   }
 
   const today = todayIso();
-  let html = '', lastMonth = '';
-  ms.forEach(m=>{
+  /* Newest first. A season is read from the end it is happening at: the next
+     weekend and the last result are the two things worth seeing, and both are at
+     the top this way round. What is finished folds away underneath — it is the
+     larger half by the end of a year, and it is the half nobody is looking for.
+
+     Setup is the other way about. It is a list of what exists, read to find a
+     row and fix it, and a list you are searching reads better in the order the
+     season runs. */
+  const rowsOf = list2 => {
+    let out = '', month = '';
+    list2.forEach(m => { out += rowHtml(m, month); month = monthOf(m); });
+    return out;
+  };
+  const monthOf = m => {
     const d = new Date(m.start + 'T00:00:00');
-    const monthKey = `${MON[d.getMonth()]} ${d.getFullYear()}`;
-    if(monthKey !== lastMonth){ html += `<div class="monthhead">${monthKey}</div>`; lastMonth = monthKey; }
+    return `${MON[d.getMonth()]} ${d.getFullYear()}`;
+  };
+  const rowHtml = (m, lastMonth) => {
+    let html = '';
+    const d = new Date(m.start + 'T00:00:00');
+    const monthKey = monthOf(m);
+    if(monthKey !== lastMonth) html += `<div class="monthhead">${monthKey}</div>`;
 
     const past = m.end < today;
     const dl = m.entryDeadline ? daysBetween(today, m.entryDeadline) : null;
@@ -3915,7 +4117,9 @@ function renderTournList(list, ms, {setup, locked, who}){
     // season is being read: their own tab lists only what they are on, so their
     // name against every row of it says nothing. With one child there is no tab
     // to be on and the whole page is theirs, which comes to the same thing.
-    const reading = who || (hasStrip() ? null : state.players[0]);
+    // Filtered to one child, their name against every row says nothing. With one
+    // child in the family the whole page is theirs, which comes to the same.
+    const reading = who || (state.players.length < 2 ? state.players[0] : null);
     const others = onKids.filter(p => !reading || p.id !== reading.id);
     const joins = setup
       ? (onKids.length ? '' : nobody) + state.players.map(chip).join('')
@@ -3940,8 +4144,21 @@ function renderTournList(list, ms, {setup, locked, who}){
         ? `<button class="tdel" data-del="${m.id}" aria-label="Delete">&times;</button>` : ''}</div>
       ${results ? `<div class="results">${results}</div>` : ''}
     </div>`;
-  });
-  list.innerHTML = html;
+    return html;
+  };
+
+  const done = m => m.end < today;
+  const ordered = setup ? ms : ms.slice().reverse();
+  const live = setup ? ordered : ordered.filter(m => !done(m));
+  const over = setup ? [] : ordered.filter(done);
+  list.innerHTML = rowsOf(live) +
+    (over.length
+      ? `<button class="pastfold${pastOpen ? ' on' : ''}" id="pastfold" aria-expanded="${pastOpen}">` +
+        `${pastOpen ? '\u25be' : '\u25b8'} ${over.length} finished</button>` +
+        `<div class="pastwrap"${pastOpen ? '' : ' hidden'}>${rowsOf(over)}</div>`
+      : '');
+  const fold = document.getElementById('pastfold');
+  if(fold) fold.addEventListener('click', ()=>{ pastOpen = !pastOpen; render(); });
 
   // Locked means no handler at all, not merely a disabled button: the attribute
   // stops a real click, but nothing should be listening in the first place.
@@ -3993,11 +4210,10 @@ function renderSetup(){
   renderTagList();
 
   renderTournList(document.getElementById('setuplist'), allMatches(),
-                  {setup:true, locked:false, who:null});
+                  {setup:true, who:null});
 }
 
 function renderMatches(){
-  const locked = viewLocked();
 
   /* One row per scheme, and a scheme belongs to a shape of draw rather than to
      a child: both children on a knockout play for the same terms, and one child
@@ -4024,19 +4240,14 @@ function renderMatches(){
   rewrow.querySelectorAll('[data-rewtag]').forEach(btn=>
     btn.addEventListener('click', ()=>openRewards('tag', btn.dataset.rewtag)));
 
-  const lock = document.getElementById('wholock');
-  lock.hidden = !locked;
-  if(locked) lock.textContent =
-    'Everyone is the whole season, read only. Pick a child above to change what is ' +
-    'theirs — their results. The schemes above belong to no one child, so they can ' +
-    'be set from here.';
+  document.getElementById('wholock').hidden = true;
 
   renderWhoFilter();
 
   const who = whoShown();
-  const ms = matchesFor(who);
+  const ms = filteredMatches();
   document.getElementById('nav-ct').textContent = ms.length ? ms.length : '';
-  renderTournList(document.getElementById('tournlist'), ms, {setup:false, locked, who});
+  renderTournList(document.getElementById('tournlist'), ms, {setup:false, who});
   runSeasonChecks(ms);
 }
 
@@ -4044,10 +4255,10 @@ function runSeasonChecks(ms){
   const out = [];
   const today = todayIso();
   const upcoming = ms.filter(m => m.end >= today);
-  // The checks that walk the children are scoped to whoever's tab this is. The
-  // ones that read the list alone — the travel window, provisional dates —
-  // need no scoping: the list is already that child's, so the gap they report
-  // is the gap in that child's season.
+  // The checks that walk the children are scoped to whoever is filtered for. The
+  // ones that read the list alone — the travel window, provisional dates — need
+  // no scoping: the list is already narrowed, so the gap they report is the gap
+  // in what is being looked at.
   const kids = whoShown() ? [whoShown()] : state.players;
 
   if(!state.players.length){
@@ -4474,11 +4685,8 @@ function renderHeader(){
     document.getElementById('title').textContent = 'Tournaments';
     document.getElementById('range').textContent = upcoming.length
       ? `next ${spanLabel(upcoming[0])}` : 'season';
-    // The line has to describe the tab you are on: telling someone to click a
-    // child on a row is wrong on the one tab where clicking does nothing.
-    sub.textContent = viewLocked()
-      ? 'Every tournament and who is going, across both children. Pick a child above to change anything.'
-      : 'Every tournament and who is going. Change who one is for on Setup.';
+    sub.textContent = 'The whole season, newest first — what is finished folds ' +
+      'away below. Change who a tournament is for on Setup.';
     document.getElementById('tot').textContent = upcoming.length;
     document.getElementById('ondays').textContent = state.players.length;
     // One child on one tournament, counted across the season. Two children on
@@ -5186,10 +5394,16 @@ document.getElementById('rmodal').addEventListener('click', e=>{
 });
 document.getElementById('s-ok').addEventListener('click', commitScores);
 document.getElementById('s-cancel').addEventListener('click', closeScores);
+document.getElementById('s-fetch').addEventListener('click', fetchDraw);
 // input for typing and pasting, change for a paste committed by leaving the
 // box — both say the same thing, that the text under the preview has moved on.
 ['input', 'change'].forEach(ev =>
-  document.getElementById('s-paste').addEventListener(ev, renderFound));
+  document.getElementById('s-paste').addEventListener(ev, ()=>{
+    // Typing into the box is the more deliberate answer, so it takes over from
+    // whatever was read off the draw rather than sitting beside it.
+    if(document.getElementById('s-paste').value.trim()) scoreDrawn = null;
+    renderFound();
+  }));
 document.getElementById('smodal').addEventListener('click', e=>{
   if(e.target.id === 'smodal') closeScores();
 });

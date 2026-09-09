@@ -1447,8 +1447,12 @@ group('adding tournaments');
 
   addTourn(dom, d, { name: 'Single day', start: '2026-12-05' });
   ok('single-day tournament shows one date',
-     $$(d, '#tournlist .tourn .tdate')[1].textContent.includes('5 Dec'), $$(d, '#tournlist .tourn .tdate')[1].textContent);
-  ok('sorted by date', $$(d, '#tournlist .tourn .tnm').map(e => e.textContent).join('|').indexOf('STA Junior Champs') === 0);
+     $$(d, '#tournlist .tourn .tdate')[0].textContent.includes('5 Dec'),
+     $$(d, '#tournlist .tourn .tdate')[0].textContent);
+  // A season is read from the end it is happening at, so the newest is on top.
+  ok('newest first', $$(d, '#tournlist .tourn .tnm').map(e => e.textContent)
+       .join('|').indexOf('Single day') === 0,
+     $$(d, '#tournlist .tourn .tnm').map(e => e.textContent).join('|'));
 
   dom.window.confirm = () => true;
   click(dom, $(d, '.tdel'));
@@ -2765,9 +2769,9 @@ group('rewards belong to the shape of the draw');
     ok('the tag is what pays, and pays them both alike',
        paid(d, 'Series One', 'Ian') === '$15' && paid(d, 'Series One', 'Olivia') === '$15',
        [paid(d, 'Series One', 'Ian'), paid(d, 'Series One', 'Olivia')].join(' / '));
-    ok('Everyone shows it too, just without a way to change it',
+    ok('with nobody filtered for it still shows, and is still editable',
        resRow(d, 'Series One', 'Ian').textContent.includes('$15') &&
-       !resRow(d, 'Series One', 'Ian').querySelector('input'),
+       !!resRow(d, 'Series One', 'Ian').querySelector('input'),
        resRow(d, 'Series One', 'Ian').textContent);
 
     // an untagged tournament joins no scheme, and so pays nothing
@@ -3504,10 +3508,10 @@ group('a child’s tab scopes the whole view');
   change(dom, row().querySelector('.rwin'), '2');
   goTab(null);
 
-  ok('Everyone is the first tab', tabs(d)[0].textContent.includes('Everyone'));
+  ok('the filter opens on all of them', tabs(d)[0].textContent.includes('All children'));
   ok('and every child has one, and nothing else', tabs(d).length === 3,
      tabs(d).map(b => b.textContent.trim()).join('|'));
-  ok('a tab carries the count of what that child can enter',
+  ok('each carries the count of what it would leave',
      tabs(d)[0].querySelector('.ct').textContent === '1', tabs(d)[0].textContent);
 
   // on Everyone, everything is shown
@@ -3574,52 +3578,50 @@ group('Everyone changes nothing');
   }
 
   {
-    // a second child turns Everyone into a read-only overview
+    // a second child brings a filter, and a filter locks nothing
     const { dom, d } = setup();
     addTourn(dom, d, { name: 'Club Open Day', start: `${Y}-11-01` });
     addKid(dom, d, 'Olivia', Y - 13);
 
-    ok('a second child brings the strip', tabs(d).length === 3, tabs(d).length);
-    ok('and Everyone is where it opens', tabs(d)[0].classList.contains('on'));
-    ok('the lock line explains itself',
-       !$(d, '#wholock').hidden && $(d, '#wholock').textContent.includes('read only'),
-       $(d, '#wholock').textContent);
+    ok('a second child brings the filter', tabs(d).length === 3, tabs(d).length);
+    ok('and it opens on all of them', tabs(d)[0].classList.contains('on'));
+    ok('nothing is read-only any more', $(d, '#wholock').hidden);
 
     // Setting up is not on this page at all — no tab of it, no box of it.
     ok('no Kids box on this page', !$(d, '#view-matches').contains($(d, '#kidsbox')));
     ok('nor the import box', !$(d, '#view-matches').contains($(d, '#importbox')));
     ok('nor the add form', !$(d, '#view-matches').contains($(d, '#addbox')));
-    ok('a scheme can still be set, belonging to no child', !!$(d, '.rewkid button'));
-    ok('no Rewards on a row', !$(d, '#tournlist .tourn .trewbtn'));
+    ok('a scheme can be set', !!$(d, '.rewkid button'));
+    ok('a row offers Rewards with no child picked', !!$(d, '#tournlist .tourn .trewbtn'));
+    ok('and Results too', !!$(d, '#tournlist .tourn [data-sc]'));
     ok('no deleting a tournament from here', !$(d, '#tournlist .tourn .tdel'));
     ok('who is playing is stated, never offered',
        $$(d, '#tournlist .tourn .join').every(c => c.tagName === 'SPAN'),
        $$(d, '#tournlist .tourn .join').map(c => c.tagName).join());
 
-    // but the season itself is still legible
-    ok('the schemes are still listed', $$(d, '#rewrow .rewkid').length >= 1,
+    // and the whole season is legible with it
+    ok('the schemes are listed', $$(d, '#rewrow .rewkid').length >= 1,
        $$(d, '#rewrow .rewkid').length);
-    ok('and the tournament is still there', $$(d, '#tournlist .tourn').length === 1);
-    ok('and the season check still reads', !$(d, '#checksbox').hidden);
+    ok('and the tournament is there', $$(d, '#tournlist .tourn').length === 1);
+    ok('and the season check reads', !$(d, '#checksbox').hidden);
+    ok('both children have a result box on it, on one page',
+       $$(d, '#tournlist .tourn .res').length === 2,
+       [...$$(d, '#tournlist .tourn .res .rnm')].map(e => e.textContent).join());
+    ok('and both are typed into rather than read',
+       $$(d, '#tournlist .tourn .rwin').length === 2 && !$(d, '#tournlist .tourn .rv'),
+       $$(d, '#tournlist .tourn .rwin').length);
 
-    // clicking a chip on Everyone must not sneak a change through
-    const before = JSON.stringify(saved(dom).forKids || {});
-    click(dom, $(d, '#tournlist .tourn .join'));
-    ok('a click on a locked chip changes nothing',
-       JSON.stringify(saved(dom).forKids || {}) === before, saved(dom).forKids);
-
-    // and a child's tab hands it all back
+    // filtering to one child narrows the list and changes nothing else
     click(dom, tabs(d)[1]);
-    ok('a child’s tab edits their standard again', !!$(d, '.rewkid button'));
-    ok('and works the row again', !!$(d, '#tournlist .tourn .trewbtn'));
-    ok('and no lock line on a child’s tab', $(d, '#wholock').hidden);
-
-    // the header line has to describe the tab you are on
-    ok('a child’s tab keeps the original line',
-       $(d, '#sub').textContent.includes('Change who one is for on Setup'), $(d, '#sub').textContent);
+    ok('filtering leaves one child’s boxes', $$(d, '#tournlist .tourn .res').length === 1,
+       $$(d, '#tournlist .tourn .res').length);
+    ok('and they are still editable', !!$(d, '#tournlist .tourn .rwin'));
     click(dom, tabs(d)[0]);
-    ok('Everyone says to pick a child instead',
-       $(d, '#sub').textContent.includes('Pick a child above'), $(d, '#sub').textContent);
+    ok('and back to all of them', $$(d, '#tournlist .tourn .res').length === 2,
+       $$(d, '#tournlist .tourn .res').length);
+
+    ok('the line says what the page is',
+       $(d, '#sub').textContent.includes('newest first'), $(d, '#sub').textContent);
 
     // Setup is a view, not a tab: the children and the tournaments are there
     goSetup(dom, d);
@@ -3640,29 +3642,31 @@ group('Everyone changes nothing');
   }
 
   {
-    // results read on Everyone, but cannot be typed there
+    // a result typed with no child filtered, which used to be impossible
     const { dom, d } = setup();
-    addTourn(dom, d, { name: 'Club Open Day', start: `${Y - 1}-11-01` });   // while editable
+    addTourn(dom, d, { name: 'Club Open Day', start: `${Y - 1}-11-01` });
     addKid(dom, d, 'Olivia', Y - 13);
     goSetup(dom, d);
     change(dom, $(d, '#setuplist .tourn [data-tag]'), 'Group');
     click(dom, $(d, '#nav-matches'));
-    click(dom, tabs(d)[1]);                                   // Ian
     click(dom, $(d, '.rewadd button'));
     input(dom, $(d, '#r-tag'), 'Group');
     input(dom, $(d, '#r-win'), '5');
     click(dom, $(d, '#r-ok'));
-    change(dom, $(d, '#tournlist .tourn .rwin'), '4');
-    ok('his tab totals it up', $(d, '#tournlist .tourn .rpay').textContent === '$20',
-       $(d, '#tournlist .tourn .rpay').textContent);
 
-    click(dom, tabs(d)[0]);                                    // Everyone
-    ok('Everyone still shows the money', $(d, '#tournlist .tourn .rpay').textContent === '$20',
-       $(d, '#tournlist .tourn .rpay').textContent);
-    ok('and the wins, as a value rather than a field',
-       !$(d, '#tournlist .tourn .rwin') && $(d, '#tournlist .tourn .rv').textContent === '4',
-       $(d, '#tournlist .tourn .rv') && $(d, '#tournlist .tourn .rv').textContent);
-    ok('and the season check still reads',
+    // the finished one folds away, so it has to be opened to be typed into
+    ok('a finished tournament is folded', !!$(d, '#pastfold'), 'no fold');
+    ok('and it is put away rather than removed', $(d, '.pastwrap').hidden);
+    click(dom, $(d, '#pastfold'));
+    ok('opening it brings the rows back', !$(d, '.pastwrap').hidden);
+    // the list redraws on every change, so the row is found again each time
+    const ian = () => [...$$(d, '#tournlist .res')]
+      .find(r => r.textContent.trim().startsWith('Ian'));
+    change(dom, ian().querySelector('.rwin'), '4');
+    ok('it totals up with nobody filtered for',
+       ian().querySelector('.rpay').textContent === '$20',
+       ian().querySelector('.rpay').textContent);
+    ok('and the season check reads',
        $(d, '#mnotes').textContent.includes('Ian $20 across 1 result'), $(d, '#mnotes').textContent);
   }
 }
@@ -3848,9 +3852,10 @@ group('which block a tournament is the build-up to');
   addTourn(dom, d, { name: 'Club Meet', start: `${Y}-06-03`, cat: 'Junior (U10)' });
   addTourn(dom, d, { name: 'Club 14&U Cup', start: `${Y}-06-17`, cat: 'STA, Junior' });
   goTab(dom, d, '');                                  // Everyone
-  ok('Everyone names the child the block belongs to',
-     $(d, '#tournlist .tourn').textContent.includes('During “Her block” (Olivia)'),
-     $(d, '#tournlist .tourn').textContent);
+  // newest first, so the row is found by name rather than by being on top
+  const meet = () => $$(d, '#tournlist .tourn').find(r => r.textContent.includes('Club Meet'));
+  ok('with nobody filtered for, the block is named with its child',
+     meet().textContent.includes('During “Her block” (Olivia)'), meet().textContent);
   goTab(dom, d, 'pb');
   ok('his tab shows his own build-up',
      $$(d, '#tournlist .tourn').map(t => t.textContent).join('|').includes('During “His block”'),
@@ -4701,10 +4706,12 @@ group('tags written before they kept their case');
      st.matchTag.m3 === 'red ball group', st.matchTag.m3);
   ok('and the scheme moves with its tag',
      Object.keys(st.schemes).join() === 'Group', Object.keys(st.schemes).join());
+  // "One" is the tournament tagged Group; newest first puts "Three" on top
+  const one = () => $$(d, '#tournlist .tourn').find(r => r.textContent.includes('One'));
   ok('so it still pays what it did',
-     (change(dom, $$(d, '#tournlist .rwin')[0], '3'),
-      $(d, '#tournlist .rpay').textContent === '$15'),
-     $(d, '#tournlist .rpay').textContent);
+     (change(dom, one().querySelector('.rwin'), '3'),
+      one().querySelector('.rpay').textContent === '$15'),
+     one().querySelector('.rpay') && one().querySelector('.rpay').textContent);
 }
 
 group('taking the figures the dialog offers');
@@ -4774,6 +4781,304 @@ group('taking the figures the dialog offers');
   ok('and a knockout is given no third place, having none to award',
      $(d, '#r-p3').value === '' && $(d, '#r-p4').value === '',
      `${$(d, '#r-p3').value}/${$(d, '#r-p4').value}`);
+}
+
+group('one page, newest first, with what is over folded away');
+{
+  /* The season used to be a tab each and an Everyone that could be read but not
+     touched — so the one view where both children's weekends could be seen
+     against each other was the one view where nothing could be corrected. It is
+     one page now, and the tabs are filters: a filter narrows what is shown and
+     changes nothing about what may be done. */
+  const Y = new Date().getFullYear();
+  // What is actually on show. A folded row is still in the page, so a plain
+  // selector finds it whether it is hidden or not.
+  const names = d => $$(d, '#tournlist .tourn')
+    .filter(r => !r.closest('.pastwrap[hidden]'))
+    .map(r => r.querySelector('.tnm').textContent);
+  const seed = JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [{ id: 'b1', name: 'B', start: `${Y}-06-01`, days: 7, plan: {} }],
+    activeBlockId: 'b1',
+    players: [{ id: 'p1', name: 'Ian', birthYear: Y - 9, colour: '#5B9BD5' },
+              { id: 'p2', name: 'Olivia', birthYear: Y - 9, colour: '#D6E64B' }],
+    manualMatches: [
+      { id: 'm1', source: 'manual', name: 'Long Ago', start: `${Y - 1}-03-01`, end: `${Y - 1}-03-02` },
+      { id: 'm2', source: 'manual', name: 'Last Year', start: `${Y - 1}-11-01`, end: `${Y - 1}-11-02` },
+      { id: 'm3', source: 'manual', name: 'Next Up', start: `${Y + 1}-04-01`, end: `${Y + 1}-04-02` },
+      { id: 'm4', source: 'manual', name: 'Later Still', start: `${Y + 1}-09-01`, end: `${Y + 1}-09-02` }],
+    entries: [], trips: [], rewards: {}, schemes: {}, matchTag: {},
+    forKids: { m1: ['p1'], m2: ['p2'], m3: ['p1'], m4: ['p1', 'p2'] },
+  });
+  const dom = boot({ [KEY]: seed });
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-matches'));
+
+  ok('no tab is a mode any more — nothing is read-only', $(d, '#wholock').hidden);
+  ok('the coming season reads newest first',
+     names(d).join() === 'Later Still,Next Up', names(d).join());
+  ok('and what is over is folded, not gone',
+     !!$(d, '#pastfold') && $(d, '.pastwrap').hidden, !!$(d, '#pastfold'));
+  ok('the fold says how many', $(d, '#pastfold').textContent.includes('2 finished'),
+     $(d, '#pastfold').textContent);
+
+  click(dom, $(d, '#pastfold'));
+  ok('opening it puts the finished ones underneath, newest first too',
+     names(d).join() === 'Later Still,Next Up,Last Year,Long Ago', names(d).join());
+  click(dom, $(d, '#pastfold'));
+  ok('and it folds again', $(d, '.pastwrap').hidden);
+
+  // filter by child
+  const kidBtn = name => $$(d, '#whofilter button[data-who]')
+    .find(b => b.textContent.trim().startsWith(name));
+  click(dom, kidBtn('Olivia'));
+  ok('filtering by child leaves only hers',
+     names(d).join() === 'Later Still', names(d).join());
+  ok('and her finished one is folded below',
+     $(d, '#pastfold').textContent.includes('1 finished'), $(d, '#pastfold').textContent);
+  ok('a filter is not a lock: her row can still be typed into',
+     !!$(d, '#tournlist .tourn .rwin'));
+
+  click(dom, kidBtn('All children'));
+  ok('and back to both', names(d).join() === 'Later Still,Next Up', names(d).join());
+
+  // filter by year
+  const yearBtn = y => $$(d, '#whofilter button[data-year]')
+    .find(b => b.textContent.trim() === y);
+  ok('every year the season touches is offered',
+     $$(d, '#whofilter button[data-year]').map(b => b.textContent.trim()).join() ===
+       `All years,${Y + 1},${Y - 1}`,
+     $$(d, '#whofilter button[data-year]').map(b => b.textContent.trim()).join());
+  click(dom, yearBtn(String(Y - 1)));
+  ok('a past year shows nothing until the fold is opened', names(d).join() === '', names(d).join());
+  click(dom, $(d, '#pastfold'));
+  ok('and then only that year', names(d).join() === 'Last Year,Long Ago', names(d).join());
+  // the fold stays as it was left, so changing a filter does not shut it
+  click(dom, kidBtn('Olivia'));
+  ok('the fold survives a filter change', !$(d, '.pastwrap').hidden);
+  ok('and the two filters work together', names(d).join() === 'Last Year', names(d).join());
+
+  click(dom, yearBtn('All years'));
+  click(dom, kidBtn('All children'));
+  ok('clearing both brings the whole season back, the fold still as it was left',
+     names(d).join() === 'Later Still,Next Up,Last Year,Long Ago', names(d).join());
+  click(dom, $(d, '#pastfold'));
+  ok('and folding it away leaves what is still to come',
+     names(d).join() === 'Later Still,Next Up', names(d).join());
+}
+
+group('Setup keeps the order the season runs in');
+{
+  // The season is read from the end it is happening at. Setup is a list of what
+  // exists, read to find a row and fix it, and that reads better in order.
+  const Y = new Date().getFullYear();
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Ian', Y - 9);
+  addTourn(dom, d, { name: 'Earlier', start: `${Y}-03-01` });
+  addTourn(dom, d, { name: 'Later', start: `${Y}-08-01` });
+  goSetup(dom, d);
+  ok('Setup runs oldest first',
+     $$(d, '#setuplist .tourn .tnm').map(e => e.textContent).join() === 'Earlier,Later',
+     $$(d, '#setuplist .tourn .tnm').map(e => e.textContent).join());
+  ok('and folds nothing away, every tournament being there to be found',
+     !$(d, '#setuplist .pastfold'));
+}
+
+group('reading a knockout draw off STA');
+{
+  /* A group sheet has to be pasted — it is a private file belonging to whoever
+     ran the event. A knockout does not: STA publish the draw, so for these
+     there is nothing to copy. The shape below is theirs, trimmed, including
+     their spelling of GeTournamentDrawDetails. */
+  const Y = new Date().getFullYear();
+  const pl = (name, won) => ({ name, isWinner: won, details: [{ name }] });
+  const pair = (a, b, won) => ({ name: `${a}/${b}`, isWinner: won,
+                                 details: [{ name: a }, { name: b }] });
+  const bye = { name: 'BYE', isWinner: false, details: null };
+  const DRAW = [
+    { roundOf: '128', matches: [
+      { players: [pl('SHA HUANG', false), pl('Olivia Lin', true)] },
+      { players: [pl('Olivia Koh', false), pl('Anya Lyu', true)] },
+      // a bye is a round nobody won, and must not count as one
+      { players: [pl('Mary Dolya', false), bye] } ] },
+    { roundOf: '64', matches: [
+      { players: [pl('Anya Lyu', true), pl('Olivia Lin', false)] },
+      { players: [pl('Mary Dolya', true), pl('Ivy Tan', false)] } ] },
+    { roundOf: '32', matches: [
+      { players: [pl('Anya Lyu', true), pl('Mary Dolya', false)] } ] },
+    // played to here; the rest is on the page with names in it and no winner
+    { roundOf: '16', matches: [
+      { players: [pl('Anya Lyu', false), pl('Ivy Tan', false)] } ] },
+    { roundOf: 'Quarterfinal', matches: [] },
+    { roundOf: 'Final', matches: [] },
+  ];
+  const DBL = [{ roundOf: '32', matches: [
+    { players: [pair('Emma Wong', 'Faith Lee', false),
+                pair('Ada Quill', 'Rory Vale', true)] } ] }];
+  const EVENTS = [
+    { id: 50, name: "10U Girls' Singles(Q)", eventType: 'Single', isQualifier: true },
+    { id: 12, name: "10U Girls' Singles", eventType: 'Single', isQualifier: false },
+    { id: 13, name: "10U Girls' Doubles", eventType: 'Double', isQualifier: false },
+  ];
+
+  let asked = [];
+  const staFetch = (fail) => (w) => {
+    w.fetch = url => {
+      const u = String(url);
+      asked.push(u);
+      if (fail) return Promise.resolve({ ok: false, status: 500 });
+      if (u.includes('GetTournamentEventLinkedList'))
+        return Promise.resolve({ ok: true, json: async () => ({ status: 'Success', data: EVENTS }) });
+      if (u.includes('GeTournamentDrawDetails')) {
+        const ev = /eventId=(\d+)/.exec(u)[1];
+        return Promise.resolve({ ok: true, json: async () => ({ status: 'Success',
+          data: ev === '13' ? DBL : DRAW }) });
+      }
+      return Promise.resolve({ ok: false, status: 404 });
+    };
+  };
+  const seedOf = kid => JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [{ id: 'b1', name: 'B', start: `${Y}-06-01`, days: 7, plan: {} }],
+    activeBlockId: 'b1',
+    players: [{ id: 'p1', name: kid, birthYear: Y - 9, colour: '#5B9BD5' }],
+    manualMatches: [{ id: 'sta-322', source: 'sta', name: 'BABOLAT SPEX 3rd Junior',
+                      start: `${Y}-09-05`, end: `${Y}-09-13` }],
+    entries: [], trips: [], rewards: {}, schemes: {}, matchTag: {},
+    // a Junior draw sits above a nine-year-old's age group, so she is named on
+    // it — which is what a parent does on Setup
+    forKids: { 'sta-322': ['p1'] },
+  });
+  const openDraw = (kid, fail) => {
+    asked = [];
+    const dom = boot({ [KEY]: seedOf(kid || 'Olivia Lin') }, staFetch(fail));
+    const d = dom.window.document;
+    click(dom, $(d, '#nav-matches'));
+    click(dom, $(d, '#tournlist .tourn [data-sc]'));
+    return { dom, d };
+  };
+  const settle = () => new Promise(r => setTimeout(r, 30));
+
+  {
+    const { d } = openDraw();
+    ok('an STA tournament is offered its draw', !$(d, '#s-fetchrow').hidden);
+  }
+
+  {
+    // a tournament of one's own has no draw anybody publishes
+    const dom = boot({}, staFetch());
+    const d = dom.window.document;
+    addKid(dom, d, 'Olivia Lin', Y - 9);
+    addTourn(dom, d, { name: 'Club Meet', start: `${Y}-03-07` });
+    click(dom, $(d, '#nav-matches'));
+    click(dom, $(d, '#tournlist .tourn [data-sc]'));
+    ok('a tournament that is not STA’s is not offered one', $(d, '#s-fetchrow').hidden);
+  }
+
+  {
+    const { dom, d } = openDraw();
+    click(dom, $(d, '#s-fetch'));
+    await settle();
+
+    const sta = asked.filter(u => u.includes('singtennis'));
+    ok('the events are asked for first',
+       sta[0].includes('GetTournamentEventLinkedList?id=322'), sta.join('\n'));
+    ok('and the qualifying draw is left out of it, being a way in rather than a result',
+       !asked.some(u => u.includes('eventId=50')), asked.join('\n'));
+    ok('every other event is read', asked.some(u => u.includes('eventId=12')) &&
+       asked.some(u => u.includes('eventId=13')), asked.join('\n'));
+
+    ok('the child is found and her rounds counted',
+       $(d, '#s-found').textContent.includes('found as Olivia Lin: 1 win, 64th'),
+       $(d, '#s-found').textContent);
+    ok('and the note says it was read rather than guessed',
+       $(d, '#s-hint').textContent.includes('rounds are counted rather than guessed'),
+       $(d, '#s-hint').textContent);
+
+    click(dom, $(d, '#s-ok'));
+    ok('saving writes the round she won', $(d, '#tournlist .rwin').value === '1',
+       $(d, '#tournlist .rwin').value);
+    ok('and where she went out', $(d, '#tournlist .rpl').value === '64',
+       $(d, '#tournlist .rpl').value);
+  }
+
+  {
+    // the trap this has to avoid: a draw is usually read while it is still on
+    const { dom, d } = openDraw('Anya Lyu');
+    click(dom, $(d, '#s-fetch'));
+    await settle();
+    ok('a player still in the draw is not reported as out of it',
+       $(d, '#s-found').textContent.includes('not in this paste'),
+       $(d, '#s-found').textContent);
+    click(dom, $(d, '#s-ok'));
+    ok('and nothing is written for her', saved(dom).entries.length === 0,
+       JSON.stringify(saved(dom).entries));
+  }
+
+  {
+    // a bye carries a player forward without their winning anything: Mary had
+    // one in the first round, then won once and went out in the round of 32
+    const { dom, d } = openDraw('Mary Dolya');
+    click(dom, $(d, '#s-fetch'));
+    await settle();
+    ok('a bye is not counted as a round won',
+       $(d, '#s-found').textContent.includes('found as Mary Dolya: 1 win, 32nd'),
+       $(d, '#s-found').textContent);
+  }
+
+  {
+    // a doubles pair is two children, each findable by their own name
+    const { dom, d } = openDraw('Faith Lee');
+    click(dom, $(d, '#s-fetch'));
+    await settle();
+    ok('a doubles pair is read as its players, not as a pair',
+       $(d, '#s-found').textContent.includes('found as Faith Lee: 0 wins, 32nd'),
+       $(d, '#s-found').textContent);
+  }
+
+  {
+    // two children of one name in one draw is a real thing, not a hypothetical
+    const { dom, d } = openDraw('Olivia');
+    click(dom, $(d, '#s-fetch'));
+    await settle();
+    ok('two Olivias in one draw are named, not guessed between',
+       $(d, '#s-found').textContent.includes('too close to call'),
+       $(d, '#s-found').textContent);
+    click(dom, $(d, '#s-ok'));
+    ok('and nothing is filled in', saved(dom).entries.length === 0,
+       JSON.stringify(saved(dom).entries));
+  }
+
+  {
+    // STA being down is not the end of it: the box below still works
+    const { dom, d } = openDraw('Olivia Lin', true);
+    click(dom, $(d, '#s-fetch'));
+    await settle();
+    ok('a refusal is reported rather than swallowed',
+       $(d, '#s-hint').textContent.includes('Could not read the draw'),
+       $(d, '#s-hint').textContent);
+    ok('and it says what still works',
+       $(d, '#s-hint').textContent.includes('scorecard box below still works'),
+       $(d, '#s-hint').textContent);
+    ok('the button comes back rather than staying spent',
+       !$(d, '#s-fetch').disabled && $(d, '#s-fetch').textContent === 'Read the draw from STA',
+       $(d, '#s-fetch').textContent);
+  }
+
+  {
+    // a paste is the more deliberate answer and takes over
+    const { dom, d } = openDraw();
+    click(dom, $(d, '#s-fetch'));
+    await settle();
+    change(dom, $(d, '#s-paste'),
+      ['GROUP A,,Won,Rank,', '1,Olivia Lin,7,2,'].join('\n'));
+    ok('typing into the box replaces what the draw said',
+       $(d, '#s-found').textContent.includes('7 wins, 2nd'), $(d, '#s-found').textContent);
+    click(dom, $(d, '#s-ok'));
+    ok('and it is the paste that is saved', $(d, '#tournlist .rwin').value === '7',
+       $(d, '#tournlist .rwin').value);
+  }
 }
 
 group('reading a scorecard');
