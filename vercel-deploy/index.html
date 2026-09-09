@@ -643,6 +643,23 @@ input[type=number]#days{width:74px}
 .rewkid .rkline{font-size:12px;color:var(--ball)}
 .rewkid .rknone{font-size:12px;color:var(--mute);font-style:italic}
 .rewkid button{margin-left:auto;font-size:12px;padding:4px 9px}
+/* How many tournaments a scheme is actually paying. A scheme nothing carries is
+   worth spotting, and so is a tag with no scheme behind it. */
+.rewkid .rkuse{font-size:11.5px;color:var(--mute);margin-left:auto}
+.rewkid .rkuse + button{margin-left:12px}
+.rewadd{justify-content:flex-start;gap:12px}
+.rewadd button{margin-left:0}
+/* The shape of the draw, on the row where the draw is. Untagged is not a fault
+   worth shouting about — most of a season is one shape — but it does mean
+   nothing is being paid, so it does not read as set either. */
+.ttag{
+  border:1px dashed var(--hair);border-radius:3px;background:transparent;
+  color:var(--mute);font-size:11.5px;padding:4px 8px;cursor:pointer;
+  font-style:italic;
+}
+.ttag.set{border-style:solid;border-color:var(--ball);color:var(--ball);font-style:normal}
+.ttag:hover{background:rgba(214,230,75,.14)}
+.ttag:disabled{cursor:default}
 .tourn .trew{font-size:12px;color:var(--ball);margin-top:4px}
 .tourn .trew .only{
   font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
@@ -1049,6 +1066,8 @@ input[type=number]#days{width:74px}
 <div class="modal-back" id="rmodal" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="r-title">
     <h3 id="r-title">Rewards</h3>
+    <div class="mrow" id="r-row-tag"><label class="lab" for="r-tag">Tag</label>
+      <input type="text" id="r-tag" maxlength="24" placeholder="group"></div>
     <div class="mrow"><span class="lab" id="r-kindlab">Type</span>
       <div class="kindpick" role="radiogroup" aria-labelledby="r-kindlab">
         <button type="button" id="r-kind-group" data-kind="group"
@@ -1216,7 +1235,7 @@ function emptyState(){
   // state — into localStorage, into a backup file, and up to the server.
   return {version:2, updatedAt:0, blocks:[], activeBlockId:null,
           players:[], entries:[], trips:[], manualMatches:[], rewards:{},
-          forKids:{}, resultLinks:{}};
+          forKids:{}, resultLinks:{}, schemes:{}, matchTag:{}};
 }
 // playerId is whose block this is. null means nobody has said yet — every
 // block written before there were two children is in that state, and so is one
@@ -1449,8 +1468,7 @@ function sanitiseState(raw, allowEmptyBlocks){
     .map((p,i) => ({id:p.id, name:p.name.slice(0,24),
                     birthYear: (Number.isInteger(p.birthYear) && p.birthYear >= 1990 && p.birthYear <= 2030)
                                ? p.birthYear : null,
-                    colour: /^#[0-9a-f]{6}$/i.test(p.colour) ? p.colour : KID_COLOURS[i % KID_COLOURS.length],
-                    rewards: normRewards(p.rewards)}));
+                    colour: /^#[0-9a-f]{6}$/i.test(p.colour) ? p.colour : KID_COLOURS[i % KID_COLOURS.length]}));
 
   // A block whose child is gone goes back to unassigned rather than vanishing:
   // the plan in it is real work, and it stays reachable on every tab.
@@ -1518,6 +1536,55 @@ function sanitiseState(raw, allowEmptyBlocks){
   // Whose list a tournament is on. Ids of children who are gone are dropped,
   // and a list left empty by that is not kept: the tournament goes back to the
   // age rule rather than becoming one nobody can see.
+  /* Schemes are filed under a tag, and a tournament carries one. Both are read
+     before the migration below, so a plan already written this way is left
+     exactly as it is. */
+  if(raw.schemes && typeof raw.schemes === 'object' && !Array.isArray(raw.schemes)){
+    for(const k in raw.schemes){
+      const tag = normTag(k), r = normRewards(raw.schemes[k]);
+      if(tag && r) st.schemes[tag] = r;
+    }
+  }
+  if(raw.matchTag && typeof raw.matchTag === 'object' && !Array.isArray(raw.matchTag)){
+    for(const k in raw.matchTag){
+      const tag = normTag(raw.matchTag[k]);
+      if(tag) st.matchTag[k] = tag;
+    }
+  }
+
+  /* Written when a scheme belonged to a child and carried the shape of the draw
+     inside it, which meant a child could only ever be paid for one shape. Each
+     standard becomes the scheme for its shape, and every tournament that
+     standard was paying takes that shape as its tag — so the same afternoons go
+     on paying the same money.
+
+     Two children with standards of the same shape is the one case that cannot
+     survive whole: there is one scheme for a shape now. The first is kept, and
+     the other is dropped rather than silently averaged. */
+  if(Array.isArray(raw.players)) raw.players.forEach(rp=>{
+    const r = normRewards(rp && rp.rewards);
+    if(!hasRewards(r) || st.schemes[r.kind]) return;
+    st.schemes[r.kind] = r;
+  });
+  // Which shape was paying which tournament. A child's standard applied
+  // everywhere they played, so every tournament they were on takes its tag.
+  if(Array.isArray(raw.players) && !Object.keys(st.matchTag).length){
+    const kinds = raw.players
+      .map(rp => normRewards(rp && rp.rewards))
+      .filter(hasRewards).map(r => r.kind);
+    // With one shape in the whole plan there is nothing to tell apart: every
+    // tournament was being paid by it, so every tournament carries it.
+    if(new Set(kinds).size === 1){
+      const only = kinds[0];
+      (st.manualMatches || []).forEach(m => { st.matchTag[m.id] = only; });
+      (raw.entries || []).forEach(e => {
+        if(e && typeof e.matchId === 'string') st.matchTag[e.matchId] = only;
+      });
+      Object.keys(st.rewards || {}).forEach(id => { st.matchTag[id] = only; });
+      Object.keys(st.forKids || {}).forEach(id => { st.matchTag[id] = only; });
+    }
+  }
+
   // Where the result was published, one per tournament: the draw is one sheet
   // covering everybody in it, not a thing each child has their own copy of.
   // Only http(s) is kept, because it is rendered as a link and a javascript:
@@ -1724,7 +1791,7 @@ function commitDialog(){
 /* The rewards dialog. One dialog, two things to edit: a child's standard, or
    the one tournament that pays differently. Its own modal rather than a mode of
    the placement one — they share nothing but a backdrop. */
-let rewardTarget = null;   // {kind:'kid'|'match', id}; null when the dialog is shut
+let rewardTarget = null;   // {kind:'tag'|'match', id}; null when the dialog is shut
 let rewardKind = 'group';  // which shape the open dialog is currently written for
 
 /* The figures each shape opens on. They are placeholders and not values: a
@@ -1754,13 +1821,15 @@ function rewardHint(){
       'that — winning the thing earns the quarterfinal money too, because they ' +
       'went through it. '
     : 'A group pays for every match they win, and for where they finish in the group. ';
-  return shape + (rewardTarget && rewardTarget.kind === 'kid'
-    ? 'This is what the child plays for at every tournament. The grey figures are ' +
-      'suggestions and pay nothing until they are taken — “Use these” takes them ' +
-      'all at once. Leave a line blank to drop it. “Beat last” pays when they beat ' +
-      'their previous tournament, “Best ever” when they beat every tournament ' +
-      'before it — both can land on the same afternoon.'
-    : 'This tournament only. Save it with every line blank to say it pays nothing, ' +
+  return shape + (rewardTarget && rewardTarget.kind === 'tag'
+    ? 'This is what every tournament carrying the tag pays, whichever child is ' +
+      'playing it. The grey figures are suggestions and pay nothing until they ' +
+      'are taken — “Use these” takes them all at once. Leave a line blank to drop ' +
+      'it. “Beat last” pays when a child beats their previous tournament, “Best ' +
+      'ever” when they beat every tournament before it — both can land on the ' +
+      'same afternoon.'
+    : 'This tournament only, whatever its tag pays. Save it with every line blank ' +
+      'to say it pays nothing, ' +
       'or press Use standard to go back to what the child normally plays for.');
 }
 
@@ -1791,21 +1860,24 @@ function setRewardKind(kind){
 }
 
 function openRewards(kind, id){
-  const subject = kind === 'kid'
-    ? state.players.find(x => x.id === id)
-    : allMatches().find(x => x.id === id);
+  const tag = kind === 'tag' ? normTag(id) : '';
+  const subject = kind === 'tag' ? {name: tag} : allMatches().find(x => x.id === id);
   if(!subject) return;
-  rewardTarget = {kind, id};
-  // On a tournament with no exception of its own, the feed's suggestion is
-  // what to open on: accepting it is then one press of Save.
-  const r = (kind === 'kid' ? kidScheme(subject)
-                            : matchScheme(subject) || feedScheme(subject))
+  rewardTarget = {kind, id: kind === 'tag' ? tag : id};
+  // On a tournament with no exception of its own, whatever its tag is filed
+  // under is what to open on — and failing that the feed's suggestion.
+  // Accepting either is then one press of Save.
+  const r = (kind === 'tag' ? schemeOfTag(tag)
+                            : matchScheme(subject) || tagScheme(subject) || feedScheme(subject))
             || {kind:'group', initial:0, perWin:0, places:[], qf:0, improve:0,
                 bestEver:0, note:''};
-  document.getElementById('r-title').textContent =
-    (kind === 'kid' ? 'Rewards — ' : 'Rewards, only here — ') + (subject.name || '');
+  document.getElementById('r-title').textContent = kind === 'tag'
+    ? (tag ? 'Rewards — ' + tag : 'New scheme')
+    : 'Rewards, only here — ' + (subject.name || '');
+  document.getElementById('r-row-tag').hidden = kind !== 'tag';
+  document.getElementById('r-tag').value = tag;
   document.getElementById('r-clear').textContent =
-    kind === 'kid' ? 'Clear' : 'Use standard';
+    kind === 'tag' ? 'Delete' : 'Use the tag’s';
   // Before the values, not after: choosing the shape empties the line the other
   // shape owns, and these figures are the ones that should survive it.
   setRewardKind(r.kind);
@@ -1821,14 +1893,15 @@ function openRewards(kind, id){
   put('r-best', r.bestEver);
   document.getElementById('r-note').value = r.note || '';
   document.getElementById('rmodal').hidden = false;
-  document.getElementById('r-win').focus();
+  document.getElementById(rewardTarget.kind === 'tag' && !tag ? 'r-tag' : 'r-win').focus();
 }
 function closeRewards(){
   document.getElementById('rmodal').hidden = true;
   rewardTarget = null;
 }
 function commitRewards(){
-  if(!rewardTarget || viewLocked()) return;
+  // The lock is about a child's own things, and a scheme is nobody's.
+  if(!rewardTarget || (viewLocked() && rewardTarget.kind !== 'tag')) return;
   const v = id => document.getElementById(id).value;
   const r = normRewards({
     kind: rewardKind,
@@ -1840,12 +1913,23 @@ function commitRewards(){
     bestEver: v('r-best'),
     note: v('r-note')
   });
-  if(rewardTarget.kind === 'kid'){
-    const p = state.players.find(x => x.id === rewardTarget.id);
-    if(p) p.rewards = r;
+  if(rewardTarget.kind === 'tag'){
+    const was = rewardTarget.id;
+    const now = normTag(document.getElementById('r-tag').value) || was;
+    if(!now){ closeRewards(); return; }        // a scheme with no tag joins nothing
+    if(!state.schemes) state.schemes = {};
+    if(was && was !== now){
+      // Renaming carries the tournaments with it. Leaving them on the old tag
+      // would take the money off every one of them without saying so.
+      delete state.schemes[was];
+      Object.keys(state.matchTag || {}).forEach(id => {
+        if(state.matchTag[id] === was) state.matchTag[id] = now;
+      });
+    }
+    state.schemes[now] = r;
   } else {
     // Kept even when empty: on a tournament, empty is the user saying it pays
-    // nothing, which has to beat the standard.
+    // nothing, which has to beat what the tag would have paid.
     state.rewards[rewardTarget.id] = r;
   }
   closeRewards(); render(); save();
@@ -1863,7 +1947,8 @@ function commitRewards(){
    no third place, and filling a hidden line would promise money for something
    the draw cannot award. */
 function useSuggested(){
-  if(!rewardTarget || viewLocked()) return;
+  // The lock is about a child's own things, and a scheme is nobody's.
+  if(!rewardTarget || (viewLocked() && rewardTarget.kind !== 'tag')) return;
   const tpl = KIND_TEMPLATE[rewardKind];
   const put = (el, v) => {
     const box = document.getElementById(el);
@@ -1877,11 +1962,32 @@ function useSuggested(){
   document.getElementById('r-win').focus();
 }
 
+/* Which shape of draw a tournament is. A prompt rather than a dialog of its
+   own: it is one short word, it is asked once per tournament, and the tags
+   already in use are offered so the second event of a kind is a copy rather
+   than a spelling test. */
+function askTag(mId){
+  const m = allMatches().find(x => x.id === mId);
+  if(!m) return;
+  const known = knownTags().filter(t => t !== tagOf(mId));
+  const answer = window.prompt(
+    `What shape of draw is “${m.name}”?\n\n` +
+    'One word — it is what joins this tournament to a rewards scheme.' +
+    (known.length ? '\nAlready in use: ' + known.join(', ') : '') +
+    '\n\nLeave it empty to take the tag off.',
+    tagOf(mId) || (known.includes('group') ? 'group' : ''));
+  if(answer === null) return;                 // cancelled, which is not "empty"
+  setTag(mId, answer);
+  render(); save();
+}
+
 function clearRewards(){
-  if(!rewardTarget || viewLocked()) return;
-  if(rewardTarget.kind === 'kid'){
-    const p = state.players.find(x => x.id === rewardTarget.id);
-    if(p) p.rewards = null;
+  // The lock is about a child's own things, and a scheme is nobody's.
+  if(!rewardTarget || (viewLocked() && rewardTarget.kind !== 'tag')) return;
+  if(rewardTarget.kind === 'tag'){
+    // The tournaments keep the tag. It is a fact about the draw, and a scheme
+    // written for it again later should find them still wearing it.
+    if(state.schemes) delete state.schemes[rewardTarget.id];
   } else {
     delete state.rewards[rewardTarget.id];
   }
@@ -2971,8 +3077,47 @@ function matchScheme(m){
   const own = state.rewards || {};
   return Object.prototype.hasOwnProperty.call(own, m.id) ? own[m.id] : null;
 }
-function kidScheme(p){
-  return p && hasRewards(p.rewards) ? p.rewards : null;
+/* ---- what a tournament pays, by the tag it carries ----
+   A scheme belongs to a shape of draw and not to a child. A group pays for
+   every match won and for where they finish; a knockout pays for turning up and
+   for every rung climbed. Those are facts about the draw, so two children on
+   the same shape play for the same terms — and one child who plays both shapes
+   is paid by each, which is what a single scheme per child could never do.
+
+   The tag is what joins them. A tournament carries one; a scheme is filed under
+   one. Free text rather than a fixed pair, so a season that grows a third kind
+   of event needs no new code. */
+const MAX_TAG = 24;
+function normTag(t){
+  return String(t || '').toLowerCase().replace(/\s+/g, ' ').trim().slice(0, MAX_TAG);
+}
+function tagOf(mId){
+  return (state.matchTag && state.matchTag[mId]) || '';
+}
+function setTag(mId, t){
+  if(!state.matchTag) state.matchTag = {};
+  const tag = normTag(t);
+  if(tag) state.matchTag[mId] = tag;
+  else delete state.matchTag[mId];
+}
+function schemeOfTag(tag){
+  const r = state.schemes && state.schemes[normTag(tag)];
+  return hasRewards(r) ? r : null;
+}
+function tagScheme(m){
+  return schemeOfTag(tagOf(m.id));
+}
+// Every tag that has a scheme, in the order they read best: the shapes the
+// season is actually made of, alphabetically so the list does not shuffle.
+function schemeTags(){
+  return Object.keys(state.schemes || {}).sort();
+}
+// Every tag in play at all, including ones only a tournament carries — an event
+// tagged for a scheme not yet written is worth offering rather than hiding.
+function knownTags(){
+  const all = new Set(schemeTags());
+  Object.values(state.matchTag || {}).forEach(t => { if(t) all.add(t); });
+  return [...all].sort();
 }
 // The weakest tier there is. A file committed alongside the site must not
 // quietly outbid a figure the parent set on the child, so it stands in only
@@ -2983,8 +3128,11 @@ function feedScheme(m){
   return hasRewards(m.rewards) ? m.rewards : null;
 }
 // What this child is actually playing for here.
-function schemeFor(m, p){
-  return matchScheme(m) || kidScheme(p) || feedScheme(m);
+// Most specific first: this one tournament's own exception, then whatever its
+// tag is filed under, then a suggestion the feed shipped with it. The child is
+// not in this at all any more — what a draw pays is about the draw.
+function schemeFor(m){
+  return matchScheme(m) || tagScheme(m) || feedScheme(m);
 }
 function rewardsLine(r){
   const ko = r.kind === 'knockout';
@@ -3394,7 +3542,7 @@ function prevWins(m, playerId){
 // null when there is nothing to work from; otherwise a total and the sum shown
 // in full, because a child should be able to see how the number was reached.
 function payout(m, p){
-  const r = schemeFor(m, p);
+  const r = schemeFor(m);
   const res = resultOf(m.id, p.id);
   if(!hasRewards(r) || !res || (res.wins === null && res.place === null)) return null;
   const parts = [];
@@ -3504,6 +3652,7 @@ function dropTournament(id){
   delete state.rewards[id];
   delete state.forKids[id];
   if(state.resultLinks) delete state.resultLinks[id];
+  if(state.matchTag) delete state.matchTag[id];
 }
 function removeTournament(id){
   const m = (state.manualMatches || []).find(x=>x.id===id);
@@ -3594,10 +3743,11 @@ function renderTournList(list, ms, {setup, locked, who}){
     if(rlink && !setup) meta.push(`<a class="tlink" href="${escapeHtml(rlink)}" target="_blank" rel="noopener noreferrer">Results</a>`);
     if(m.note) meta.push(`<span class="tnote">${escapeHtml(m.note)}</span>`);
 
-    // A line on the row means this tournament pays something other than the
-    // standard. Where it pays the standard there is nothing worth repeating.
+    // A line on the row means this tournament pays something other than what
+    // its tag pays. Where it pays the tag's, there is nothing worth repeating.
     const own = matchScheme(m);
     const differs = hasRewards(own);
+    const tag = tagOf(m.id);
 
     const mYear = Number(m.start.slice(0,4));
     // Only kids on it get a result box: being on a tournament is what says they
@@ -3617,7 +3767,7 @@ function renderTournList(list, ms, {setup, locked, who}){
     const results = played.map(p=>{
       const res = resultOf(m.id, p.id) || {wins:null, place:null};
       const pay = payout(m, p);
-      const pays = hasRewards(schemeFor(m, p));
+      const pays = hasRewards(schemeFor(m));
       const box = (cls, field, val, lo, hi, lab) => locked
         ? `<span>${lab} <span class="rv">${val === null ? '—' : val}</span></span>`
         : `<label>${lab} <input type="number" class="${cls}" min="${lo}" max="${hi}" step="1"` +
@@ -3674,7 +3824,10 @@ function renderTournList(list, ms, {setup, locked, who}){
         }${escapeHtml(m.name)}</div>
         ${meta.length ? `<div class="tmeta">${meta.join(' · ')}</div>` : ''}
         ${differs ? `<div class="trew"><span class="only">Only here</span>${escapeHtml(rewardsLine(own))}</div>` : ''}</div>
-      <div class="joins">${joins}${locked || setup ? '' :
+      <div class="joins">${setup ? '' :
+        `<button class="ttag${tag ? ' set' : ''}" data-tag="${m.id}"
+          aria-label="Draw type for ${escapeHtml(m.name)}"
+          >${tag ? escapeHtml(tag) : 'untagged'}</button>`}${joins}${locked || setup ? '' :
         `<button class="trewbtn" data-sc="${m.id}"
           aria-label="Results for ${escapeHtml(m.name)}">Results</button>` +
         `<button class="trewbtn${differs?' set':''}" data-rew="${m.id}"
@@ -3695,6 +3848,10 @@ function renderTournList(list, ms, {setup, locked, who}){
     btn.addEventListener('click', ()=>openRewards('match', btn.dataset.rew)));
   list.querySelectorAll('[data-sc]').forEach(btn=>
     btn.addEventListener('click', ()=>openScores(btn.dataset.sc)));
+  // Not gated on the lock: what shape a draw is belongs to the event, not to
+  // whichever child's tab happens to be open.
+  list.querySelectorAll('[data-tag]').forEach(btn=>
+    btn.addEventListener('click', ()=>askTag(btn.dataset.tag)));
   list.querySelectorAll('.rwin').forEach(inp=>
     inp.addEventListener('change', ()=>setResult(inp.dataset.m, inp.dataset.p, 'wins', inp.value)));
   list.querySelectorAll('.rpl').forEach(inp=>
@@ -3736,27 +3893,37 @@ function renderSetup(){
 function renderMatches(){
   const locked = viewLocked();
 
-  // On a child's tab, their rewards are the only ones worth showing.
+  /* One row per scheme, and a scheme belongs to a shape of draw rather than to
+     a child: both children on a knockout play for the same terms, and one child
+     who plays both shapes is paid by each. Which shape a tournament is comes
+     from the tag it carries. */
   const rewrow = document.getElementById('rewrow');
-  const rewkids = whoShown() ? [whoShown()] : state.players;
-  rewrow.innerHTML = rewkids.map(p=>{
-    const r = kidScheme(p);
-    return `<div class="rewkid" style="--c:${p.colour}"><span class="rknm">${escapeHtml(p.name)}</span>` +
+  const tags = knownTags();
+  rewrow.innerHTML = tags.map(t=>{
+    const r = schemeOfTag(t);
+    const used = allMatches().filter(m => tagOf(m.id) === t).length;
+    return `<div class="rewkid"><span class="rknm">${escapeHtml(t)}</span>` +
       (r ? `<span class="rkline">${escapeHtml(rewardsLine(r))}</span>`
-         : '<span class="rknone">nothing set — every tournament pays nothing</span>') +
-      (locked ? ''
-              : `<button data-rewkid="${p.id}" aria-label="${r ? 'Edit' : 'Set'} ${escapeHtml(p.name)} rewards"` +
-                `>${r ? 'Edit' : 'Set rewards'}</button>`) +
+         : '<span class="rknone">no scheme yet — tournaments tagged ' +
+           `${escapeHtml(t)} pay nothing</span>`) +
+      `<span class="rkuse">${used} tournament${used === 1 ? '' : 's'}</span>` +
+      `<button data-rewtag="${escapeHtml(t)}" aria-label="${r ? 'Edit' : 'Set'} the ${escapeHtml(t)} scheme"` +
+      `>${r ? 'Edit' : 'Set rewards'}</button>` +
       '</div>';
-  }).join('') || '<span class="hint" style="margin:0">Add a child on Setup and you can say what they play for.</span>';
-  rewrow.querySelectorAll('[data-rewkid]').forEach(btn=>
-    btn.addEventListener('click', ()=>openRewards('kid', btn.dataset.rewkid)));
+  }).join('') +
+    '<div class="rewkid rewadd"><button data-rewtag=""' +
+    ' aria-label="Add a scheme">Add a scheme</button>' +
+    (tags.length ? '' : '<span class="rknone">nothing set — every tournament pays nothing</span>') +
+    '</div>';
+  rewrow.querySelectorAll('[data-rewtag]').forEach(btn=>
+    btn.addEventListener('click', ()=>openRewards('tag', btn.dataset.rewtag)));
 
   const lock = document.getElementById('wholock');
   lock.hidden = !locked;
   if(locked) lock.textContent =
-    'Everyone is the whole season, read only. Pick a child above to change anything — ' +
-    'their entries, their rewards, their results.';
+    'Everyone is the whole season, read only. Pick a child above to change what is ' +
+    'theirs — their results. The schemes above belong to no one child, so they can ' +
+    'be set from here.';
 
   renderWhoFilter();
 
@@ -3826,7 +3993,7 @@ function runSeasonChecks(ms){
   const owed = [];
   ms.filter(m => m.end < today).forEach(m=>{
     kids.forEach(p=>{
-      if(!hasRewards(schemeFor(m, p))) return;
+      if(!hasRewards(schemeFor(m))) return;
       if(!kidOnMatch(p, m, Number(m.start.slice(0,4)))) return;
       const r = resultOf(m.id, p.id);
       if(!r || r.wins === null) owed.push(`${p.name} at ${m.name}`);

@@ -2623,7 +2623,7 @@ group('tournament rewards');
   }
 }
 
-group('rewards belong to the child');
+group('rewards belong to the shape of the draw');
 {
   const Y = new Date().getFullYear();
   const PAST = Y - 1;
@@ -2633,9 +2633,9 @@ group('rewards belong to the child');
     return el ? el.textContent.replace('Only here', '') : '';
   };
   const isException = (d, t) => rowNamed(d, t).querySelector('[data-rew]').classList.contains('set');
-  const kidRow = (d, kid) => $$(d, '.rewkid').find(r => r.textContent.trim().startsWith(kid));
-  const kidLine = (d, kid) => {
-    const el = kidRow(d, kid).querySelector('.rkline');
+  const tagRow = (d, tag) => $$(d, '.rewkid').find(r => r.textContent.trim().startsWith(tag));
+  const tagLine = (d, tag) => {
+    const el = tagRow(d, tag).querySelector('.rkline');
     return el ? el.textContent : '';
   };
   const fillRew = (dom, d, o) => {
@@ -2644,6 +2644,20 @@ group('rewards belong to the child');
       'r-p3': o.p3, 'r-imp': o.imp, 'r-note': o.note,
     })) input(dom, $(d, '#' + id), v ?? '');
     click(dom, $(d, '#r-ok'));
+  };
+  // A tournament says which shape of draw it is, and that is what joins it to a
+  // scheme. The prompt is answered for it.
+  const tagIt = (dom, d, t, tag) => {
+    dom.window.prompt = () => tag;
+    click(dom, rowNamed(d, t).querySelector('[data-tag]'));
+  };
+  // Writing the scheme a tag is filed under. Adding one and editing one are the
+  // same dialog, told apart by whether the tag is already on the page.
+  const setTagRew = (dom, d, tag, o) => {
+    const row = tagRow(d, tag);
+    click(dom, row ? row.querySelector('button') : $(d, '.rewadd button'));
+    input(dom, $(d, '#r-tag'), tag);
+    fillRew(dom, d, o);
   };
   // Everyone changes nothing, so every edit below goes through a child's tab.
   const tabTo = (dom, d, kid) => {
@@ -2655,11 +2669,7 @@ group('rewards belong to the child');
     const t = $$(d, '#whofilter button[data-who]')[0];
     if (t) click(dom, t);
   };
-  const setKidRew = (dom, d, kid, o) => {
-    tabTo(dom, d, kid);
-    click(dom, kidRow(d, kid).querySelector('button'));
-    fillRew(dom, d, o);
-  };
+
   const setMatchRew = (dom, d, t, o, kid) => {
     tabTo(dom, d, kid || 'Ian');
     click(dom, rowNamed(d, t).querySelector('[data-rew]'));
@@ -2694,82 +2704,118 @@ group('rewards belong to the child');
     click(dom, $$(d, '#whofilter button[data-who]')[1]);
     addTourn(dom, d, { name: 'U10 Red Ball Series One', start: `${PAST}-11-14` });
     addTourn(dom, d, { name: 'U10 Red Ball Series Two', start: `${Y}-03-07` });
+    // Both are group draws, which is what joins them to a scheme.
+    tagIt(dom, d, 'Series One', 'group');
+    tagIt(dom, d, 'Series Two', 'group');
     click(dom, $$(d, '#whofilter button[data-who]')[0]);
     return { dom, d };
   };
 
   {
     const { dom, d } = setup();
-    ok('every child gets a line in the rewards box', $$(d, '.rewkid').length === 2);
-    ok('and starts with nothing set',
-       kidRow(d, 'Ian').textContent.includes('nothing set'), kidRow(d, 'Ian').textContent);
+    ok('a tag in use gets a line in the rewards box, whoever plays it',
+       $$(d, '.rewkid .rknm').map(e => e.textContent).join() === 'group',
+       $$(d, '.rewkid .rknm').map(e => e.textContent).join());
+    ok('and starts with no scheme behind it',
+       tagRow(d, 'group').textContent.includes('no scheme yet'),
+       tagRow(d, 'group').textContent);
+    ok('it says how many tournaments carry it',
+       tagRow(d, 'group').textContent.includes('2 tournaments'),
+       tagRow(d, 'group').textContent);
 
-    setKidRew(dom, d, 'Ian',
+    setTagRew(dom, d, 'group',
       { win: 5, p1: 50, p2: 30, imp: 5, note: 'Red ball, played in group' });
-    ok('the standard is listed once, up in the box',
-       kidLine(d, 'Ian') ===
+    ok('the scheme is listed once, up in the box',
+       tagLine(d, 'group') ===
          '$5 a win · 1st $50 · 2nd $30 · $5 for beating last count · Red ball, played in group',
-       kidLine(d, 'Ian'));
-    ok('and is stored on the child, not on any tournament',
-       saved(dom).players[0].rewards.perWin === 5 &&
-       Object.keys(saved(dom).rewards).length === 0,
-       JSON.stringify(saved(dom).rewards));
+       tagLine(d, 'group'));
+    ok('and is stored under its tag, on no child and no tournament',
+       saved(dom).schemes.group.perWin === 5 &&
+       Object.keys(saved(dom).rewards).length === 0 &&
+       !('rewards' in saved(dom).players[0]),
+       JSON.stringify(saved(dom).schemes));
     ok('no tournament repeats it',
        rewLine(d, 'Series One') === '' && rewLine(d, 'Series Two') === '');
+    // the Rewards button on a row is a child's business, so it wants a tab
+    tabTo(dom, d, 'Ian');
     ok('and none is marked an exception',
        !isException(d, 'Series One') && !isException(d, 'Series Two'));
-    tabAll(dom, d);   // Everyone lists every child's standard side by side
-    ok('one child having a scheme does not give the other one',
-       kidRow(d, 'Olivia').textContent.includes('nothing set'), kidRow(d, 'Olivia').textContent);
 
-    // the standard is what pays
-    enter(dom, d, 'Series One', 0);          // Ian
-    enter(dom, d, 'Series One', 1);          // Olivia
-    tabTo(dom, d, 'Ian');
-    ok('the child with a standard gets result boxes', !!resRow(d, 'Series One', 'Ian'));
-    tabTo(dom, d, 'Olivia');   // on her own tab, so what is missing is hers
-    ok('the child without one still gets them — how she did is her own fact',
-       !!resRow(d, 'Series One', 'Olivia'));
-    ok('but nothing is said about money', paid(d, 'Series One', 'Olivia') === null &&
-       !resRow(d, 'Series One', 'Olivia').textContent.includes('No result yet'),
-       resRow(d, 'Series One', 'Olivia').textContent);
+    // one scheme, and it pays whoever is playing
+    ok('the child on it gets result boxes', !!resRow(d, 'Series One', 'Ian'));
+    tabTo(dom, d, 'Olivia');
+    ok('and so does the other one', !!resRow(d, 'Series One', 'Olivia'));
     setRes(dom, d, 'Series One', 'Ian', 'wins', '3');
-    ok('and the standard is what pays out', paid(d, 'Series One', 'Ian') === '$15',
-       paid(d, 'Series One', 'Ian'));
+    setRes(dom, d, 'Series One', 'Olivia', 'wins', '3');
+    tabAll(dom, d);
+    ok('the tag is what pays, and pays them both alike',
+       paid(d, 'Series One', 'Ian') === '$15' && paid(d, 'Series One', 'Olivia') === '$15',
+       [paid(d, 'Series One', 'Ian'), paid(d, 'Series One', 'Olivia')].join(' / '));
     ok('Everyone shows it too, just without a way to change it',
-       (tabAll(dom, d), resRow(d, 'Series One', 'Ian').textContent.includes('$15') &&
-        !resRow(d, 'Series One', 'Ian').querySelector('input')),
+       resRow(d, 'Series One', 'Ian').textContent.includes('$15') &&
+       !resRow(d, 'Series One', 'Ian').querySelector('input'),
        resRow(d, 'Series One', 'Ian').textContent);
+
+    // an untagged tournament joins no scheme, and so pays nothing
+    tagIt(dom, d, 'Series Two', '');
+    tabTo(dom, d, 'Ian');
+    setRes(dom, d, 'Series Two', 'Ian', 'wins', '3');
+    ok('taking the tag off a tournament stops it paying',
+       paid(d, 'Series Two', 'Ian') === null, paid(d, 'Series Two', 'Ian'));
+    ok('and the other one is untouched', paid(d, 'Series One', 'Ian') === '$15',
+       paid(d, 'Series One', 'Ian'));
+  }
+
+  {
+    // one child, two shapes of draw — the thing a scheme per child could not do
+    const { dom, d } = setup();
+    setTagRew(dom, d, 'group', { win: 5 });
+    tagIt(dom, d, 'Series Two', 'knockout');
+    click(dom, $(d, '.rewadd button'));
+    input(dom, $(d, '#r-tag'), 'knockout');
+    click(dom, $(d, '#r-kind-knockout'));
+    input(dom, $(d, '#r-win'), '20');
+    input(dom, $(d, '#r-init'), '20');
+    click(dom, $(d, '#r-ok'));
+
+    ok('both schemes stand side by side',
+       $$(d, '.rewkid .rknm').map(e => e.textContent).sort().join() === 'group,knockout',
+       $$(d, '.rewkid .rknm').map(e => e.textContent).join());
+    tabTo(dom, d, 'Ian');
+    setRes(dom, d, 'Series One', 'Ian', 'wins', '3');
+    setRes(dom, d, 'Series Two', 'Ian', 'wins', '3');
+    ok('the same child is paid by the group scheme on a group draw',
+       paid(d, 'Series One', 'Ian') === '$15', paid(d, 'Series One', 'Ian'));
+    ok('and by the knockout scheme on a knockout',
+       paid(d, 'Series Two', 'Ian') === '$80', paid(d, 'Series Two', 'Ian'));
   }
 
   {
     // one tournament paying differently
     const { dom, d } = setup();
-    setKidRew(dom, d, 'Ian', { win: 5, imp: 5 });
-    enter(dom, d, 'Series One', 0);
+    setTagRew(dom, d, 'group', { win: 5, imp: 5 });
     setRes(dom, d, 'Series One', 'Ian', 'wins', '3');
-    enter(dom, d, 'Series Two', 0);
 
     setMatchRew(dom, d, 'Series Two', { win: 10 });
     ok('an exception shows on its row only', rewLine(d, 'Series Two') === '$10 a win',
        rewLine(d, 'Series Two'));
     ok('and is badged as such', isException(d, 'Series Two'));
     ok('the other tournament is untouched', rewLine(d, 'Series One') === '');
-    ok('the standard line is unchanged', kidLine(d, 'Ian') === '$5 a win · $5 for beating last count',
-       kidLine(d, 'Ian'));
+    ok('the tag’s own line is unchanged',
+       tagLine(d, 'group') === '$5 a win · $5 for beating last count', tagLine(d, 'group'));
     setRes(dom, d, 'Series Two', 'Ian', 'wins', '4');
     ok('the exception is what pays, bonus and all',
        paid(d, 'Series Two', 'Ian') === '$40', paid(d, 'Series Two', 'Ian'));
 
     // and back to the standard
     click(dom, rowNamed(d, 'Series Two').querySelector('[data-rew]'));
-    ok('the button offers the standard back',
-       $(d, '#r-clear').textContent === 'Use standard', $(d, '#r-clear').textContent);
+    ok('the button offers the tag’s scheme back',
+       $(d, '#r-clear').textContent === 'Use the tag’s', $(d, '#r-clear').textContent);
     ok('and the dialog says it is for this tournament alone',
        $(d, '#r-title').textContent.startsWith('Rewards, only here'), $(d, '#r-title').textContent);
     click(dom, $(d, '#r-clear'));
     ok('the exception goes', rewLine(d, 'Series Two') === '' && !isException(d, 'Series Two'));
-    ok('and the standard pays again, bonus included',
+    ok('and the tag pays again, bonus included',
        paid(d, 'Series Two', 'Ian') === '$25', paid(d, 'Series Two', 'Ian'));
 
     // an empty exception means this one pays nothing
@@ -2777,69 +2823,93 @@ group('rewards belong to the child');
     ok('an emptied tournament pays nothing at all', paid(d, 'Series Two', 'Ian') === null,
        paid(d, 'Series Two', 'Ian'));
     ok('though what he did there is still on the row', !!resRow(d, 'Series Two', 'Ian'));
-    ok('and the standard still pays everywhere else',
+    ok('and the tag still pays everywhere else',
        paid(d, 'Series One', 'Ian') === '$15', paid(d, 'Series One', 'Ian'));
   }
 
   {
-    // clearing the standard, and what survives a reload
+    // deleting a scheme, and what survives a reload
     const { dom, d } = setup();
-    setKidRew(dom, d, 'Ian', { win: 5, p2: 30, note: 'Group stage' });
-    enter(dom, d, 'Series One', 0);
+    setTagRew(dom, d, 'group', { win: 5, p2: 30, note: 'Group stage' });
     setRes(dom, d, 'Series One', 'Ian', 'wins', '6');
 
     const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
     const d2 = dom2.window.document;
     click(dom2, $(d2, '#nav-matches'));
-    ok('the standard comes back', kidLine(d2, 'Ian') === '$5 a win · 2nd $30 · Group stage',
-       kidLine(d2, 'Ian'));
-    ok('and still pays', paid(d2, 'Series One', 'Ian') === '$30',
+    ok('the scheme comes back', tagLine(d2, 'group') === '$5 a win · 2nd $30 · Group stage',
+       tagLine(d2, 'group'));
+    ok('and the tags with it', $$(d2, '.ttag.set').length === 2, $$(d2, '.ttag.set').length);
+    ok('and it still pays', paid(d2, 'Series One', 'Ian') === '$30',
        paid(d2, 'Series One', 'Ian'));
 
-    tabTo(dom2, d2, 'Ian');
-    click(dom2, kidRow(d2, 'Ian').querySelector('button'));
-    ok('a child’s own dialog offers a plain clear',
-       $(d2, '#r-clear').textContent === 'Clear', $(d2, '#r-clear').textContent);
+    click(dom2, tagRow(d2, 'group').querySelector('button'));
+    ok('a scheme’s own dialog offers to delete it',
+       $(d2, '#r-clear').textContent === 'Delete', $(d2, '#r-clear').textContent);
     click(dom2, $(d2, '#r-clear'));
-    ok('clearing the standard stops everything paying',
-       kidRow(d2, 'Ian').textContent.includes('nothing set') &&
-       paid(d2, 'Series One', 'Ian') === null, kidRow(d2, 'Ian').textContent);
+    ok('deleting it stops everything carrying the tag paying',
+       tagRow(d2, 'group').textContent.includes('no scheme yet') &&
+       paid(d2, 'Series One', 'Ian') === null, tagRow(d2, 'group').textContent);
+    ok('the tournaments keep the tag, ready for a scheme written again',
+       $$(d2, '.ttag.set').length === 2, $$(d2, '.ttag.set').length);
+    tabTo(dom2, d2, 'Ian');   // the boxes are his, so they want his tab
     ok('and the six wins he recorded are untouched',
        resRow(d2, 'Series One', 'Ian').querySelector('.rwin').value === '6',
        resRow(d2, 'Series One', 'Ian')?.querySelector('.rwin').value);
   }
 
   {
-    // two children, two bargains, on the same draw
+    // two children on one draw: one bargain, two purses
     const { dom, d } = setup();
-    setKidRew(dom, d, 'Ian', { win: 5 });
-    setKidRew(dom, d, 'Olivia', { win: 2, p1: 20 });
-    enter(dom, d, 'Series One', 0);
-    enter(dom, d, 'Series One', 1);
+    setTagRew(dom, d, 'group', { win: 5, p1: 20 });
     setRes(dom, d, 'Series One', 'Ian', 'wins', '4');
     setRes(dom, d, 'Series One', 'Olivia', 'wins', '4');
     setRes(dom, d, 'Series One', 'Olivia', 'place', '1');
     tabAll(dom, d);   // Everyone is where both purses are read side by side
-    ok('each child is paid their own way',
-       paid(d, 'Series One', 'Ian') === '$20' && paid(d, 'Series One', 'Olivia') === '$28',
+    ok('the same terms pay them both, and the placing tells them apart',
+       paid(d, 'Series One', 'Ian') === '$20' && paid(d, 'Series One', 'Olivia') === '$40',
        [paid(d, 'Series One', 'Ian'), paid(d, 'Series One', 'Olivia')].join(' / '));
     ok('and the season total keeps the two purses apart',
-       $(d, '#mnotes').textContent.includes('Ian $20 across 1 result; Olivia $28 across 1 result'),
+       $(d, '#mnotes').textContent.includes('Ian $20 across 1 result; Olivia $40 across 1 result'),
        $(d, '#mnotes').textContent);
     ok('the pooled figure is nowhere on the page',
-       !$(d, '#mnotes').textContent.includes('$48'), $(d, '#mnotes').textContent);
+       !$(d, '#mnotes').textContent.includes('$60'), $(d, '#mnotes').textContent);
   }
 
   {
-    // rubbish on a child must not reach the page
+    // rubbish under a tag must not reach the page
     const { dom } = setup();
     const seed = saved(dom);
-    seed.players[0].rewards = { perWin: 'five', places: 'nope', improve: -1, note: {} };
+    seed.schemes = { group: { perWin: 'five', places: 'nope', improve: -1, note: {} } };
     const dom2 = boot({ [KEY]: JSON.stringify(seed) });
     const d2 = dom2.window.document;
     click(dom2, $(d2, '#nav-matches'));
-    ok('a broken standard reads as nothing set',
-       kidRow(d2, 'Ian').textContent.includes('nothing set'), kidRow(d2, 'Ian').textContent);
+    ok('a broken scheme reads as none at all',
+       tagRow(d2, 'group').textContent.includes('no scheme yet'),
+       tagRow(d2, 'group').textContent);
+  }
+
+  {
+    // a plan written when a scheme belonged to a child
+    const { dom } = setup();
+    const seed = saved(dom);
+    delete seed.schemes;
+    delete seed.matchTag;
+    seed.players[0].rewards =
+      { kind: 'group', perWin: 5, places: [50], improve: 0, bestEver: 0, note: '' };
+    const dom2 = boot({ [KEY]: JSON.stringify(seed) });
+    const d2 = dom2.window.document;
+    click(dom2, $(d2, '#nav-matches'));
+    ok('the child’s old standard becomes the scheme for its shape',
+       saved(dom2).schemes.group.perWin === 5, JSON.stringify(saved(dom2).schemes));
+    ok('and every tournament it was paying takes that shape as its tag',
+       $$(d2, '.ttag.set').length === 2, $$(d2, '.ttag.set').length);
+    ok('so the same afternoons go on paying the same money',
+       (click(dom2, $$(d2, '#whofilter button[data-who]')[1]),
+        change(dom2, resRow(d2, 'Series One', 'Ian').querySelector('.rwin'), '3'),
+        paid(d2, 'Series One', 'Ian') === '$15'),
+       paid(d2, 'Series One', 'Ian'));
+    ok('and nothing is left on the child', !('rewards' in saved(dom2).players[0]),
+       JSON.stringify(saved(dom2).players[0]));
   }
 }
 
@@ -3072,18 +3142,19 @@ group('a group draw and a knockout draw pay for different things');
   }
 
   {
-    // the standard on a child carries a shape as well
+    // a scheme filed under a tag carries a shape as well
     const { dom, d } = setup();
-    const kidRow = [...$$(d, '.rewkid')].find(r => r.textContent.trim().startsWith('Ian'));
-    click(dom, kidRow.querySelector('button'));
+    click(dom, $(d, '.rewadd button'));
+    input(dom, $(d, '#r-tag'), 'knockout');
     saveRew(dom, d, 'knockout', { init: 20, win: 20, qf: 30, p1: 100 });
     ok('a blank improvement line is simply not paid',
-       saved(dom).players[0].rewards.bestEver === 0,
-       JSON.stringify(saved(dom).players[0].rewards));
-    ok('a child’s standard can be a knockout one',
-       saved(dom).players[0].rewards.kind === 'knockout',
-       JSON.stringify(saved(dom).players[0].rewards));
-    const line = $(d, '.rewkid .rkline');
+       saved(dom).schemes.knockout.bestEver === 0,
+       JSON.stringify(saved(dom).schemes));
+    ok('a scheme can be a knockout one',
+       saved(dom).schemes.knockout.kind === 'knockout',
+       JSON.stringify(saved(dom).schemes));
+    const line = [...$$(d, '.rewkid')]
+      .find(r => r.textContent.trim().startsWith('knockout')).querySelector('.rkline');
     ok('and reads as one in the rewards box',
        line.textContent === '$20 to start · $20 a round · quarterfinal $30 · 1st $100',
        line.textContent);
@@ -3330,17 +3401,17 @@ group('a suggested scheme is the weakest one');
 
   {
     const { paid } = await paidOn(STANDARD, { perWin: 1 });
-    ok('the child’s standard outranks what the feed suggests', paid === '$20', paid);
+    ok('the tag’s scheme outranks what the feed suggests', paid === '$20', paid);
   }
   {
     const { paid } = await paidOn(null, { perWin: 1 });
-    ok('but the suggestion still pays where the child has no standard',
+    ok('but the suggestion still pays where the tag has no scheme',
        paid === '$4', paid);
   }
   {
     // the bug: any object at all used to count as a scheme and swallow the rest
     const { paid } = await paidOn(STANDARD, { note: '' });
-    ok('an empty suggestion does not stop the standard paying', paid === '$20', paid);
+    ok('an empty suggestion does not stop the tag paying', paid === '$20', paid);
   }
   {
     const { paid, row } = await paidOn(STANDARD, undefined);
@@ -3355,22 +3426,24 @@ group('a suggested scheme is the weakest one');
     await settle();
     click(dom, $(d, '#nav-matches'));
     click(dom, $$(d, '#tournlist .tourn')[0].querySelector('[data-rew]'));
-    ok('the dialog opens on the suggestion, ready to accept',
-       $(d, '#r-win').value === '1', $(d, '#r-win').value);
+    // Whatever is paying today is what it opens on, so leaving it alone changes
+    // nothing — here the tag's scheme, which outranks the feed's suggestion.
+    ok('the dialog opens on what pays now, ready to accept',
+       $(d, '#r-win').value === '5', $(d, '#r-win').value);
     input(dom, $(d, '#r-win'), '9');
     click(dom, $(d, '#r-ok'));
-    ok('an exception set here beats the standard and the suggestion both',
+    ok('an exception set here beats the tag and the suggestion both',
        $$(d, '#tournlist .tourn')[0].querySelector('.rpay').textContent === '$36',
        $$(d, '#tournlist .tourn')[0].querySelector('.rpay').textContent);
     ok('and only then is the row badged',
        $$(d, '#tournlist .tourn')[0].querySelector('[data-rew]').classList.contains('set'));
   }
   {
-    // the new buttons name what they act on
+    // the buttons name what they act on
     const { d } = await paidOn(STANDARD, undefined);
-    ok('the standard’s button names the child',
-       $(d, '[data-rewkid]').getAttribute('aria-label') === 'Edit Ian rewards',
-       $(d, '[data-rewkid]').getAttribute('aria-label'));
+    ok('a scheme’s button names its tag',
+       $(d, '[data-rewtag]').getAttribute('aria-label') === 'Edit the group scheme',
+       $(d, '[data-rewtag]').getAttribute('aria-label'));
     ok('and a row’s button names the tournament',
        $(d, '[data-rew]').getAttribute('aria-label') === 'Rewards for U10 Red Ball Feed Event',
        $(d, '[data-rew]').getAttribute('aria-label'));
@@ -3396,14 +3469,14 @@ group('a child’s tab scopes the whole view');
   // Everyone changes nothing, so all of this is done on the children's tabs.
   const goTab = name => click(dom, name === null ? tabs(d)[0] : tabNamed(d, name));
   const row = () => $$(d, '#tournlist .tourn')[0];
-  const setKid = (kid, o) => {
-    goTab(kid);
-    click(dom, $$(d, '.rewkid').find(r => r.textContent.trim().startsWith(kid)).querySelector('button'));
-    for (const [id, v] of Object.entries({ 'r-win': o.win })) input(dom, $(d, '#' + id), v ?? '');
-    click(dom, $(d, '#r-ok'));
-  };
-  setKid('Ian', { win: 5 });
-  setKid('Olivia', { win: 10 });
+  // One scheme, tagged, paying whoever plays a draw of that shape. What tells
+  // the two purses apart is the afternoon each of them had.
+  dom.window.prompt = () => 'group';
+  click(dom, row().querySelector('[data-tag]'));
+  click(dom, $(d, '.rewadd button'));
+  input(dom, $(d, '#r-tag'), 'group');
+  input(dom, $(d, '#r-win'), '5');
+  click(dom, $(d, '#r-ok'));
   // both are on it already, the age rule having nothing against either, so each
   // has boxes on their own tab
   goTab('Ian');
@@ -3420,15 +3493,17 @@ group('a child’s tab scopes the whole view');
 
   // on Everyone, everything is shown
   ok('Everyone lists both purses',
-     notes(d).includes('Ian $15 across 1 result; Olivia $20 across 1 result'), notes(d));
-  ok('and both standards', rewNames(d).join(',') === 'Ian,Olivia', rewNames(d).join(','));
+     notes(d).includes('Ian $15 across 1 result; Olivia $10 across 1 result'), notes(d));
+  ok('the rewards box names schemes, which belong to no child',
+     rewNames(d).join(',') === 'group', rewNames(d).join(','));
   ok('and both result boxes', row().querySelectorAll('.res').length === 2);
 
   // on Ian's tab, only Ian
   click(dom, tabNamed(d, 'Ian'));
   ok('his tab shows his purse alone',
      notes(d).includes('Ian $15 across 1 result') && !notes(d).includes('Olivia'), notes(d));
-  ok('and his standard alone', rewNames(d).join(',') === 'Ian', rewNames(d).join(','));
+  ok('and the schemes are the same wherever you stand',
+     rewNames(d).join(',') === 'group', rewNames(d).join(','));
   // who else is in it is a fact about the event; his own name on his own tab
   // is not, that tab holding only the tournaments he is on
   ok('the row still shows who else is in it',
@@ -3440,7 +3515,7 @@ group('a child’s tab scopes the whole view');
   // and back
   click(dom, tabs(d)[0]);
   ok('Everyone brings the other child back',
-     notes(d).includes('Olivia $20') && rewNames(d).length === 2, notes(d));
+     notes(d).includes('Olivia $10'), notes(d));
 
   // the family-wide check belongs to Everyone, but the adding does not
   goTab('Ian');
@@ -3495,7 +3570,7 @@ group('Everyone changes nothing');
     ok('no Kids box on this page', !$(d, '#view-matches').contains($(d, '#kidsbox')));
     ok('nor the import box', !$(d, '#view-matches').contains($(d, '#importbox')));
     ok('nor the add form', !$(d, '#view-matches').contains($(d, '#addbox')));
-    ok('no editing a standard', !$(d, '.rewkid button'));
+    ok('a scheme can still be set, belonging to no child', !!$(d, '.rewkid button'));
     ok('no Rewards on a row', !$(d, '#tournlist .tourn .trewbtn'));
     ok('no deleting a tournament from here', !$(d, '#tournlist .tourn .tdel'));
     ok('who is playing is stated, never offered',
@@ -3503,7 +3578,7 @@ group('Everyone changes nothing');
        $$(d, '#tournlist .tourn .join').map(c => c.tagName).join());
 
     // but the season itself is still legible
-    ok('both standards are still listed', $$(d, '#rewrow .rewkid').length === 2,
+    ok('the schemes are still listed', $$(d, '#rewrow .rewkid').length >= 1,
        $$(d, '#rewrow .rewkid').length);
     ok('and the tournament is still there', $$(d, '#tournlist .tourn').length === 1);
     ok('and the season check still reads', !$(d, '#checksbox').hidden);
@@ -3551,11 +3626,12 @@ group('Everyone changes nothing');
     addTourn(dom, d, { name: 'Club Open Day', start: `${Y - 1}-11-01` });   // while editable
     addKid(dom, d, 'Olivia', Y - 13);
     click(dom, tabs(d)[1]);                                   // Ian
-    click(dom, $(d, '.rewkid button'));
+    dom.window.prompt = () => 'group';
+    click(dom, $(d, '#tournlist .tourn [data-tag]'));
+    click(dom, $(d, '.rewadd button'));
+    input(dom, $(d, '#r-tag'), 'group');
     input(dom, $(d, '#r-win'), '5');
     click(dom, $(d, '#r-ok'));
-    click(dom, $(d, '#tournlist .tourn .join'));
-    click(dom, $(d, '#tournlist .tourn .join'));                          // entered
     change(dom, $(d, '#tournlist .tourn .rwin'), '4');
     ok('his tab totals it up', $(d, '#tournlist .tourn .rpay').textContent === '$20',
        $(d, '#tournlist .tourn .rpay').textContent);
@@ -4398,8 +4474,10 @@ group('taking the figures the dialog offers');
   addKid(dom, d, 'Ian', Y - 9);
   addTourn(dom, d, { name: 'Club Meet', start: `${Y}-03-07` });
   click(dom, $(d, '#nav-matches'));
+  dom.window.prompt = () => 'group';
+  click(dom, $(d, '#tournlist .tourn [data-tag]'));
 
-  click(dom, $(d, '#rewrow [data-rewkid]'));
+  click(dom, $(d, '#rewrow [data-rewtag]'));
   ok('the lines show figures without holding them',
      $(d, '#r-win').placeholder === '5' && $(d, '#r-win').value === '',
      `${$(d, '#r-win').placeholder}/${$(d, '#r-win').value}`);
@@ -4412,11 +4490,11 @@ group('taking the figures the dialog offers');
   // Whatever is written down, nothing is owed: every line came back nought, so
   // the box still says so and no tournament pays.
   ok('saving them untouched leaves nothing set',
-     $(d, '#rewrow').textContent.includes('nothing set'), $(d, '#rewrow').textContent);
-  ok('and no line is paid', (saved(dom).players[0].rewards || {}).perWin === 0,
-     JSON.stringify(saved(dom).players[0].rewards));
+     $(d, '#rewrow').textContent.includes('no scheme yet'), $(d, '#rewrow').textContent);
+  ok('and no line is paid', (saved(dom).schemes.group || {}).perWin === 0,
+     JSON.stringify(saved(dom).schemes));
 
-  click(dom, $(d, '#rewrow [data-rewkid]'));
+  click(dom, $(d, '#rewrow [data-rewtag]'));
   click(dom, $(d, '#r-take'));
   ok('“Use these” fills the lines as values',
      $(d, '#r-win').value === '5' && $(d, '#r-p1').value === '50' &&
@@ -4429,8 +4507,8 @@ group('taking the figures the dialog offers');
      `${$(d, '#r-qf').value}/${$(d, '#r-init').value}`);
 
   click(dom, $(d, '#r-ok'));
-  ok('and saving now stores the scheme', saved(dom).players[0].rewards.perWin === 5,
-     JSON.stringify(saved(dom).players[0].rewards));
+  ok('and saving now stores the scheme', saved(dom).schemes.group.perWin === 5,
+     JSON.stringify(saved(dom).schemes));
   ok('so the box at the top reads it back',
      $(d, '#rewrow').textContent.includes('$5 a win'), $(d, '#rewrow').textContent);
 
@@ -4444,7 +4522,7 @@ group('taking the figures the dialog offers');
      $(d, '#tournlist .rwhy').textContent);
 
   // a knockout offers its own figures, and its own lines
-  click(dom, $(d, '#rewrow [data-rewkid]'));
+  click(dom, $(d, '#rewrow [data-rewtag]'));
   click(dom, $(d, '#r-kind-knockout'));
   click(dom, $(d, '#r-take'));
   ok('the knockout column is taken whole',

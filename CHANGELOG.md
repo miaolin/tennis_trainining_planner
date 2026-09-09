@@ -5,6 +5,55 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.18.0] — 2026-09-09
+
+### Changed
+
+- **A rewards scheme belongs to a shape of draw now, not to a child.** A child
+  had one standard and it carried the shape inside it, so a child who played
+  both a group and a knockout could only be paid properly for one of them: every
+  event of the other shape needed an exception of its own. That is the wrong
+  place for the shape to live. A group pays for every match won and for where
+  they finish; a knockout pays for turning up and for every rung climbed. Those
+  are facts about the draw, and none of them is about whose season it is.
+
+  So a scheme is filed under a **tag**, and a tournament carries one. Two
+  children on the same shape play for the same terms; one child across two
+  shapes is paid by each. Free text rather than a fixed pair, so a season that
+  grows a third kind of event needs no new code.
+
+  Schemes resolve as before, with the middle rung changed:
+
+      tournament exception  →  the tag's scheme  →  a data/matches.json suggestion
+
+- **The tag and the schemes can be set from Everyone.** That tab is read-only
+  because every edit on it belongs to whichever child it is about — and neither
+  of these does. What shape a draw is belongs to the event; a scheme belongs to
+  nobody.
+
+### Added
+
+- **A chip on each tournament row saying what shape of draw it is**, and asking
+  when it does not know. Untagged reads as unset rather than as a fault, because
+  it is not one — but it does mean nothing is being paid, so it does not read as
+  settled either. The tags already in use are offered when a new one is asked
+  for, so the second event of a kind is a copy rather than a spelling test.
+
+- **The rewards box counts what each scheme is paying** — *2 tournaments* — so a
+  scheme nothing carries is easy to spot, and so is a tag with no scheme behind
+  it.
+
+### Migration
+
+Read forward without asking. Each child's standard becomes the scheme for its
+shape, and every tournament that standard was paying takes that shape as its
+tag, so the same afternoons go on paying the same money.
+
+Two children with standards of the *same* shape is the one case that cannot
+survive whole, there being one scheme per shape now: the first is kept and the
+second dropped rather than silently averaged. Where the two children played
+different shapes — the case this change exists for — both survive.
+
 ## [2.17.1] — 2026-09-09
 
 ### Fixed
