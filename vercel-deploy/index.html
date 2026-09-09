@@ -1859,6 +1859,9 @@ function setRewardKind(kind){
   document.getElementById('r-row-p3').hidden = ko;
   document.getElementById('r-row-p4').hidden = ko;
   document.getElementById('r-winlab').textContent = ko ? 'Per round' : 'Per win';
+  // The tag standing in follows the shape. A dialog offering Group against a
+  // knockout column is proposing a name for the wrong thing.
+  document.getElementById('r-tag').placeholder = KIND_TAG[rewardKind];
   for(const [el, v] of [['r-init', tpl.init], ['r-win', tpl.win], ['r-qf', tpl.qf],
                         ['r-p1', tpl.p1], ['r-p2', tpl.p2], ['r-p3', tpl.p3],
                         ['r-p4', tpl.p4], ['r-imp', tpl.imp], ['r-best', tpl.best],

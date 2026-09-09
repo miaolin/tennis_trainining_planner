@@ -3047,6 +3047,8 @@ group('a group draw and a knockout draw pay for different things');
          '$20 to start · $20 a round · quarterfinal $30 · 2nd $50 · 1st $100 · ' +
          '$30 for beating last count · $50 for a personal best',
        rewLine(d, 'Autumn Cup'));
+    ok('the tag standing in follows the shape',
+       $(d, '#r-tag').placeholder === 'Knockout', $(d, '#r-tag').placeholder);
     ok('the shape is saved with the figures', schemeOf(dom).kind === 'knockout',
        JSON.stringify(schemeOf(dom)));
     ok('and so are the two lines only a knockout has',

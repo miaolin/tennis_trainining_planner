@@ -5,6 +5,14 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.19.2] — 2026-09-09
+
+### Fixed
+
+- **The tag standing in on the rewards dialog follows the shape.** Picking
+  Knockout left it offering *Group*, which is a name for the wrong thing beside
+  a knockout column.
+
 ## [2.19.1] — 2026-09-09
 
 ### Changed
