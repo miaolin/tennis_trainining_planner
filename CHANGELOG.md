@@ -5,6 +5,20 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.0] — 2026-09-09
+
+### Added
+
+- **A plan written for one child can be copied to the other.** The weeks a
+  block runs, the days it rests, the shape of a build-up — none of that is
+  different because the child is. What differs is an hour here and a session
+  there, which is an edit rather than a second afternoon's work.
+
+  *Copy to…* in the block bar offers whichever children the block does not
+  belong to, and lands the page on the copy, filed under its new owner and
+  ready to be changed. It is a copy and not a link: the two go their own ways
+  from the moment it is made, which is the whole point of making one.
+
 ## [2.23.1] — 2026-09-09
 
 ### Changed

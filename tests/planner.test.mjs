@@ -4825,6 +4825,70 @@ group('taking the figures the dialog offers');
      `${$(d, '#r-p3').value}/${$(d, '#r-p4').value}`);
 }
 
+group('a plan written for one child, fitted to the other');
+{
+  /* The weeks a block runs, the days it rests, the shape of a build-up — none
+     of that is different because the child is. What differs is an hour here and
+     a session there, which is an edit rather than a second afternoon's work. */
+  const dom = boot({ [KEY]: twoKidPlan() });
+  const d = dom.window.document;
+  const blocks = () => saved(dom).blocks;
+  const copier = () => $(d, '#copyto');
+  const opts = () => [...copier().options];
+
+  ok('the copier offers the child the block does not belong to',
+     !copier().hidden && opts().length === 2 && opts()[1].textContent === 'Ian',
+     opts().map(o => o.textContent).join('|'));
+  ok('and never the child it already belongs to',
+     !opts().some(o => o.value === 'pa'), opts().map(o => o.value).join('|'));
+
+  const before = JSON.parse(JSON.stringify(activeBlock(dom)));
+  change(dom, copier(), 'pb');
+
+  ok('a copy is made rather than the block being handed over',
+     blocks().length === 3, blocks().length);
+  const copy = activeBlock(dom);
+  ok('the page lands on the copy', copy.id !== before.id, copy.id);
+  ok('which belongs to the other child', copy.playerId === 'pb', copy.playerId);
+  ok('the original stays where it was',
+     JSON.stringify(blocks().find(b => b.id === 'ba')) === JSON.stringify(before),
+     JSON.stringify(blocks().find(b => b.id === 'ba')));
+  ok('the copy keeps the name, the start and the length',
+     copy.name === before.name && copy.start === before.start && copy.days === before.days,
+     [copy.name, copy.start, copy.days].join(' / '));
+  ok('and every session in the plan',
+     JSON.stringify(copy.plan) === JSON.stringify(before.plan),
+     JSON.stringify(copy.plan));
+
+  ok('the strip moves to the child it was copied to',
+     trainTabs(d).find(b => b.classList.contains('on')).textContent.startsWith('Ian'),
+     trainTabs(d).map(b => b.textContent.trim()).join('|'));
+  ok('and the copy is the block being shown',
+     blockTabs(d).find(b => b.classList.contains('on')).textContent.includes('Her block'),
+     blockTabs(d).map(b => b.textContent.trim()).join('|'));
+  ok('the copier now offers the child it came from',
+     opts().some(o => o.value === 'pa'), opts().map(o => o.textContent).join('|'));
+  ok('and it goes back to asking rather than holding an answer',
+     copier().value === '', copier().value);
+
+  // The two go their own ways from the moment the copy is made — which is the
+  // whole point of making one.
+  tap(dom, 'g2', daySlots(d, 1)[0]);
+  ok('editing the copy leaves the original alone',
+     JSON.stringify(blocks().find(b => b.id === 'ba')) === JSON.stringify(before),
+     JSON.stringify(blocks().find(b => b.id === 'ba')));
+  ok('and the copy is the one that changed',
+     JSON.stringify(activeBlock(dom).plan) !== JSON.stringify(before.plan),
+     JSON.stringify(activeBlock(dom).plan));
+}
+
+group('with one child there is nobody to copy a plan to');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  ok('the copier stays out of the way', $(d, '#copyto').hidden);
+}
+
 group('the block bar is one row');
 {
   const dom = boot();
@@ -4832,8 +4896,8 @@ group('the block bar is one row');
   const bars = $$(d, '#view-training .bar');
   ok('the block is described and acted on from one bar', bars.length === 1, bars.length);
   ok('the fields and the actions are all in it',
-     ['blockname', 'start', 'ends', 'blockwho', 'btn-clear', 'btn-copy', 'btn-print',
-      'btn-delete'].every(id => bars[0].contains($(d, '#' + id))),
+     ['blockname', 'start', 'ends', 'blockwho', 'copyto', 'btn-clear', 'btn-copy',
+      'btn-print', 'btn-delete'].every(id => bars[0].contains($(d, '#' + id))),
      bars[0].textContent.trim());
   // A plan is somebody's work by the time they would think of reloading over it.
   ok('and nothing offers to lay the suggested plan down again',
