@@ -5,6 +5,26 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.1] — 2026-09-09
+
+### Fixed
+
+- **Every child is asked the same questions about a block.** A child with no
+  block of their own was still shown the bar, holding the last block's name and
+  dates — somebody else's camp, presented as theirs, and presented without the
+  two controls that would have said whose it was. The bar describes a block, so
+  with no block there is now no bar: the page says there are none for this child
+  and offers to start one. When they do have one, they are asked exactly what
+  the other child is asked.
+
+### Changed
+
+- **The block bar holds one row again.** *Copy to…* was one control more than it
+  had room for, and the wrap left *Print* and *Delete block* stranded on a line
+  of their own. It is packed a little tighter now, and the name field gives up
+  its width first — it is the one thing on the bar the heading below already
+  says.
+
 ## [2.24.0] — 2026-09-09
 
 ### Added

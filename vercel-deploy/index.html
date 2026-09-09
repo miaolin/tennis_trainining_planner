@@ -135,8 +135,14 @@ input[type=date],input[type=time]{
 }
 input[type=date]::-webkit-date-and-time-value{text-align:left}
 input[type=date]::-webkit-calendar-picker-indicator{opacity:.7}
-input[type=text]#blockname{min-width:190px}
-input[type=number]#days{width:74px}
+/* The block bar carries nine controls and a wrap leaves two of them stranded
+   on a line of their own, so it is packed a little tighter than the rest and
+   the name field gives up its width first — it is the one thing on the bar the
+   heading below already says. */
+#blockedit{gap:10px}
+#blockedit>button,#blockedit>select,#blockedit>input{padding-left:11px;padding-right:11px}
+#blockedit input[type=date]{width:118px}
+input[type=text]#blockname{flex:1 1 60px;min-width:0}
 .lab{font-size:13px;color:var(--mute)}
 .spacer{flex:1}
 
@@ -935,7 +941,7 @@ input[type=number]#days{width:74px}
 
 <div class="blockbar" id="blockbar"></div>
 
-<div class="bar">
+<div class="bar" id="blockedit">
   <label class="lab" for="blockname">Block</label>
   <input type="text" id="blockname" maxlength="40">
   <label class="lab" for="start">Starts</label>
@@ -944,7 +950,6 @@ input[type=number]#days{width:74px}
   <input type="date" id="ends">
   <label class="lab" for="blockwho" id="blockwho-lab" hidden>Whose</label>
   <select id="blockwho" hidden></select>
-  <div class="spacer"></div>
   <select id="copyto" hidden></select>
   <button id="btn-clear">Clear all</button>
   <button id="btn-copy">Copy as text</button>
@@ -2272,6 +2277,10 @@ function renderTraining(){
   renderBlockBar();
   renderBlockWho(b);
   renderCopyTo(b);
+  /* With no block there is nothing to describe. The bar would otherwise keep
+     the last block's name and dates, and on a child who has none of their own
+     that is somebody else's camp shown as theirs. */
+  document.getElementById('blockedit').hidden = !b;
 
   if(!b){
     const who = state.players.find(p => p.id === trainWho);

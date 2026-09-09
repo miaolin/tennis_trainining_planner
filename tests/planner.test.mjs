@@ -4889,6 +4889,34 @@ group('with one child there is nobody to copy a plan to');
   ok('the copier stays out of the way', $(d, '#copyto').hidden);
 }
 
+group('every child is asked the same questions about a block');
+{
+  /* The bar describes a block. On a child with none of their own it used to
+     keep the last one's name and dates — somebody else's camp, shown as
+     theirs, and shown without the two controls that would have said whose. */
+  const dom = boot({ [KEY]: twoKidPlan() });
+  const d = dom.window.document;
+  const bar = () => $(d, '#blockedit');
+  const shown = () => [...bar().querySelectorAll('[id]')]
+    .filter(el => !el.hidden).map(el => el.id).sort().join('|');
+
+  click(dom, trainTabs(d).find(b => b.textContent.startsWith('Olivia')));
+  const hers = shown();
+  ok('her block is described in full', !bar().hidden && hers.includes('copyto'), hers);
+
+  click(dom, trainTabs(d).find(b => b.textContent.startsWith('Ian')));
+  ok('his block is asked exactly the same', !bar().hidden && shown() === hers, shown());
+
+  // and a child with no block of their own is shown no block at all
+  click(dom, trainTabs(d).find(b => b.textContent.startsWith('Olivia')));
+  dom.window.confirm = () => true;
+  click(dom, $(d, '#btn-delete'));
+  ok('with nothing of her own the bar goes rather than lying',
+     bar().hidden, $(d, '#blockname').value);
+  ok('and the page says why', $(d, '#notes').textContent.includes('No blocks for Olivia'),
+     $(d, '#notes').textContent.trim());
+}
+
 group('the block bar is one row');
 {
   const dom = boot();
