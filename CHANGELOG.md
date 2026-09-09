@@ -5,6 +5,21 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.25.0] — 2026-09-09
+
+### Changed
+
+- **A block is no longer asked whose it is when it already knows.** The tab a
+  block is read on names the child, and the line under the title says it again
+  — a picker that only repeats them is one more thing to read on a bar that was
+  already full. A block made on a child's tab is theirs, and *Copy to…* is how
+  one gets to the other child.
+
+  The question is still put to a block filed under nobody: one made on the
+  Everyone tab, one left behind by a child who has gone, or one saved before
+  the page knew about children at all. Age is what the load ceilings are read
+  from, so an unclaimed block is a real question and not a tidiness one.
+
 ## [2.24.1] — 2026-09-09
 
 ### Fixed

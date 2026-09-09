@@ -3757,9 +3757,9 @@ group('a training tab per child');
   addKid(dom, d, 'Ian', Y - 13);
   ok('Everyone plus a tab each, with two kids', trainTabs(d).length === 3,
      trainTabs(d).map(b => b.textContent.trim()).join('|'));
-  ok('and the picker turns up', !$(d, '#blockwho').hidden);
   ok('the block that was here already belongs to nobody',
      activeBlock(dom).playerId === null);
+  ok('so the page asks whose it is', !$(d, '#blockwho').hidden);
   ok('so it shows on the strip with a hollow dot',
      $(d, '#blockbar .btab .bdot') && !$(d, '#blockbar .btab .bdot').getAttribute('style'));
 
@@ -3806,19 +3806,34 @@ group('handing a block to a child');
 
   click(dom, trainTabs(d)[0]);
   click(dom, blockTabs(d)[0]);                       // Her block, still unowned
+  ok('a block filed under nobody is asked whose it is', !$(d, '#blockwho').hidden);
   change(dom, $(d, '#blockwho'), kids[0].id);
   ok('the picker assigns it',
      saved(dom).blocks.find(b => b.id === 'ba').playerId === kids[0].id);
+  // The tab it is read on names the child now, and so does the line under the
+  // title, so the question has an answer everywhere it could be put again.
+  ok('and is not asked again once it has an answer', $(d, '#blockwho').hidden);
+  ok('the line under the title says whose it is',
+     $(d, '#sub').textContent.startsWith('Olivia'), $(d, '#sub').textContent.slice(0, 30));
 
   click(dom, trainTabs(d)[2]);
   ok('and it drops off the other tab', blockTabs(d).length === 1,
      blockTabs(d).map(b => b.textContent).join('|'));
+  ok('where nothing is asked about whose his own block is', $(d, '#blockwho').hidden);
+}
 
-  // Handing it on from a child's tab would file it out of sight, so the page
-  // follows it rather than leaving the grid on a stranger.
-  click(dom, trainTabs(d)[1]);
-  change(dom, $(d, '#blockwho'), kids[1].id);
-  ok('handing it on moves you to the tab it went to',
+group('claiming a block for the other child follows it there');
+{
+  // Filing it under the other child on their tab would file it out of sight,
+  // so the page follows it rather than leaving the grid on a stranger.
+  const dom = boot({ [KEY]: twoKidPlan({ unowned: true }) });
+  const d = dom.window.document;
+  const kids = saved(dom).players;
+
+  click(dom, trainTabs(d)[1]);                       // Olivia, who has the unowned one
+  click(dom, blockTabs(d)[0]);
+  change(dom, $(d, '#blockwho'), kids[1].id);        // and it turns out to be his
+  ok('claiming it moves you to the tab it went to',
      trainTabs(d)[2].classList.contains('on'),
      trainTabs(d).map(b => b.className).join('|'));
   ok('and the grid is still on that block', activeBlock(dom).id === 'ba');
@@ -4924,7 +4939,7 @@ group('the block bar is one row');
   const bars = $$(d, '#view-training .bar');
   ok('the block is described and acted on from one bar', bars.length === 1, bars.length);
   ok('the fields and the actions are all in it',
-     ['blockname', 'start', 'ends', 'blockwho', 'copyto', 'btn-clear', 'btn-copy',
+     ['blockname', 'start', 'ends', 'copyto', 'btn-clear', 'btn-copy',
       'btn-print', 'btn-delete'].every(id => bars[0].contains($(d, '#' + id))),
      bars[0].textContent.trim());
   // A plan is somebody's work by the time they would think of reloading over it.
