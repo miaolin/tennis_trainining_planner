@@ -3050,11 +3050,15 @@ function cellNum(c){
   const v = parseInt(c, 10);
   return Number.isInteger(v) ? v : null;
 }
-// The name is the first cell that reads as one: the row opens with the player's
-// number in the group, which is a count and not a name.
+/* The name is the first cell that reads as one. A row opens with the player's
+   place in the group, which is written as a bare number on some sheets and as
+   the group letter and the number on others — D1, D2 — and that has letters in
+   it, so "has letters" alone would take it for the name. */
+const POS_LABEL = /^[A-Za-z]{0,2}\d{1,3}$/;
 function rowName(cells){
   for(const c of cells){
-    if(c && cellNum(c) === null && /[A-Za-z]/.test(c) && c.length > 1) return c;
+    if(!c || POS_LABEL.test(c) || cellNum(c) !== null) continue;
+    if(/[A-Za-z]/.test(c) && c.length > 1) return c;
   }
   return '';
 }
@@ -3076,18 +3080,24 @@ const MIN_INFER_ROWS = 4;
 function inferAim(rows){
   if(rows.length < MIN_INFER_ROWS) return null;
   const width = Math.max(...rows.map(c => c.length));
+  const col = i => rows.map(c => cellNum(c[i]));
   for(let i = width - 1; i >= 3; i--){
-    const seen = rows.map(c => cellNum(c[i])).filter(v => v !== null);
     // A player who withdrew has a dash for both, so a column need not be full —
     // but most of it has to be there, or this is a column of stray numbers.
-    if(seen.length < rows.length - 2 || seen.length < MIN_INFER_ROWS) continue;
-    if(new Set(seen).size !== seen.length) continue;        // placings do not repeat
-    if(seen.some(v => v < 1 || v > rows.length)) continue;  // nor run past the group
-    // Won is a count of matches rather than a placing, so it may repeat. It
-    // only has to be there, and to be a possible number of matches.
-    const won = rows.map(c => cellNum(c[i - 1])).filter(v => v !== null);
-    if(won.length < seen.length || won.some(v => v >= rows.length)) continue;
-    return {wonAt: i - 1, rankAt: i};
+    if(!looksRanked(col(i), rows.length)) continue;
+    const seen = col(i).filter(v => v !== null).length;
+    /* Won is somewhere to its left, and not always beside it: some sheets put a
+       points difference between the two. It is a count of matches rather than a
+       placing, so it repeats freely — what it cannot be is missing where a
+       placing is given, or larger than the players there were to beat. A
+       difference fails both, being negative half the time and outsized when it
+       is not. */
+    for(let j = i - 1; j >= 2; j--){
+      const won = col(j).filter(v => v !== null);
+      if(won.length >= seen && won.every(v => v < rows.length)) return {wonAt: j, rankAt: i};
+    }
+    // A placing on its own is still worth having.
+    return {wonAt: -1, rankAt: i};
   }
   return null;
 }
@@ -3101,9 +3111,30 @@ function readRow(cells, wonAt, rankAt){
   if(wins === null && place === null) return null;   // a row that played nothing
   return {name, wins, place};
 }
-// A line that looks like a player in a group: their number in it, then a name.
+// A line that looks like a player in a group: a name, and enough numbers to be
+// a row of results rather than a title.
 function isPlayerRow(cells){
-  return cells.length >= 6 && cellNum(cells[0]) !== null && !!rowName(cells);
+  return cells.length >= 6 && !!rowName(cells) &&
+         cells.filter(c => cellNum(c) !== null).length >= 3;
+}
+// No group awards a placing twice. Read a group at a time: two pasted together
+// both have a 1st, and that is not a fault.
+function groupsRanked(rows, starts){
+  const edges = starts.concat(rows.length);
+  for(let k = 0; k < edges.length - 1; k++){
+    const seg = rows.slice(edges[k], edges[k + 1])
+      .map(r => r.place).filter(v => v !== null);
+    if(new Set(seg).size !== seg.length) return false;
+  }
+  return true;
+}
+// Placings do not repeat. It is what identifies the column, and it is also the
+// check that a column claiming to be one really is.
+function looksRanked(vals, n){
+  const got = vals.filter(v => v !== null);
+  return got.length >= Math.max(MIN_INFER_ROWS, n - 2) &&
+         new Set(got).size === got.length &&
+         got.every(v => v >= 1 && v <= n);
 }
 
 /* Two ways in, tried in that order. A header naming Won and Rank is believed
@@ -3115,6 +3146,9 @@ function parseScorecard(text){
   let wonAt = -1, rankAt = -1, sawHeader = false;
   const out = [];
   const bare = [];
+  // Where each header's rows start in `out`. Placings are checked a group at a
+  // time, every group having a first place of its own.
+  const starts = [];
   lines.forEach(line => {
     const cells = splitCells(line);
     if(!cells.some(c => c)) return;
@@ -3131,6 +3165,7 @@ function parseScorecard(text){
       if(w >= 0) wonAt = w;
       if(r >= 0) rankAt = r;
       sawHeader = true;
+      starts.push(out.length);
       return;
     }
     if(wonAt < 0 && rankAt < 0){
@@ -3142,7 +3177,19 @@ function parseScorecard(text){
     const got = readRow(cells, wonAt, rankAt);
     if(got) out.push(got);
   });
-  if(out.length){ out.aimedBy = 'header'; return out; }
+  /* A header naming Won and Rank is believed — unless the placings it produces
+     repeat within one group, which no ranking does. That happens when the
+     header carries one cell per player and the rows below carry two, a score
+     pair each: the names line up and the numbers do not, and every figure read
+     is a score. Better to fall through to the shape of the block than to pay
+     against it.
+
+     Group by group, because several can be pasted at once and each has a first
+     place of its own — across the lot placings repeat for the best of reasons. */
+  if(out.length && groupsRanked(out, starts)){
+    out.aimedBy = 'header';
+    return out;
+  }
 
   // No header, or one that named nobody. Let the block's own shape say where
   // the columns are, and take it only if it speaks clearly.

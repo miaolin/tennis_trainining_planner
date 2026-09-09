@@ -5,6 +5,30 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.17.1] — 2026-09-09
+
+### Fixed
+
+- **A scorecard laid out differently read nobody.** Another draw came back with
+  its rows labelled by group and position — D1, D2 — rather than by a bare
+  number. The name is taken as the first cell that reads like one, and “has
+  letters in it” took D1 for the name, so the numbers came out right against a
+  player nobody was called. A label of a letter or two and a number is now
+  passed over.
+
+- **A points difference between Won and Rank stopped a headerless block being
+  read.** The columns were found by looking for the placing and taking the
+  count of wins beside it, and that sheet puts a difference in between. Won is
+  now looked for leftwards rather than immediately: it cannot be missing where a
+  placing is given, nor larger than the players there were to beat, and a
+  difference fails both — negative half the time and outsized when it is not.
+
+- **Two groups pasted together are checked a group at a time.** A header is
+  believed unless the placings it produces repeat, which is how a header written
+  a cell per player against two-cell rows gives itself away. Across two groups
+  they repeat for the best of reasons, each group having a first place of its
+  own, and the check was reading them as one.
+
 ## [2.17.0] — 2026-09-08
 
 ### Added
