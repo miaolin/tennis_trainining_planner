@@ -107,7 +107,7 @@ tests/                          jsdom harness + api tests — dev only, never de
 
   | Filter | What it does |
   | --- | --- |
-  | By child | one child's tournaments, once there are two children |
+  | By child | one child's tournaments, once there are two children. **All players** is every one of them |
   | By year | one season's, once there is more than one year on the list |
 
   Setting up is still its own page: who the children are and which tournaments
@@ -139,18 +139,21 @@ tests/                          jsdom harness + api tests — dev only, never de
   summed, and the purses are never added together — two children's winnings
   totalled is a number nobody settles up with.
 
-  The season check says what wants *doing*; the summary says where things
-  *stand*. They are the two halves of one glance, so the summary reads above the
-  list and the check below it.
+  **The season check reads underneath it, in the same box.** Where the season
+  stands and what it still wants are one thought: the summary says a child has
+  two results, and the line beneath says a third is owed. Two headings made them
+  read as two subjects.
 
-  What a shape of draw pays is set on **Setup**, with the rest of what the
-  family has settled. It is a standing fact rather than part of the season, and
-  a wall of figures over the thing being read is in the way. See below.
+- **Rewards** — what each shape of draw pays. Shown with **All players** and not
+  with one child: a scheme is the terms the whole family plays on, so it reads
+  with the whole family. Filtered to one child the question is how their season
+  is going, and the terms are not part of it. See below.
 - **Season checks** — an entry deadline inside 21 days on a tournament a child
   is on, the same child booked into two overlapping tournaments, provisional dates,
   the longest clear gap between tournaments as the window to book travel, a
-  finished tournament whose result nobody has entered. What has been earned is
-  in the summary above, not repeated here.
+  finished tournament whose result nobody has entered. It reads inside the
+  summary rather than in a box of its own, and what has been earned is in the
+  figures above it rather than repeated.
 - A tournament falling inside a training block shows that block's name, so
   build-up blocks are visible from the list. On a child's tab it prefers their
   own block over a sibling's; on Everyone it names whose block it is.
