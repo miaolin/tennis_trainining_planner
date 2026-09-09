@@ -613,6 +613,10 @@ input[type=number]#days{width:74px}
   background:transparent;color:var(--mute);
   font-size:12px;padding:5px 9px;cursor:pointer;
   transition:background .15s,border-color .15s,color .15s;
+  /* One width whatever the name is. A column of chips that steps in and out
+     with the length of each child's name reads as a ragged edge rather than as
+     a list, and every row is answering the same question. */
+  min-width:88px;justify-content:center;
 }
 .join .pip{width:7px;height:7px;border-radius:50%;background:var(--c);flex:none;opacity:.35}
 /* Both lists now ask one thing and it has two answers, so there is one pair of
@@ -1874,7 +1878,7 @@ function openRewards(kind, id){
   const r = (kind === 'tag' ? schemeOfTag(tag)
                             : matchScheme(subject) || tagScheme(subject) || feedScheme(subject))
             || {kind:'group', initial:0, perWin:0, places:[], qf:0, improve:0,
-                bestEver:0, note:''};
+                bestEver:0};
   document.getElementById('r-title').textContent = kind === 'tag'
     ? (tag ? 'Rewards — ' + tag : 'New scheme')
     : 'Rewards, only here — ' + (subject.name || '');
@@ -1906,9 +1910,6 @@ function commitRewards(){
   // The lock is about a child's own things, and a scheme is nobody's.
   if(!rewardTarget || (viewLocked() && rewardTarget.kind !== 'tag')) return;
   const v = id => document.getElementById(id).value;
-  const was = rewardTarget.kind === 'tag'
-    ? schemeOfTag(rewardTarget.id)
-    : (state.rewards || {})[rewardTarget.id];
   const r = normRewards({
     kind: rewardKind,
     initial: v('r-init'),
@@ -1916,11 +1917,7 @@ function commitRewards(){
     places: [v('r-p1'), v('r-p2'), v('r-p3'), v('r-p4')],
     qf: v('r-qf'),
     improve: v('r-imp'),
-    bestEver: v('r-best'),
-    // No longer asked for, but not thrown away either: a note already on a
-    // scheme — or shipped with one in data/matches.json — outlives an edit that
-    // never had a box to show it in.
-    note: (was && was.note) || ''
+    bestEver: v('r-best')
   });
   if(rewardTarget.kind === 'tag'){
     const was = rewardTarget.id;
@@ -3090,13 +3087,12 @@ function normRewards(r){
     // A personal best in matches won, against every earlier tournament rather
     // than only the last one. Both can pay on the same afternoon: beating last
     // time is the week-to-week nudge, beating everything is the rarer thing.
-    bestEver: normMoney(r.bestEver),
-    note: typeof r.note === 'string' ? r.note.trim().slice(0, 80) : ''
+    bestEver: normMoney(r.bestEver)
   };
 }
 function hasRewards(r){
   return !!r && (r.perWin > 0 || r.improve > 0 || r.qf > 0 || r.initial > 0 ||
-                 r.bestEver > 0 || r.places.some(v => v > 0) || !!r.note);
+                 r.bestEver > 0 || r.places.some(v => v > 0));
 }
 // A scheme is normally the child's, because the bargain is with the child and
 // not with any one draw. A tournament only carries its own when it pays
@@ -3243,7 +3239,6 @@ function rewardsLine(r){
   rungs.forEach(([v, i]) => { if(v) bits.push(`${ORDINAL[i]} ${money(v)}`); });
   if(r.improve) bits.push(`${money(r.improve)} for beating last count`);
   if(r.bestEver) bits.push(`${money(r.bestEver)} for a personal best`);
-  if(r.note) bits.push(r.note);
   return bits.join(' · ');
 }
 

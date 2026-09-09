@@ -5,6 +5,23 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.19.4] — 2026-09-09
+
+### Removed
+
+- **A note is gone from a scheme entirely.** Taking the Format box away left the
+  text already written in it still showing on the rewards line — *Red ball,
+  played in group* against a group column, saying what the column says. A scheme
+  carries figures now and nothing else: an old note is dropped on the way in
+  rather than kept out of sight, and `data/matches.json` no longer has a `note`
+  to ship with a suggestion.
+
+### Changed
+
+- **The chips naming children are one width.** A column of them stepping in and
+  out with the length of each name read as a ragged edge rather than as a list,
+  and every row is answering the same question.
+
 ## [2.19.3] — 2026-09-09
 
 ### Removed
