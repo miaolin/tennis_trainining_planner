@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.19.2** · [Changelog](CHANGELOG.md)
+**Version 2.19.3** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -190,7 +190,6 @@ different thing — see below.)
 | 1st / 2nd / 3rd / 4th place | that much for finishing there |
 | Beat last | that much for winning more matches than at their previous tournament |
 | Best ever | that much for winning more than at *every* tournament before it |
-| Format | free text, e.g. *Red ball, played in group* — shown, never paid |
 
 **Knockout** — how far up the draw they got is the story, so the rungs carry it:
 
@@ -203,7 +202,6 @@ different thing — see below.)
 | 1st place | that much for winning it |
 | Beat last | that much for winning more rounds than at their previous tournament |
 | Best ever | that much for winning more than at *every* tournament before it |
-| Format | free text, e.g. *Red ball, knockout draw* — shown, never paid |
 
 The knockout bonuses **stack**: a child who wins the thing is paid the starting
 money, the round money, the quarterfinal money — they went through it — and the
@@ -407,7 +405,8 @@ Two places, merged:
   `categories`, `entryDeadline`, `url`, `source` (`sta` / `jttl` / `manual`),
   `provisional`, `note` and `rewards` are optional. A `provisional: true` entry
   is badged as an estimate, and its `note` explains why. A `rewards` object
-  (`kind`, `initial`, `perWin`, `places`, `qf`, `improve`, `bestEver`, `note`)
+  (`kind`, `initial`, `perWin`, `places`, `qf`, `improve`, `bestEver`, and a
+  `note` the dialog no longer asks for but still shows)
   is the weakest suggestion there is: a
   tournament exception set in the browser beats it, and so does whatever the
   tournament's tag is filed under. `kind` is `group` or `knockout` and defaults to `group`; `initial`

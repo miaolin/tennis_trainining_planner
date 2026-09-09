@@ -742,7 +742,6 @@ input[type=number]#days{width:74px}
 #r-row-p4{order:6}
 #r-row-imp{order:7}
 #r-row-best{order:8}
-#r-row-note{order:9}
 #r-rows.ko #r-row-p2{order:3}
 #r-rows.ko #r-row-p1{order:4}
 /* ---------- year calendar ---------- */
@@ -1107,8 +1106,7 @@ input[type=number]#days{width:74px}
         <input type="number" id="r-imp" min="0" max="10000" step="1" placeholder="5"></div>
       <div class="mrow" id="r-row-best"><label class="lab" for="r-best">Best ever</label>
         <input type="number" id="r-best" min="0" max="10000" step="1" placeholder="20"></div>
-      <div class="mrow" id="r-row-note"><label class="lab" for="r-note">Format</label>
-        <input type="text" id="r-note" maxlength="80" placeholder="Red ball, played in group"></div>
+
     </div>
     <p class="hint" id="r-hint"></p>
     <div class="mfoot">
@@ -1819,10 +1817,8 @@ let rewardKind = 'group';  // which shape the open dialog is currently written f
    ends the day. The 1st and 2nd lines sit high and mostly out of reach on a
    large draw; they are the horizon, not the budget. */
 const KIND_TEMPLATE = {
-  group:    {init:'',   win:'5',  qf:'',   p1:'50',  p2:'30', p3:'10', p4:'',
-             imp:'5',  best:'20', note:'Red ball, played in group'},
-  knockout: {init:'20', win:'20', qf:'50', p1:'100', p2:'80', p3:'', p4:'',
-             imp:'15', best:'20', note:'Red ball, knockout draw'}
+  group:    {init:'',   win:'5',  qf:'',   p1:'50',  p2:'30', p3:'10', p4:'', imp:'5',  best:'20'},
+  knockout: {init:'20', win:'20', qf:'50', p1:'100', p2:'80', p3:'', p4:'', imp:'15', best:'20'}
 };
 
 // Two sentences: what this shape of draw pays for, then whose figures these are.
@@ -1858,8 +1854,7 @@ function setRewardKind(kind){
   document.getElementById('r-tag').placeholder = KIND_TAG[rewardKind];
   for(const [el, v] of [['r-init', tpl.init], ['r-win', tpl.win], ['r-qf', tpl.qf],
                         ['r-p1', tpl.p1], ['r-p2', tpl.p2], ['r-p3', tpl.p3],
-                        ['r-p4', tpl.p4], ['r-imp', tpl.imp], ['r-best', tpl.best],
-                        ['r-note', tpl.note]])
+                        ['r-p4', tpl.p4], ['r-imp', tpl.imp], ['r-best', tpl.best]])
     document.getElementById(el).placeholder = v;
   (ko ? ['r-p3', 'r-p4'] : ['r-init', 'r-qf'])
     .forEach(el => { document.getElementById(el).value = ''; });
@@ -1900,7 +1895,6 @@ function openRewards(kind, id){
   put('r-p4', r.places[3]);
   put('r-imp', r.improve);
   put('r-best', r.bestEver);
-  document.getElementById('r-note').value = r.note || '';
   document.getElementById('rmodal').hidden = false;
   document.getElementById(rewardTarget.kind === 'tag' && !tag ? 'r-tag' : 'r-win').focus();
 }
@@ -1912,6 +1906,9 @@ function commitRewards(){
   // The lock is about a child's own things, and a scheme is nobody's.
   if(!rewardTarget || (viewLocked() && rewardTarget.kind !== 'tag')) return;
   const v = id => document.getElementById(id).value;
+  const was = rewardTarget.kind === 'tag'
+    ? schemeOfTag(rewardTarget.id)
+    : (state.rewards || {})[rewardTarget.id];
   const r = normRewards({
     kind: rewardKind,
     initial: v('r-init'),
@@ -1920,7 +1917,10 @@ function commitRewards(){
     qf: v('r-qf'),
     improve: v('r-imp'),
     bestEver: v('r-best'),
-    note: v('r-note')
+    // No longer asked for, but not thrown away either: a note already on a
+    // scheme — or shipped with one in data/matches.json — outlives an edit that
+    // never had a box to show it in.
+    note: (was && was.note) || ''
   });
   if(rewardTarget.kind === 'tag'){
     const was = rewardTarget.id;
@@ -1970,7 +1970,6 @@ function useSuggested(){
   put('r-init', tpl.init); put('r-win', tpl.win);   put('r-qf', tpl.qf);
   put('r-p1', tpl.p1);     put('r-p2', tpl.p2);     put('r-p3', tpl.p3);
   put('r-p4', tpl.p4);     put('r-imp', tpl.imp);   put('r-best', tpl.best);
-  put('r-note', tpl.note);
   document.getElementById('r-win').focus();
 }
 
