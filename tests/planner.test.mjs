@@ -310,8 +310,6 @@ group('buttons and placement');
   ok('rest clears the day it lands on', $(d, '#tot').textContent === '0.0', $(d, '#tot').textContent);
   ok('rest day renders as rest', $$(d, '#grid .day.rest').length === 1);
 
-  click(dom, $(d, '#btn-reset'));
-  ok('suggested plan reloads to 19.0', $(d, '#tot').textContent === '19.0', $(d, '#tot').textContent);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1246,16 +1244,24 @@ group('sync is off until it is turned on');
 /* ------------------------------------------------------------------ */
 group('suggested plan respects a short block');
 {
+  // The suggested shape is laid down once, when there is no plan at all to
+  // start from, so it is reached here the way the page reaches it rather than
+  // through a button — there is none.
   const dom = boot();
   const d = dom.window.document;
-  change(dom, $(d, '#days'), '5');
-  click(dom, $(d, '#btn-reset'));
-  ok('suggested only fills the first 5 days', realDays(d) === 5, realDays(d));
+  const w = dom.window;
+  const short = { id: 'sb', name: 'Short', start: '2026-11-26', days: 5, plan: {} };
+  w.applySuggested(short);
+  ok('suggested only fills the first 5 days',
+     Object.keys(short.plan).length === 5, Object.keys(short.plan).length);
   // days 0-4 of SUGGESTED: 1 + 2 + 2 + 2 + 2
-  ok('5-day suggested total is 9.0h', $(d, '#tot').textContent === '9.0', $(d, '#tot').textContent);
+  // a slot holds a list of sessions, each with its own length
+  const hours = plan => Object.values(plan).reduce((t, day) =>
+    t + ['am', 'pm', 'eve'].reduce((u, sl) =>
+      u + (day[sl] || []).reduce((v, x) => v + (x.type === 'rest' ? 0 : x.hrs), 0), 0), 0);
+  ok('5-day suggested total is 9.0h', hours(short.plan) === 9, hours(short.plan));
   ok('no sessions beyond the block end',
-     Object.keys(saved(dom).blocks.find(b => b.id === saved(dom).activeBlockId).plan)
-       .every(k => Number(k) < 5));
+     Object.keys(short.plan).every(k => Number(k) < 5), Object.keys(short.plan).join());
 }
 
 /* ------------------------------------------------------------------ */
@@ -4790,26 +4796,20 @@ group('taking the figures the dialog offers');
      `${$(d, '#r-p3').value}/${$(d, '#r-p4').value}`);
 }
 
-group('the block bar says the same thing at any width');
+group('the block bar is one row');
 {
-  // One bar wrapped wherever the window happened to end, so which buttons
-  // shared a line with the dates changed with the width of the screen.
   const dom = boot();
   const d = dom.window.document;
   const bars = $$(d, '#view-training .bar');
-  ok('the block is described on one row and acted on from another',
-     bars.length === 2, bars.length);
-  ok('the fields say what the block is',
-     ['blockname', 'start', 'days', 'blockwho'].every(id => bars[0].contains($(d, '#' + id))),
+  ok('the block is described and acted on from one bar', bars.length === 1, bars.length);
+  ok('the fields and the actions are all in it',
+     ['blockname', 'start', 'days', 'blockwho', 'btn-clear', 'btn-copy', 'btn-print',
+      'btn-delete'].every(id => bars[0].contains($(d, '#' + id))),
      bars[0].textContent.trim());
-  ok('and no button is among them', !bars[0].querySelector('button'));
-  ok('every action is on the row below',
-     ['btn-reset', 'btn-clear', 'btn-copy', 'btn-print', 'btn-delete']
-       .every(id => bars[1].contains($(d, '#' + id))),
-     [...bars[1].querySelectorAll('button')].map(b => b.textContent).join('|'));
-  ok('starting with the one that fills the plan in',
-     bars[1].querySelector('button').id === 'btn-reset',
-     bars[1].querySelector('button').id);
+  // A plan is somebody's work by the time they would think of reloading over it.
+  ok('and nothing offers to lay the suggested plan down again',
+     !$(d, '#btn-reset') && !bars[0].textContent.includes('suggested'),
+     bars[0].textContent.trim());
 }
 
 group('a child can be renamed without losing them');

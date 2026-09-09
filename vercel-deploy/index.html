@@ -111,9 +111,6 @@ h1 em{font-style:normal;color:var(--ball)}
   display:flex;flex-wrap:wrap;gap:12px;align-items:center;
   margin-bottom:20px;
 }
-/* The actions sit under the fields rather than beside them, and closer to them
-   than to the palette below. */
-.bar.barbtns{margin-top:-9px}
 button, select, input[type=date], input[type=time], input[type=text], input[type=number],
 input[type=url]{
   font-family:'Karla',sans-serif;font-size:13px;
@@ -947,13 +944,7 @@ input[type=number]#days{width:74px}
   <input type="number" id="days" min="1" max="60" step="1">
   <label class="lab" for="blockwho" id="blockwho-lab" hidden>Whose</label>
   <select id="blockwho" hidden></select>
-</div>
-
-<!-- What the block is, then what can be done to it. One bar wrapped wherever
-     the window happened to end, so which buttons shared a line with the dates
-     changed with the width of the screen; two says the same thing at any. -->
-<div class="bar barbtns">
-  <button id="btn-reset">Load suggested plan</button>
+  <div class="spacer"></div>
   <button id="btn-clear">Clear all</button>
   <button id="btn-copy">Copy as text</button>
   <button id="btn-print">Print</button>
@@ -1732,6 +1723,9 @@ function load(){
   state.activeBlockId = b.id;
 }
 
+/* The shape a first plan arrives in. Laid down once, when there is no plan at
+   all to start from — there is no button to lay it down again, a plan being
+   somebody's work by the time they would think of pressing one. */
 function applySuggested(b){
   b.plan = {};
   for(const k in SUGGESTED){
@@ -5453,10 +5447,6 @@ function deleteBlock(){
 }
 
 /* ------------------------------------------------------------ wiring --- */
-document.getElementById('btn-reset').addEventListener('click', ()=>{
-  const b = active(); if(!b) return;
-  applySuggested(b); render(); save();
-});
 document.getElementById('btn-clear').addEventListener('click', ()=>{
   const b = active(); if(!b) return;
   b.plan = {}; render(); save();
