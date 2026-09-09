@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.17.1** · [Changelog](CHANGELOG.md)
+**Version 2.18.0** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -135,8 +135,22 @@ tests/                          jsdom harness + api tests — dev only, never de
 
 ### Rewards
 
-The bargain is with the child, not with any one draw, so it is set once per
-child in the **Rewards** box at the top of the tournaments view.
+A scheme belongs to a **shape of draw**, not to a child. A group pays for every
+match won and for where they finish; a knockout pays for turning up and for
+every rung climbed. Those are facts about the draw — so two children on the same
+shape play for the same terms, and one child who plays both shapes is paid by
+each, which a single scheme per child could never do.
+
+A **tag** joins them. A tournament carries one — press the chip on its row, next
+to the children — and a scheme is filed under one, in the **Rewards** box at the
+top of the tournaments view. Free text rather than a fixed pair, so a season
+that grows a third kind of event needs no new code. Schemes belong to no child,
+so they can be set from **Everyone** as well as from a child's tab.
+
+An untagged tournament joins no scheme and pays nothing. A tag with no scheme
+behind it does the same, and the box says so — a tag is worth keeping either
+way, since a scheme written for it later finds its tournaments still wearing
+it.
 
 The dialog asks the shape of the draw first, because the two shapes pay for
 different things and each brings its own lines and its own figures to start
@@ -147,7 +161,7 @@ filled in stores nothing, and a scheme with nothing in it pays nothing on every
 tournament. **Use these** takes them all at once, as real values, and only for
 the lines the shape is showing: a group has no quarterfinal to pay for and a
 knockout no third place. Everything stays editable before Save. (On a
-tournament's own dialog the same button reads **Use standard**, and does a
+tournament's own dialog the same button reads **Use the tag's**, and does a
 different thing — see below.)
 
 **Group** — everyone plays the same handful of matches, so the wins carry it:
@@ -188,15 +202,19 @@ quarterfinal — and a group has a third and fourth place a knockout cannot
 award, so switching shape empties those lines where you can see them go; every
 line the two shapes share keeps whatever you typed.
 
-That standard then applies everywhere, and **no tournament repeats it**. A row
-shows a rewards line only when that event pays something different, badged
-**Only here**. Press **Rewards** on a row to make one an exception; press **Use
-standard** in that dialog to drop the exception again. Saving an exception with
-every line blank is how you say *this one pays nothing*.
+A scheme applies to every tournament carrying its tag, and **no tournament
+repeats it**. A row shows a rewards line only when that event pays something
+different, badged **Only here**. Press **Rewards** on a row to make one an
+exception; press **Use the tag's** in that dialog to drop the exception again.
+Saving an exception with every line blank is how you say *this one pays
+nothing*.
 
 Schemes resolve in one order, most specific first:
 
-    tournament exception  →  the child's standard  →  a data/matches.json suggestion
+    tournament exception  →  the tag's scheme  →  a data/matches.json suggestion
+
+Renaming a tag takes its tournaments with it. Deleting a scheme leaves them
+tagged, ready for one written again.
 
 Each child on the tournament gets a **Wins** and **Place** box, whether or not
 it pays anything — how a child did is worth recording on its own, and most
@@ -364,8 +382,8 @@ Two places, merged:
   is badged as an estimate, and its `note` explains why. A `rewards` object
   (`kind`, `initial`, `perWin`, `places`, `qf`, `improve`, `bestEver`, `note`)
   is the weakest suggestion there is: a
-  tournament exception set in the browser beats it, and so does the child's own
-  standard. `kind` is `group` or `knockout` and defaults to `group`; `initial`
+  tournament exception set in the browser beats it, and so does whatever the
+  tournament's tag is filed under. `kind` is `group` or `knockout` and defaults to `group`; `initial`
   and `qf` are the starting money and the quarterfinal bonus, and are only read
   on a knockout.
 
