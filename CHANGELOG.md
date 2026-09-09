@@ -5,6 +5,30 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.19.0] — 2026-09-09
+
+### Added
+
+- **The add form asks what shape of draw it is.** A **Draw type** field beside
+  the dates and the venue, answered while the rest of the tournament is being
+  typed rather than chased afterwards — which is how a tournament ends up
+  untagged and quietly paying nothing. The tags already in use are offered as
+  you type, so a season does not drift into three spellings of one thing.
+
+  Left blank it is untagged, which is a state and not a failure to add. The chip
+  on the row is still there for changing it later, and for everything the STA
+  import brings in, where there is no form to fill.
+
+### Removed
+
+- **Categories are no longer typed by hand.** Nothing there was worth typing:
+  the age groups come out of the tournament's name, and who an event is for is
+  answered by **For**, which states it outright instead of guessing.
+
+  The field is off the form, not out of the data. A pasted STA link still
+  records what STA publishes, and the bulk import always did — both still show
+  on the row, and the age rule still reads them.
+
 ## [2.18.2] — 2026-09-09
 
 ### Changed

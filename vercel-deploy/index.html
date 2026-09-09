@@ -992,7 +992,14 @@ input[type=number]#days{width:74px}
       <div class="fld"><label for="t-start">Starts</label><input type="date" id="t-start"></div>
       <div class="fld"><label for="t-end">Ends</label><input type="date" id="t-end"></div>
       <div class="fld"><label for="t-venue">Venue</label><input type="text" id="t-venue" maxlength="60" placeholder="Kallang"></div>
-      <div class="fld"><label for="t-cat">Categories</label><input type="text" id="t-cat" maxlength="60" placeholder="12U Girls"></div>
+      <div class="fld"><label for="t-tag">Draw type</label>
+        <input type="text" id="t-tag" maxlength="24" placeholder="Group" list="taglist">
+        <datalist id="taglist"></datalist></div>
+      <!-- Off the form but not out of the data: a pasted STA link fills this in
+           with what STA publishes, and the age rule reads it alongside the name.
+           There is nothing here worth typing by hand — the age groups come out
+           of the name, and who it is for is answered by For. -->
+      <div class="fld" hidden><label for="t-cat">Categories</label><input type="text" id="t-cat" maxlength="60" placeholder="12U Girls"></div>
       <div class="fld"><label for="t-deadline">Entry deadline</label><input type="date" id="t-deadline"></div>
       <div class="fld forfld" id="forfld" hidden>
         <label for="t-for">For</label>
@@ -2812,6 +2819,13 @@ function closeForPanel(){
   forOpen = false;
   renderForRow();
 }
+// The tags already in use, offered as you type. A season should not drift into
+// three spellings of one thing, and the field is free text so nothing else
+// would stop it.
+function renderTagList(){
+  document.getElementById('taglist').innerHTML =
+    knownTags().map(t => `<option value="${escapeHtml(t)}"></option>`).join('');
+}
 function renderForRow(){
   const row = document.getElementById('forrow');
   const btn = document.getElementById('t-for');
@@ -3674,13 +3688,18 @@ function addTournament(){
   // Every child ticked says the same thing as saying nothing, so nothing is
   // stored: a list that merely repeats the age rule would go stale the moment a
   // birth year is corrected.
+  // What shape of draw it is, answered as it goes on the list rather than
+  // chased afterwards. Blank is fine and means untagged, which pays nothing
+  // until a tag is put on it from the row.
+  setTag(id, g('t-tag'));
   const picked = addForKids().map(p=>p.id);
   if(picked.length < state.players.length) setForKids(id, picked);
   addForPick = null;
   forOpen = false;
   lookupHit = null;
   addNote('');
-  ['t-name','t-start','t-end','t-venue','t-cat','t-deadline','t-url'].forEach(id=>document.getElementById(id).value = '');
+  ['t-name','t-start','t-end','t-venue','t-cat','t-tag','t-deadline','t-url']
+    .forEach(id=>document.getElementById(id).value = '');
   lookupNote('Paste an STA tournament link and the details fill themselves in.');
   render(); save();
   return true;
@@ -3936,6 +3955,7 @@ function renderSetup(){
     'No data/matches.json yet — tournaments added here are stored in this browser.';
   renderAgeRow();
   renderForRow();
+  renderTagList();
 
   renderTournList(document.getElementById('setuplist'), allMatches(),
                   {setup:true, locked:false, who:null});

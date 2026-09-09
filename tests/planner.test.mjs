@@ -1358,13 +1358,14 @@ const addKid = (dom, d, name, birthYear) => onSetup(dom, d, () => {
   if (birthYear !== undefined) input(dom, $(d, '#kid-year'), String(birthYear));
   click(dom, $(d, '#kid-add'));
 });
-const addTourn = (dom, d, { name, start, end, venue, cat, deadline }) => onSetup(dom, d, () => {
+const addTourn = (dom, d, { name, start, end, venue, cat, deadline, tag }) => onSetup(dom, d, () => {
   input(dom, $(d, '#t-name'), name);
   input(dom, $(d, '#t-start'), start);
   if (end) input(dom, $(d, '#t-end'), end);
   if (venue) input(dom, $(d, '#t-venue'), venue);
   if (cat) input(dom, $(d, '#t-cat'), cat);
   if (deadline) input(dom, $(d, '#t-deadline'), deadline);
+  if (tag) input(dom, $(d, '#t-tag'), tag);
   click(dom, $(d, '#t-add'));
 });
 
@@ -4531,6 +4532,54 @@ group('the shape of a draw is set where tournaments are');
   ok('the prompt offers what is already in use', asked.includes('Knockout'), asked);
   ok('and cancelling it leaves the tournament untagged',
      Object.keys(saved(dom).matchTag).length === 1, JSON.stringify(saved(dom).matchTag));
+}
+
+group('the draw type is answered as the tournament goes on');
+{
+  // Chasing it afterwards is how a tournament ends up untagged and quietly
+  // paying nothing, so the form asks while the rest of the tournament is being
+  // typed. Categories left the form with it: nothing there is worth typing by
+  // hand, the age groups coming out of the name.
+  const Y = new Date().getFullYear();
+  const dom = boot();
+  const d = dom.window.document;
+  addKid(dom, d, 'Ian', Y - 9);
+  goSetup(dom, d);
+
+  ok('the form asks for the draw type', !!$(d, '#t-tag'));
+  ok('and no longer asks for categories',
+     $(d, '#t-cat').closest('.fld').hidden, 'the field is still on show');
+
+  addTourn(dom, d, { name: 'Club Meet', start: `${Y}-03-07`, tag: 'Knockout' });
+  ok('the tournament goes on tagged',
+     Object.values(saved(dom).matchTag).join() === 'Knockout',
+     JSON.stringify(saved(dom).matchTag));
+  ok('and the row says so straight away',
+     $(d, '#setuplist .ttag').textContent === 'Knockout',
+     $(d, '#setuplist .ttag').textContent);
+  ok('the field is cleared for the next one', $(d, '#t-tag').value === '', $(d, '#t-tag').value);
+
+  // the tags in use are offered, so the second of a kind is a copy
+  ok('what is already in use is offered as you type',
+     [...$$(d, '#taglist option')].map(o => o.value).join() === 'Knockout',
+     [...$$(d, '#taglist option')].map(o => o.value).join());
+
+  // left blank, it is untagged — which is a state, not a failure to add
+  addTourn(dom, d, { name: 'Second Meet', start: `${Y}-04-07` });
+  ok('leaving it blank still adds the tournament',
+     $$(d, '#setuplist .tourn').length === 2, $$(d, '#setuplist .tourn').length);
+  ok('untagged, and saying so',
+     $$(d, '#setuplist .ttag').filter(b => b.textContent === 'untagged').length === 1,
+     $$(d, '#setuplist .ttag').map(b => b.textContent).join());
+
+  // the age rule still works without categories, reading the name instead
+  addTourn(dom, d, { name: 'STA SPEX U10 Red Ball', start: `${Y}-05-07` });
+  addKid(dom, d, 'Olivia', Y - 15);
+  goSetup(dom, d);
+  const u10 = $$(d, '#setuplist .tourn').find(r => r.textContent.includes('U10'));
+  ok('the age group still comes out of the name with no categories typed',
+     [...u10.querySelectorAll('.forpick.on')].map(b => b.textContent.trim()).join() === 'Ian',
+     [...u10.querySelectorAll('.forpick')].map(b => b.textContent.trim() + (b.className.includes('on') ? '*' : '')).join());
 }
 
 group('a tag is spelled the way it is written');
