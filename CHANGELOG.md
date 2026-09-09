@@ -5,6 +5,39 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.18.2] — 2026-09-09
+
+### Changed
+
+- **A tag keeps the case it was written in.** Everything was flattened to lower
+  case on the way in, so a chip you typed as *Group* read back as *group* — the
+  page speaking with its own accent rather than yours. Now **Group**,
+  **Knockout** and *Red ball group* read as written.
+
+  Matching still ignores case, which is the part that matters: *Group* and
+  *group* are one tag, not two quietly paying different money. The second
+  tournament of a kind joins the first however it is typed, taking the spelling
+  already in use — and renaming a scheme is how that spelling changes, carrying
+  its tournaments with it.
+
+  Tags written before this get their capitals back on load, but only the two the
+  app names itself. Anything you chose is left exactly as you wrote it, that
+  being the whole point of keeping the spelling.
+
+## [2.18.1] — 2026-09-09
+
+### Changed
+
+- **The draw-type chip moved to Setup**, beside who a tournament is for. What
+  shape a draw is belongs to the event, like its dates and its venue, and Setup
+  is where a tournament is answered for at all — so it can be settled as the
+  tournament goes on the list rather than chased afterwards.
+
+- **The tournaments view reads the tag instead of setting it.** It shows on the
+  row beside the venue, and an untagged one says so outright: that is the case
+  where no scheme applies and no money can, and a row that pays nothing has to
+  give some account of itself.
+
 ## [2.18.0] — 2026-09-09
 
 ### Changed

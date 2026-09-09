@@ -660,6 +660,10 @@ input[type=number]#days{width:74px}
 .ttag.set{border-style:solid;border-color:var(--ball);color:var(--ball);font-style:normal}
 .ttag:hover{background:rgba(214,230,75,.14)}
 .ttag:disabled{cursor:default}
+/* The same fact, read-only, where the season is read. Untagged earns the warn
+   colour: it is the one value that means no money can be paid. */
+.tdraw{color:var(--ball)}
+.tdraw.none{color:var(--warn);font-style:italic}
 .tourn .trew{font-size:12px;color:var(--ball);margin-top:4px}
 .tourn .trew .only{
   font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
@@ -1067,7 +1071,7 @@ input[type=number]#days{width:74px}
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="r-title">
     <h3 id="r-title">Rewards</h3>
     <div class="mrow" id="r-row-tag"><label class="lab" for="r-tag">Tag</label>
-      <input type="text" id="r-tag" maxlength="24" placeholder="group"></div>
+      <input type="text" id="r-tag" maxlength="24" placeholder="Group"></div>
     <div class="mrow"><span class="lab" id="r-kindlab">Type</span>
       <div class="kindpick" role="radiogroup" aria-labelledby="r-kindlab">
         <button type="button" id="r-kind-group" data-kind="group"
@@ -1541,13 +1545,13 @@ function sanitiseState(raw, allowEmptyBlocks){
      exactly as it is. */
   if(raw.schemes && typeof raw.schemes === 'object' && !Array.isArray(raw.schemes)){
     for(const k in raw.schemes){
-      const tag = normTag(k), r = normRewards(raw.schemes[k]);
+      const tag = tidyTag(k), r = normRewards(raw.schemes[k]);
       if(tag && r) st.schemes[tag] = r;
     }
   }
   if(raw.matchTag && typeof raw.matchTag === 'object' && !Array.isArray(raw.matchTag)){
     for(const k in raw.matchTag){
-      const tag = normTag(raw.matchTag[k]);
+      const tag = tidyTag(raw.matchTag[k]);
       if(tag) st.matchTag[k] = tag;
     }
   }
@@ -1563,8 +1567,8 @@ function sanitiseState(raw, allowEmptyBlocks){
      the other is dropped rather than silently averaged. */
   if(Array.isArray(raw.players)) raw.players.forEach(rp=>{
     const r = normRewards(rp && rp.rewards);
-    if(!hasRewards(r) || st.schemes[r.kind]) return;
-    st.schemes[r.kind] = r;
+    if(!hasRewards(r) || st.schemes[KIND_TAG[r.kind]]) return;
+    st.schemes[KIND_TAG[r.kind]] = r;
   });
   // Which shape was paying which tournament. A child's standard applied
   // everywhere they played, so every tournament they were on takes its tag.
@@ -1575,7 +1579,7 @@ function sanitiseState(raw, allowEmptyBlocks){
     // With one shape in the whole plan there is nothing to tell apart: every
     // tournament was being paid by it, so every tournament carries it.
     if(new Set(kinds).size === 1){
-      const only = kinds[0];
+      const only = KIND_TAG[kinds[0]];
       (st.manualMatches || []).forEach(m => { st.matchTag[m.id] = only; });
       (raw.entries || []).forEach(e => {
         if(e && typeof e.matchId === 'string') st.matchTag[e.matchId] = only;
@@ -1915,15 +1919,18 @@ function commitRewards(){
   });
   if(rewardTarget.kind === 'tag'){
     const was = rewardTarget.id;
-    const now = normTag(document.getElementById('r-tag').value) || was;
+    const typed = normTag(document.getElementById('r-tag').value);
+    // A new scheme takes an existing spelling if one matches; a rename keeps
+    // exactly what was typed, that being the point of renaming.
+    const now = (was && tagKey(typed) !== tagKey(was) ? typed : canonTag(typed)) || was;
     if(!now){ closeRewards(); return; }        // a scheme with no tag joins nothing
     if(!state.schemes) state.schemes = {};
-    if(was && was !== now){
+    if(was && tagKey(was) !== tagKey(now)){
       // Renaming carries the tournaments with it. Leaving them on the old tag
       // would take the money off every one of them without saying so.
       delete state.schemes[was];
       Object.keys(state.matchTag || {}).forEach(id => {
-        if(state.matchTag[id] === was) state.matchTag[id] = now;
+        if(tagKey(state.matchTag[id]) === tagKey(was)) state.matchTag[id] = now;
       });
     }
     state.schemes[now] = r;
@@ -1975,7 +1982,7 @@ function askTag(mId){
     'One word — it is what joins this tournament to a rewards scheme.' +
     (known.length ? '\nAlready in use: ' + known.join(', ') : '') +
     '\n\nLeave it empty to take the tag off.',
-    tagOf(mId) || (known.includes('group') ? 'group' : ''));
+    tagOf(mId) || canonTag(KIND_TAG.group));
   if(answer === null) return;                 // cancelled, which is not "empty"
   setTag(mId, answer);
   render(); save();
@@ -1987,7 +1994,8 @@ function clearRewards(){
   if(rewardTarget.kind === 'tag'){
     // The tournaments keep the tag. It is a fact about the draw, and a scheme
     // written for it again later should find them still wearing it.
-    if(state.schemes) delete state.schemes[rewardTarget.id];
+    const k = schemeKey(rewardTarget.id);
+    if(k !== undefined) delete state.schemes[k];
   } else {
     delete state.rewards[rewardTarget.id];
   }
@@ -3087,21 +3095,51 @@ function matchScheme(m){
    The tag is what joins them. A tournament carries one; a scheme is filed under
    one. Free text rather than a fixed pair, so a season that grows a third kind
    of event needs no new code. */
+/* A tag is written the way a person would write it — Group, Knockout, Red ball
+   group — and read back that way. Matching ignores case, so Group and group are
+   one tag and not two silently paying different money; but the spelling that
+   shows is the one somebody typed, not a flattened one. */
 const MAX_TAG = 24;
+const KIND_TAG = {group: 'Group', knockout: 'Knockout'};
 function normTag(t){
-  return String(t || '').toLowerCase().replace(/\s+/g, ' ').trim().slice(0, MAX_TAG);
+  return String(t || '').replace(/\s+/g, ' ').trim().slice(0, MAX_TAG);
+}
+// What two spellings of one tag have in common, and all that joining is done on.
+function tagKey(t){
+  return normTag(t).toLowerCase();
+}
+/* The spelling to keep. A tag already in use wins, so the second tournament of
+   a kind joins the first however it is typed — and the first spelling is the
+   one that stands until it is deliberately renamed. */
+function canonTag(t){
+  const key = tagKey(t);
+  if(!key) return '';
+  return knownTags().find(x => tagKey(x) === key) || normTag(t);
+}
+/* Written before tags kept the case they were typed in, when everything was
+   flattened to lower case on the way in. The two the app names itself get their
+   capitals back on load; anything a parent chose is left exactly as they wrote
+   it, which is the whole point of keeping the spelling. */
+function tidyTag(t){
+  const tag = normTag(t);
+  return KIND_TAG[tag] || tag;
 }
 function tagOf(mId){
   return (state.matchTag && state.matchTag[mId]) || '';
 }
 function setTag(mId, t){
   if(!state.matchTag) state.matchTag = {};
-  const tag = normTag(t);
+  const tag = canonTag(t);
   if(tag) state.matchTag[mId] = tag;
   else delete state.matchTag[mId];
 }
+function schemeKey(tag){
+  const key = tagKey(tag);
+  return key ? Object.keys(state.schemes || {}).find(k => tagKey(k) === key) : undefined;
+}
 function schemeOfTag(tag){
-  const r = state.schemes && state.schemes[normTag(tag)];
+  const k = schemeKey(tag);
+  const r = k === undefined ? null : state.schemes[k];
   return hasRewards(r) ? r : null;
 }
 function tagScheme(m){
@@ -3115,9 +3153,12 @@ function schemeTags(){
 // Every tag in play at all, including ones only a tournament carries — an event
 // tagged for a scheme not yet written is worth offering rather than hiding.
 function knownTags(){
-  const all = new Set(schemeTags());
-  Object.values(state.matchTag || {}).forEach(t => { if(t) all.add(t); });
-  return [...all].sort();
+  const seen = new Map();          // key -> the spelling to show for it
+  schemeTags().forEach(t => { if(!seen.has(tagKey(t))) seen.set(tagKey(t), t); });
+  Object.values(state.matchTag || {}).forEach(t => {
+    if(t && !seen.has(tagKey(t))) seen.set(tagKey(t), t);
+  });
+  return [...seen.values()].sort((a, b) => a.localeCompare(b));
 }
 // The weakest tier there is. A file committed alongside the site must not
 // quietly outbid a figure the parent set on the child, so it stands in only
@@ -3741,6 +3782,16 @@ function renderTournList(list, ms, {setup, locked, who}){
     // own line rather than repeated under every child in it.
     const rlink = resultLink(m.id);
     if(rlink && !setup) meta.push(`<a class="tlink" href="${escapeHtml(rlink)}" target="_blank" rel="noopener noreferrer">Results</a>`);
+    /* What shape the draw is, which is what joins it to a scheme. It is set on
+       Setup, with the rest of what a tournament is — but it has to read here
+       too, or a row that pays nothing gives no account of itself. Untagged is
+       the case worth saying out loud, that being the one where no scheme
+       applies and no money can. */
+    if(!setup){
+      const tg = tagOf(m.id);
+      meta.push(tg ? `<span class="tdraw">${escapeHtml(tg)}</span>`
+                   : '<span class="tdraw none">untagged — set the draw type on Setup</span>');
+    }
     if(m.note) meta.push(`<span class="tnote">${escapeHtml(m.note)}</span>`);
 
     // A line on the row means this tournament pays something other than what
@@ -3824,7 +3875,7 @@ function renderTournList(list, ms, {setup, locked, who}){
         }${escapeHtml(m.name)}</div>
         ${meta.length ? `<div class="tmeta">${meta.join(' · ')}</div>` : ''}
         ${differs ? `<div class="trew"><span class="only">Only here</span>${escapeHtml(rewardsLine(own))}</div>` : ''}</div>
-      <div class="joins">${setup ? '' :
+      <div class="joins">${!setup ? '' :
         `<button class="ttag${tag ? ' set' : ''}" data-tag="${m.id}"
           aria-label="Draw type for ${escapeHtml(m.name)}"
           >${tag ? escapeHtml(tag) : 'untagged'}</button>`}${joins}${locked || setup ? '' :

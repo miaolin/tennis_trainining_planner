@@ -1,6 +1,6 @@
 # Tennis training planner
 
-**Version 2.18.0** · [Changelog](CHANGELOG.md)
+**Version 2.18.2** · [Changelog](CHANGELOG.md)
 
 A single-page planner for a junior tennis season, in four parts:
 
@@ -141,9 +141,20 @@ every rung climbed. Those are facts about the draw — so two children on the sa
 shape play for the same terms, and one child who plays both shapes is paid by
 each, which a single scheme per child could never do.
 
-A **tag** joins them. A tournament carries one — press the chip on its row, next
-to the children — and a scheme is filed under one, in the **Rewards** box at the
-top of the tournaments view. Free text rather than a fixed pair, so a season
+A **tag** joins them. A tournament carries one — press the chip on its row on
+**Setup**, beside who it is for, which is where a tournament is answered for at
+all — and a scheme is filed under one, in the **Rewards** box at the top of the
+tournaments view. The tags already in use are offered when a new one is asked
+for, so the second event of a kind is a copy rather than a spelling test.
+
+A tag is written the way you would write it — **Group**, **Knockout**, *Red ball
+group* — and read back that way. Matching ignores case, so *Group* and *group*
+are one tag and not two quietly paying different money; the spelling that shows
+is the one you typed first, and renaming a scheme is how you change it.
+
+The tournaments view reads the tag but does not set it: it shows on the row
+beside the venue, and an untagged one says so there, because a row that pays
+nothing has to give some account of itself. Free text rather than a fixed pair, so a season
 that grows a third kind of event needs no new code. Schemes belong to no child,
 so they can be set from **Everyone** as well as from a child's tab.
 
@@ -323,6 +334,10 @@ of its own, and nothing on it is ever read-only.
   is offered when the last child goes — with an empty list every tournament
   trivially serves nobody, and a season should outlast a list being briefly
   empty.
+- **What shape of draw it is** — the chip beside the children on each row. It is
+  what joins a tournament to a rewards scheme, and it is asked here because it
+  is a fact about the event, like its dates and its venue. Untagged is a state
+  and not a fault, though it does mean nothing can be paid.
 - No rewards and no results here — those belong to a child, on their own tab
   under Tournaments.
 
