@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Knockout left it offering *Group*, which is a name for the wrong thing beside
   a knockout column.
 
+### Changed
+
+- **The note under the rewards dialog is four lines shorter.** It explained the
+  form sitting above it — what a group pays for, what a knockout pays for, what
+  blank means — none of which needed saying twice. What is left is the one thing
+  the dialog cannot show for itself: that the knockout bonuses stack.
+
 ## [2.19.1] — 2026-09-09
 
 ### Changed

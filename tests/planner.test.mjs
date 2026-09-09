@@ -4724,7 +4724,7 @@ group('taking the figures the dialog offers');
      $(d, '#r-win').placeholder === '5' && $(d, '#r-win').value === '',
      `${$(d, '#r-win').placeholder}/${$(d, '#r-win').value}`);
   ok('and the note says they pay nothing until taken',
-     $(d, '#r-hint').textContent.includes('pay nothing until they are taken'),
+     $(d, '#r-hint').textContent.includes('pay nothing until taken'),
      $(d, '#r-hint').textContent);
 
   // saving against the placeholders is the trap: it stores nothing

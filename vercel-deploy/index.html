@@ -1826,23 +1826,17 @@ const KIND_TEMPLATE = {
 };
 
 // Two sentences: what this shape of draw pays for, then whose figures these are.
+/* Short on purpose. The lines name themselves, the figures are visibly grey,
+   and a paragraph explaining a form sitting above it is a paragraph nobody
+   reads twice. What is left is the one thing the dialog cannot show: that the
+   knockout bonuses stack, and who the scheme is for. */
 function rewardHint(){
   const shape = rewardKind === 'knockout'
-    ? 'A knockout pays something for turning up, then for every round they win, ' +
-      'and the quarterfinal, 2nd and 1st lines are bonuses stacked on top of ' +
-      'that — winning the thing earns the quarterfinal money too, because they ' +
-      'went through it. '
-    : 'A group pays for every match they win, and for where they finish in the group. ';
+    ? 'Knockout bonuses stack: winning it earns the quarterfinal money too. '
+    : '';
   return shape + (rewardTarget && rewardTarget.kind === 'tag'
-    ? 'This is what every tournament carrying the tag pays, whichever child is ' +
-      'playing it. The grey figures are suggestions and pay nothing until they ' +
-      'are taken — “Use these” takes them all at once. Leave a line blank to drop ' +
-      'it. “Beat last” pays when a child beats their previous tournament, “Best ' +
-      'ever” when they beat every tournament before it — both can land on the ' +
-      'same afternoon.'
-    : 'This tournament only, whatever its tag pays. Save it with every line blank ' +
-      'to say it pays nothing, ' +
-      'or press Use standard to go back to what the child normally plays for.');
+    ? 'Grey figures pay nothing until taken — “Use these” takes them all.'
+    : 'This tournament only. Save it blank to say it pays nothing.');
 }
 
 /* Switching shape reshapes the form rather than emptying it: the lines both
