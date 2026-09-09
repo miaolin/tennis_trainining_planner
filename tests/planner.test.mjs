@@ -234,28 +234,57 @@ group('delete a block');
 /* ------------------------------------------------------------------ */
 group('variable block length');
 {
+  /* A block is stored as a length, because that is what the grid and every
+     check are counted in — but it is asked for as the day it ends on, which is
+     what a camp actually has. The last day is a day of the block, so a block
+     ending the day it starts is one day long. */
   const dom = boot();
   const d = dom.window.document;
+  const start = $(d, '#start').value;
+  // local, not toISOString: east of UTC that hands back the day before
+  const plus = k => {
+    const x = new Date(start + 'T00:00:00');
+    x.setDate(x.getDate() + k);
+    const p2 = v => String(v).padStart(2, '0');
+    return `${x.getFullYear()}-${p2(x.getMonth() + 1)}-${p2(x.getDate())}`;
+  };
 
-  change(dom, $(d, '#days'), '7');
+  ok('the block is asked for by the day it ends', $(d, '#ends').type === 'date',
+     $(d, '#ends').type);
+  ok('and it shows the last day, not the day after',
+     $(d, '#ends').value === plus(13), $(d, '#ends').value);
+
+  change(dom, $(d, '#ends'), plus(6));
   ok('7 days renders 7 cells', realDays(d) === 7, realDays(d));
   ok('7-day block reports one week + block cap', $$(d, '.wcap').length === 2, $$(d, '.wcap').length);
   ok('7-day total is week 1 only (10.0)', $(d, '#tot').textContent === '10.0', $(d, '#tot').textContent);
 
-  change(dom, $(d, '#days'), '14');
+  change(dom, $(d, '#ends'), plus(13));
   ok('growing back restores the hidden days', $(d, '#tot').textContent === '19.0', $(d, '#tot').textContent);
 
-  change(dom, $(d, '#days'), '10');
+  change(dom, $(d, '#ends'), plus(9));
   ok('10 days -> 2 week caps (7 + 3)', $$(d, '.wcap').length === 3, $$(d, '.wcap').length);
   ok('10-day grid pads to whole weeks', $$(d, '#grid .day').length % 7 === 0,
      $$(d, '#grid .day').length);
 
-  change(dom, $(d, '#days'), '0');
-  ok('0 clamps to 1 day', realDays(d) === 1, realDays(d));
-  change(dom, $(d, '#days'), '999');
-  ok('999 clamps to 60 days', realDays(d) === 60, realDays(d));
-  change(dom, $(d, '#days'), 'abc');
-  ok('non-numeric falls back to 14', realDays(d) === 14, realDays(d));
+  change(dom, $(d, '#ends'), start);
+  ok('ending the day it starts is one day', realDays(d) === 1, realDays(d));
+
+  // neither end can be dragged past the other, nor the block past its ceiling
+  ok('the box will not offer a day before the start', $(d, '#ends').min === start,
+     $(d, '#ends').min);
+  change(dom, $(d, '#ends'), plus(-3));
+  ok('and one typed in anyway is refused', realDays(d) === 1, realDays(d));
+
+  change(dom, $(d, '#ends'), plus(99));
+  ok('a year away clamps to 60 days', realDays(d) === 60, realDays(d));
+  ok('and the box says the sixtieth day', $(d, '#ends').value === plus(59),
+     $(d, '#ends').value);
+  ok('which is as far as it will offer', $(d, '#ends').max === plus(59), $(d, '#ends').max);
+
+  change(dom, $(d, '#ends'), '');
+  ok('emptying it leaves the block as it was', realDays(d) === 60, realDays(d));
+  ok('and puts the date back', $(d, '#ends').value === plus(59), $(d, '#ends').value);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1304,7 +1333,7 @@ group('timezone safety');
   const dom = boot();
   const d = dom.window.document;
   change(dom, $(d, '#start'), '2026-03-01');
-  change(dom, $(d, '#days'), '31');
+  change(dom, $(d, '#ends'), '2026-03-31');
   click(dom, $(d, '#btn-add'));
   ok('next block starts 1 Apr, not 31 Mar', $(d, '#start').value === '2026-04-01',
      $(d, '#start').value);
@@ -4803,7 +4832,7 @@ group('the block bar is one row');
   const bars = $$(d, '#view-training .bar');
   ok('the block is described and acted on from one bar', bars.length === 1, bars.length);
   ok('the fields and the actions are all in it',
-     ['blockname', 'start', 'days', 'blockwho', 'btn-clear', 'btn-copy', 'btn-print',
+     ['blockname', 'start', 'ends', 'blockwho', 'btn-clear', 'btn-copy', 'btn-print',
       'btn-delete'].every(id => bars[0].contains($(d, '#' + id))),
      bars[0].textContent.trim());
   // A plan is somebody's work by the time they would think of reloading over it.

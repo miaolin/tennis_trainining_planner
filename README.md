@@ -499,9 +499,15 @@ to remove it. On a phone, tap a session to arm it and then tap a slot — the gr
 stacks to one day per row.
 
 Pick a block from the tab row, or **+ New block**. **Starts** shifts the whole
-block — the grid, header range and day labels all follow. **Days** changes its
-length; shortening a block hides the trailing days rather than deleting them, so
-lengthening it again brings the sessions back. **Clear all** empties the plan,
+block — the grid, header range and day labels all follow. **Ends** is the last
+day of it, and the last day counts: a block ending the day it starts is one day
+long. Shortening a block hides the trailing days rather than deleting them, so
+moving the end back out brings the sessions with it.
+
+A block is stored as a length, which is what the grid and every check are
+counted in, but it is asked for as a date, because a date is what a camp has: it
+runs to the Sunday, not for thirteen days. Neither end can be dragged past the
+other, and sixty days is as far as the box will offer. **Clear all** empties the plan,
 **Delete block** removes it after a confirm.
 
 The built-in fortnight is laid down once, on the very first plan, and nothing

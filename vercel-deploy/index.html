@@ -940,8 +940,8 @@ input[type=number]#days{width:74px}
   <input type="text" id="blockname" maxlength="40">
   <label class="lab" for="start">Starts</label>
   <input type="date" id="start">
-  <label class="lab" for="days">Days</label>
-  <input type="number" id="days" min="1" max="60" step="1">
+  <label class="lab" for="ends">Ends</label>
+  <input type="date" id="ends">
   <label class="lab" for="blockwho" id="blockwho-lab" hidden>Whose</label>
   <select id="blockwho" hidden></select>
   <div class="spacer"></div>
@@ -2258,10 +2258,16 @@ function renderTraining(){
   document.getElementById('range').textContent = `${fmt(dateFor(b,0))} – ${fmt(dateFor(b,b.days-1))}`;
   const nameEl = document.getElementById('blockname');
   const startEl = document.getElementById('start');
-  const daysEl = document.getElementById('days');
+  const endsEl = document.getElementById('ends');
   if(document.activeElement !== nameEl) nameEl.value = b.name;
   if(document.activeElement !== startEl) startEl.value = b.start;
-  if(document.activeElement !== daysEl) daysEl.value = b.days;
+  // A block is stored as a length, because that is what the grid and every
+  // check are counted in. It is asked for as a date, because a date is what a
+  // camp has: it runs to the Sunday, not for thirteen days.
+  if(document.activeElement !== endsEl) endsEl.value = iso(dateFor(b, b.days - 1));
+  // Neither end can be dragged past the other, nor the block past its ceiling.
+  endsEl.min = b.start;
+  endsEl.max = iso(dateFor(b, MAX_DAYS - 1));
 
   // A block can start on any weekday, so the leading gap is the start day's
   // column and the trailing gap pads out to a whole week.
@@ -5525,10 +5531,16 @@ document.getElementById('blockwho').addEventListener('change', e=>{
   state.activeBlockId = b.id;
   render(); save();
 });
-document.getElementById('days').addEventListener('change', e=>{
+document.getElementById('ends').addEventListener('change', e=>{
   const b = active(); if(!b) return;
-  const n = parseInt(e.target.value, 10);
-  b.days = Math.min(MAX_DAYS, Math.max(1, isNaN(n) ? DEFAULT_DAYS : n));
+  /* The last day is a day of the block, so a block ending the day it starts is
+     one day long. An emptied or impossible date leaves the block as it was —
+     render puts the box back to what it says. */
+  const iso = e.target.value;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)){ render(); return; }
+  const len = daysBetween(b.start, iso) + 1;
+  if(!(len >= 1)){ render(); return; }
+  b.days = Math.min(MAX_DAYS, len);
   render(); save();
 });
 document.getElementById('btn-copy').addEventListener('click', async ()=>{

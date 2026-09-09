@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A block is asked for by the day it ends, not by a number of days.** A camp
+  runs to the Sunday; nobody counts that it is thirteen days long and types
+  thirteen. It is still *stored* as a length, which is what the grid and every
+  check are counted in — only the question changed.
+
+  The last day counts, so a block ending the day it starts is one day long.
+  Neither end can be dragged past the other, sixty days is as far as the box
+  will offer, and an emptied or impossible date leaves the block as it was.
+
 - **The block bar keeps to one row**, which it now has room for.
 
 ### Removed
