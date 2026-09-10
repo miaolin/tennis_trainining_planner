@@ -5,6 +5,56 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.27.0] — 2026-09-10
+
+### Changed
+
+- **Everyone is one calendar rather than a list of blocks to pick between.** Two
+  children in the same camp were two chips reading *Camp plan · 26 Nov – 8 Dec*,
+  and telling them apart meant reading the dot. Worse, the tab that exists to
+  show the family showed one child at a time anyway: seeing whether both were on
+  court on Thursday morning meant switching tabs and holding the fortnight in
+  your head. Every block is now drawn onto a single grid — a shared morning has
+  both children in it, ordered by the clock rather than by whose block was
+  written first, and coloured by whose it is rather than by the type of session,
+  because stacked against a sibling's morning the type is the thing the words
+  can carry and the owner is not.
+
+  Hours are not merged, and never will be: two bodies averaged into one figure
+  describe neither. The foot of each day lists the children side by side, each
+  read against their own age ceiling, and the readout above counts days instead
+  — *planned*, *out*, *clear* — the diary being the thing a family actually
+  shares. Season totals stay one chip per child.
+
+- **A slot is a row, not a stack.** Each child gets a lane in it, in the order
+  of the strip above, so a child keeps the same side of every cell all the way
+  down the calendar and a morning is read across rather than down. It halves
+  the height of a day two children are both out on, and a lane with nothing in
+  it is left empty on purpose — that gap is the answer to *is anybody free*.
+
+  A shared lane is about sixty-five pixels, so the card gives back what it can:
+  the name, its dot and the session length come off, leaving the type and the
+  hours it runs. The lane it sits in and the foot below — which names the
+  children in the same order — have already said whose it is, and the hover
+  carries the whole line. Alone in a cell, or on a phone where a day is the
+  full width, all three come back.
+
+- **The load checks are said under the name they belong to.** Everyone runs them
+  once per block and prefixes each with the child, so the same 4h day can be a
+  heavy one at nine and an ordinary one at thirteen on the same screen.
+
+- **Weeks nobody trains collapse to a rule saying how many there were.** A camp
+  in June and a camp in March are one calendar rather than three empty months
+  scrolled past. A block names itself once, on the day it starts, rather than on
+  all thirteen of its days.
+
+- The chip bar and the session palette come off Everyone, having nothing left to
+  switch between or drop into. A block is still written on the tab of the child
+  it is for, which is where its age, its ceilings and its owner already live.
+
+- Printed pages set the session names, the day hours and the week totals in ink
+  rather than in the screen's near-white, which was invisible on paper.
+
 ## [2.26.1] — 2026-09-09
 
 ### Changed

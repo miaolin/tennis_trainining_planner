@@ -211,6 +211,10 @@ input[type=text]#blockname{flex:0 1 200px;min-width:0}
   text-transform:uppercase;margin-right:6px;font-family:'Karla',sans-serif;
 }
 .wcap.over{color:var(--bad)}
+/* On Everyone a week total is one child's season rather than one block's week,
+   so the chip carries whose it is the way the tab above it does. */
+.wcap.who{display:inline-flex;align-items:center;gap:7px}
+.wcap.who small{margin-right:0}
 
 /* ---------- calendar ---------- */
 .dow-row{
@@ -288,6 +292,64 @@ input[type=text]#blockname{flex:0 1 200px;min-width:0}
 .placed .tm .rg{white-space:nowrap}
 .placed .tm .ln{white-space:nowrap;opacity:.72}
 .placed .tm.unset{font-style:italic}
+/* ---------- read across the children ----------
+   Everyone stacks two children into one day, so a session has to say whose it
+   is before it says what it is: the left edge and the dot take the child's
+   colour, and the type falls back to a word. Nothing here is dragged, timed or
+   removed — that is what a child's own tab is for — so the controls give up
+   their handles and read as plain text. */
+.placed.read{cursor:default}
+.placed.read .tm{cursor:default;margin-right:0}
+.placed.read .tm:hover{color:var(--mute);border-bottom-color:transparent}
+.placed .whodot{
+  display:inline-block;vertical-align:baseline;
+  width:7px;height:7px;margin-right:5px;
+}
+.slotlab{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--mute);opacity:.75;
+}
+/* One lane per child, so the same slot reads across and a child keeps the same
+   side of the cell all the way down the calendar. A lane with nothing in it is
+   left empty on purpose: that gap is the answer to "is anybody free". */
+#grid.merged .slot{
+  display:grid;grid-template-columns:repeat(var(--cols,1),minmax(0,1fr));
+  gap:4px;align-items:start;
+}
+#grid.merged .slotlab{grid-column:1/-1}
+.whocol{display:flex;flex-direction:column;gap:4px;min-width:0}
+/* Sharing a cell, a card gets about sixty-five pixels. Everything that can
+   give some back does: the padding, the type, and the colour bar down the
+   left, which only has to be seen rather than read. */
+#grid.merged .placed{min-width:0}
+#grid.merged .placed .nm{overflow-wrap:anywhere}
+.slots.tight .placed{padding:5px 5px;border-left-width:3px;min-height:38px}
+.slots.tight .placed .nm{font-size:11px}
+.slots.tight .placed .tm{font-size:12px;letter-spacing:0}
+.slots.tight .placed .who,.slots.tight .placed .ln{display:none}
+/* Two children means two loads, and averaging them would describe neither — so
+   the foot lists them side by side, each read against its own age ceiling. */
+.day-foot.merged{flex-wrap:wrap;gap:3px 12px}
+.dhrs{
+  font-family:'Barlow Condensed',sans-serif;font-size:13px;
+  color:var(--mute);letter-spacing:.03em;
+  display:inline-flex;align-items:center;gap:5px;
+}
+.dhrs b{font-weight:600;color:var(--court-line)}
+.dhrs.hot b{color:var(--warn)}
+.dhrs.over b{color:var(--bad)}
+/* A season is mostly not a training block. Scrolling through the empty months
+   between two camps would bury both, so the quiet weeks collapse to a rule
+   that says how many of them there were. */
+.weekgap{
+  grid-column:1/-1;
+  display:flex;align-items:center;gap:12px;
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--mute);padding:3px 0;
+}
+.weekgap::before,.weekgap::after{content:'';flex:1;height:1px;background:var(--hair)}
 /* A blocked slot is not training, and should not have to be read to be told
    apart from one: its own colour, a hatched surface, and a quieter name. */
 .placed.block,.chip.block{
@@ -901,6 +963,12 @@ input[type=text]#blockname{flex:0 1 200px;min-width:0}
   .day.blank{display:none}
   .slots{flex-direction:row}
   .slot{flex:1}
+  /* On a phone a day is the full width, so the children get it: the slots go
+     back to a stack and each one splits between them, rather than six lanes
+     fighting over four hundred pixels. A lane that wide can say the name
+     again — and there is no hover here to fall back on. */
+  #grid.merged .slots{flex-direction:column}
+  .slots.tight .placed .who,.slots.tight .placed .ln{display:inline}
   /* On a phone the chips would wrap to three rows and eat the screen, so the
      pinned palette keeps them on one line and scrolls sideways instead. */
   .palette.stuck .chips{flex-wrap:nowrap;overflow-x:auto;gap:7px}
@@ -910,6 +978,12 @@ input[type=text]#blockname{flex:0 1 200px;min-width:0}
   body{background:#fff;color:#000}
   .palette,.bar,.blockbar,.whotabs,.hint,.mainnav,.modal-back,.syncrow,.syncqr{display:none}
   .day{background:#f4f4f4;border:1px solid #999}
+  /* On paper the strip naming the children is gone, so what is left to say
+     whose a session is has to be the ink rather than the colour behind it. */
+  .placed .nm,.dhrs b,.wcap b{color:#000}
+  .placed .tm,.dhrs,.slotlab,.wcap small{color:#444}
+  .weekgap{color:#555}
+  .weekgap::before,.weekgap::after{background:#bbb}
 }
 </style>
 </head>
@@ -1341,6 +1415,13 @@ function shownBlocks(){ return trainStrip() ? blocksFor(trainWho) : state.blocks
    too — made here it would belong to nobody, and a block filed under nobody has
    no age to read a load ceiling from. */
 function blockEditable(){ return !(trainStrip() && trainWho === null); }
+/* Everyone is a calendar, not a block. A child's tab answers "how is her
+   fortnight shaped"; this answers the other question a house with two players
+   actually has — who is on court on Thursday morning, and is anyone free at
+   the same time. Tabbing between two children to work that out is holding the
+   fortnight in your head, so instead every block is drawn onto one calendar
+   and none of them is editable there. */
+function merged(){ return trainStrip() && trainWho === null; }
 function blockOwner(b){
   return (b && b.playerId && state.players.find(p => p.id === b.playerId)) || null;
 }
@@ -2260,6 +2341,11 @@ function copyBlockTo(playerId){
 function renderBlockBar(){
   const bar = document.getElementById('blockbar');
   bar.innerHTML = '';
+  /* Everyone draws every block onto one calendar, so a chip has nothing left
+     to switch between: picking "Camp plan" out of two identically named ones
+     was the tabbing the merged view exists to remove. */
+  bar.hidden = merged();
+  if(bar.hidden) return;
   const cur = active();
   shownBlocks().forEach(b=>{
     const el = document.createElement('button');
@@ -2288,15 +2374,242 @@ function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+
+/* ------------------------------------------------ everyone's calendar ---
+   One grid, every block on it. A day here belongs to the family rather than to
+   a block, so it is keyed by the date and carries however many children are on
+   court that day — which is the whole point: two camps that run the same
+   fortnight are one fortnight, not two to be read in turn. */
+function mergedDays(){
+  const map = new Map();
+  state.blocks.forEach(b=>{
+    const owner = blockOwner(b);
+    for(let i=0;i<b.days;i++){
+      const k = iso(dateFor(b, i));
+      let day = map.get(k);
+      if(!day) map.set(k, day = {on:[]});
+      day.on.push({b, i, owner});
+    }
+  });
+  return map;
+}
+// The Sunday on or before a date, so a week row starts where the day names do.
+function weekStart(d){
+  const s = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  s.setDate(s.getDate() - s.getDay());
+  return s;
+}
+function mergedDayHours(day){
+  return day.on.reduce((h, o) => h + dayHours(o.b, o.i), 0);
+}
+/* Whose columns a day has, in the order of the strip above, so a child keeps
+   the same side of every cell all the way down the calendar. Drawn from the
+   blocks covering this day rather than from the family, so a child whose camp
+   has ended does not leave an empty lane running to Christmas. */
+function mergedCols(day){
+  const out = state.players.filter(p => day.on.some(o => o.owner && o.owner.id === p.id));
+  if(day.on.some(o => !o.owner)) out.push(null);   // a block nobody has claimed
+  return out;
+}
+// One child's sessions in one slot, in the order their day runs.
+function mergedSlot(day, sl, who){
+  const list = [];
+  day.on.forEach(o=>{
+    if((o.owner ? o.owner.id : null) !== (who ? who.id : null)) return;
+    planAt(o.b, o.i)[sl].forEach(e => list.push(e));
+  });
+  return sortSlot(list);
+}
+/* Whose it is takes the colour here. On a child's tab the strip above already
+   answers that and the colour can say what kind of session it is; alongside a
+   sibling's morning, it cannot.
+
+   The name is always written and sometimes not shown — whether there is room
+   for it is a question about width, which CSS can see and this cannot. Sharing
+   a 65px lane it comes off, along with its dot (the same colour as the edge it
+   sits beside, and wide enough to push a word like "Physical" onto a second
+   line) and the length (09:00–10:30 is the length). Alone in the cell, or on a
+   phone where a day is the full width, all three fit and all three show. The
+   hover carries the whole line either way. */
+function mergedCard(e, owner){
+  const inf = entryInfo(e);
+  if(!inf) return '';
+  const resting = isRest(e);
+  const when = timeLabel(e);
+  const who = owner ? firstName(owner.name) : '';
+  const full = [who, inf.nm].filter(Boolean).join(' · ') +
+               (when ? ' ' + when : '') + (inf.span ? ' ' + inf.dur : '');
+  const name = owner ? `<span class="who"><i class="whodot"></i>${escapeHtml(who)} · </span>` : '';
+  return `<div class="placed read${inf.custom ? ' block' : ''}${resting ? ' off' : ''}"` +
+         ` style="--c:${owner ? owner.colour : inf.c}" title="${escapeHtml(full)}">` +
+         `<span class="nm">${name}${escapeHtml(inf.nm)}</span>` +
+         (resting
+           ? '<span class="tm">nothing booked</span>'
+           : `<span class="tm${when ? '' : ' unset'}">${
+               when ? `<span class="rg">${escapeHtml(when)}</span> <span class="ln">${escapeHtml(inf.dur)}</span>`
+                    : 'no time set'
+             }</span>`) +
+         '</div>';
+}
+function mergedCell(d, day){
+  const el = document.createElement('div');
+  // A date inside the span that no block covers is padding, the same as the
+  // days either side of a block on a child's tab.
+  if(!day){ el.className = 'day blank'; return el; }
+  el.className = 'day';
+  const hrs = mergedDayHours(day);
+  if(!hrs) el.classList.add('rest');
+
+  /* Naming the block on all thirteen of its days is the same word thirteen
+     times. It is worth saying once, on the day it starts — which is also what
+     marks one block ending and the next beginning further down the year. */
+  const starts = [...new Set(day.on.filter(o => o.i === 0).map(o => o.b.name))];
+  el.innerHTML = `<div class="day-head"><span class="day-num">${fmt(d)}</span>` +
+                 `<span class="day-tag">${escapeHtml(starts.join(' · '))}</span></div>`;
+
+  /* A morning is one morning. Stacked, two children made a day twice as tall
+     as it needed to be and put a sibling's session under your eye while you
+     were reading the first child's; side by side the slot reads across, and a
+     child with nothing booked that morning leaves a gap you can see. */
+  const cols = mergedCols(day);
+  const slots = document.createElement('div');
+  // More than one lane in a cell is what makes the room tight — the cards give
+  // back what padding and type they can, and drop the name and the length.
+  slots.className = 'slots' + (cols.length > 1 ? ' tight' : '');
+  slots.style.setProperty('--cols', cols.length);
+  SLOTS.forEach(sl=>{
+    const byCol = cols.map(who => mergedSlot(day, sl, who));
+    if(!byCol.some(l => l.length)) return;   // nobody is out — nothing to draw
+    const box = document.createElement('div');
+    box.className = 'slot';
+    box.innerHTML = `<div class="slotlab">${SLOT_NAME[sl]}</div>` +
+      byCol.map((list, i)=>{
+        const owner = cols[i];
+        return `<div class="whocol">` +
+               list.map(e => mergedCard(e, owner)).join('') + '</div>';
+      }).join('');
+    slots.appendChild(box);
+  });
+  el.appendChild(slots);
+
+  const foot = document.createElement('div');
+  foot.className = 'day-foot merged';
+  foot.innerHTML = day.on.map(o=>{
+    const h = dayHours(o.b, o.i);
+    const cap = blockCaps(o.b).day;
+    const cls = h > cap ? 'over' : (h >= cap * 0.85 ? 'hot' : '');
+    const nm = o.owner ? firstName(o.owner.name) : 'Nobody';
+    return `<span class="dhrs ${cls}"${o.owner ? ` style="--c:${o.owner.colour}"` : ''}>` +
+           (o.owner ? '<i class="whodot"></i>' : '') + escapeHtml(nm) +
+           `<b>${h ? h.toFixed(1) : '—'}</b></span>`;
+  }).join('');
+  el.appendChild(foot);
+  return el;
+}
+// A tab says "Ian Lin"; a day cell has room for "Ian".
+function firstName(n){ return String(n).trim().split(/\s+/)[0] || n; }
+
+function renderEveryone(){
+  const grid = document.getElementById('grid');
+  const days = mergedDays();
+  const keys = [...days.keys()].sort();
+
+  document.getElementById('title').textContent = 'Everyone';
+  if(!keys.length){
+    document.getElementById('range').textContent = '';
+    ['tot','ondays','restdays'].forEach(id => document.getElementById(id).textContent = '0');
+    document.getElementById('weekcaps').innerHTML = '';
+    document.getElementById('notes').innerHTML = noteHtml([['warn','No training blocks',
+      'Open a child’s tab to start one — a block belongs to whoever is going to train it.']]);
+    return;
+  }
+  const first = new Date(keys[0] + 'T00:00:00');
+  const last  = new Date(keys[keys.length-1] + 'T00:00:00');
+  document.getElementById('range').textContent = `${fmt(first)} – ${fmt(last)}`;
+
+  /* Week by week from the first block to the last. A season is mostly empty,
+     so a run of weeks nobody trains collapses to a rule rather than scrolling
+     past as blank cards. */
+  const end = weekStart(last);
+  let quiet = 0;
+  for(let w = weekStart(first); w <= end; w.setDate(w.getDate() + 7)){
+    const week = [];
+    for(let i=0;i<7;i++){
+      const d = new Date(w.getFullYear(), w.getMonth(), w.getDate());
+      d.setDate(d.getDate() + i);
+      week.push(d);
+    }
+    if(!week.some(d => days.has(iso(d)))){ quiet++; continue; }
+    if(quiet){
+      const gap = document.createElement('div');
+      gap.className = 'weekgap';
+      gap.textContent = quiet === 1 ? 'a week with nothing planned'
+                                    : `${quiet} weeks with nothing planned`;
+      grid.appendChild(gap);
+      quiet = 0;
+    }
+    week.forEach(d => grid.appendChild(mergedCell(d, days.get(iso(d)))));
+  }
+
+  /* The numbers. Hours are a judgement about one body and never get added
+     together here; what the family shares is the diary, so the readout counts
+     days — the ones somebody is out, and the ones nobody is. */
+  let busy = 0, clear = 0;
+  keys.forEach(k => { mergedDayHours(days.get(k)) > 0 ? busy++ : clear++; });
+  document.getElementById('tot').textContent = String(keys.length);
+  document.getElementById('ondays').textContent = String(busy);
+  document.getElementById('restdays').textContent = String(clear);
+
+  // One chip per child, because a season total is theirs and nobody else's.
+  const caps = [];
+  state.players.forEach(p=>{
+    const mine = state.blocks.filter(b => b.playerId === p.id);
+    if(!mine.length) return;
+    const h = mine.reduce((a, b) => a + totalHours(b), 0);
+    caps.push(`<span class="wcap who" style="--c:${p.colour}"><i class="whodot"></i>` +
+              `<small>${escapeHtml(p.name)}</small><b>${h.toFixed(1)}</b>h</span>`);
+  });
+  const spare = state.blocks.filter(b => !blockOwner(b));
+  if(spare.length){
+    const h = spare.reduce((a, b) => a + totalHours(b), 0);
+    caps.push(`<span class="wcap"><small>Nobody yet</small><b>${h.toFixed(1)}</b>h</span>`);
+  }
+  document.getElementById('weekcaps').innerHTML = caps.join('');
+
+  /* Every check is still about one child, so they are run per block and said
+     under the name they belong to rather than blended into a family verdict. */
+  const notes = [];
+  state.blocks.slice()
+    .sort((a, b) => a.start < b.start ? -1 : a.start > b.start ? 1 : 0)
+    .forEach(b=>{
+      const own = blockOwner(b);
+      checkNotes(b).forEach(([k, t, body]) =>
+        notes.push([k, (own ? escapeHtml(own.name) + ' · ' : '') + t, body]));
+    });
+  document.getElementById('notes').innerHTML = noteHtml(notes);
+}
+
 function renderTraining(){
-  const b = active();
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
+  // The lane-per-child layout is Everyone's alone — a child's own tab has one
+  // child in a slot and wants the full width for them.
+  grid.classList.toggle('merged', merged());
 
   renderTrainWho();
   renderBlockBar();
+  /* Everyone reads across the children and writes to none of them, so the
+     palette goes with the chip bar: there is no one block for a dragged
+     session to land in. */
+  const all = merged();
+  document.querySelector('.palette').hidden = all;
+  // Passed nothing, both of these put themselves away — there is no one block
+  // here to name an owner for or to copy across.
+  const b = all ? null : active();
   renderBlockWho(b);
   renderCopyTo(b);
+  if(all){ document.getElementById('blockedit').hidden = true; renderEveryone(); return; }
+
   /* With no block there is nothing to describe. The bar would otherwise keep
      the last block's name and dates, and on a child who has none of their own
      that is somebody else's camp shown as theirs. On Everyone there is nothing
@@ -2452,7 +2765,17 @@ function wireDrop(el, day, slot){
 }
 
 /* ------------------------------------------------------- load checks --- */
+function noteHtml(list){
+  return list.map(([k,t,body])=>
+    `<div class="note ${k}"><span class="dot"></span><div><b>${t}.</b> <span>${body}</span></div></div>`
+  ).join('');
+}
 function runChecks(b){
+  document.getElementById('notes').innerHTML = noteHtml(checkNotes(b));
+}
+// The judging, kept apart from the writing, because Everyone runs it once per
+// block and prints the lot under one heading.
+function checkNotes(b){
   const out = [];
   const total = totalHours(b);
   // Every check below is a judgement about one child, so it is worth saying
@@ -2519,9 +2842,7 @@ function runChecks(b){
   else if(!out.length) out.push(['ok','Balanced',
     `${total.toFixed(1)}h across ${b.days} days with rest built in. Serves in the morning slot only, 40–50 balls, never two days running.`]);
 
-  document.getElementById('notes').innerHTML = out.map(([k,t,body])=>
-    `<div class="note ${k}"><span class="dot"></span><div><b>${t}.</b> <span>${body}</span></div></div>`
-  ).join('');
+  return out;
 }
 
 /* =================================================== part 2: tournaments ===
@@ -4860,6 +5181,17 @@ function renderHeader(){
     document.getElementById('lab1').textContent = 'Kids';
     document.getElementById('lab2').textContent = 'Tournaments';
     document.getElementById('lab3').textContent = 'Added here';
+  } else if(merged()){
+    /* Everyone counts days, not hours. Adding two children's court time into
+       one figure would read as a load and describe neither of them, whereas
+       the diary genuinely is shared: these are the days somebody is out, and
+       the days the family has back. */
+    sub.textContent = 'Every block on one calendar, whoever it belongs to. ' +
+      'Open a child\u2019s tab to change one — hours and rest are judged there, ' +
+      'against their own age.';
+    document.getElementById('lab1').textContent = 'Planned days';
+    document.getElementById('lab2').textContent = 'Days out';
+    document.getElementById('lab3').textContent = 'Days clear';
   } else {
     const own = blockOwner(active());
     // Hours and rest days are one child's, so the line names them: with two

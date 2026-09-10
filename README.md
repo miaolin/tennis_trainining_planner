@@ -47,9 +47,21 @@ tests/                          jsdom harness + api tests — dev only, never de
 - **A block belongs to one child.** With two children on the page a strip appears
   above the block row — **Everyone**, then a tab each — and **Whose** on the
   block's bar says who a block is for. A block added on a child's tab is theirs;
-  their tab shows their blocks plus any block nobody has claimed yet. Everyone
-  lists them all and stays editable, because a block names its own owner. With
-  one child there is no strip and nothing changes.
+  their tab shows their blocks plus any block nobody has claimed yet. With one
+  child there is no strip and nothing changes.
+- **Everyone is one calendar.** Not a list of blocks to pick between: every
+  block is drawn onto a single grid, so a shared morning shows both children in
+  it — side by side, a lane each, in the order of the strip above, so a child
+  keeps the same side of every cell and a slot is read across rather than down.
+  A lane left empty is the answer to *is anybody free*. It answers the question
+  a house with two players actually has — who is out on Thursday morning, and is
+  anybody free at the same time — without holding two fortnights in your head.
+  Nothing there is editable: hours, rest and every load check are judgements
+  about one body, so they stay on the child's own tab, read against their own
+  age. The foot of each day still lists them side by side rather than added up,
+  and the readout counts days, which is the thing a family really does share.
+  Weeks no one trains collapse to a rule saying how many there were, so a camp
+  in June and a camp in March are one calendar rather than three empty months.
 - **Calendar grid** laid out Sun–Sat, aligned to whatever weekday the block
   starts on. Each day has a morning, an afternoon and an evening slot.
 - **An exact start time on every session.** Placing one asks when it starts —
