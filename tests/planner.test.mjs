@@ -3759,14 +3759,16 @@ group('a training tab per child');
      trainTabs(d).map(b => b.textContent.trim()).join('|'));
   ok('the block that was here already belongs to nobody',
      activeBlock(dom).playerId === null);
+
+  const kids = saved(dom).players;
+  /* Everyone is one calendar with every block already drawn on it, so the
+     questions about a single block are put where they can be answered — and a
+     block added on a child's tab is theirs, which is the point of standing
+     there. */
+  click(dom, trainTabs(d)[1]);
   ok('so the page asks whose it is', !$(d, '#blockwho').hidden);
   ok('so it shows on the strip with a hollow dot',
      $(d, '#blockbar .btab .bdot') && !$(d, '#blockbar .btab .bdot').getAttribute('style'));
-
-  const kids = saved(dom).players;
-  // A block added on a child's tab is theirs — that is the whole point of
-  // standing on their tab.
-  click(dom, trainTabs(d)[1]);
   click(dom, $(d, '#btn-add'));
   ok('a block added on her tab is hers', activeBlock(dom).playerId === kids[0].id,
      activeBlock(dom).playerId);
@@ -3784,21 +3786,141 @@ group('a training tab per child');
      activeBlock(dom).name === 'Camp plan', activeBlock(dom).name);
 
   click(dom, trainTabs(d)[0]);
-  ok('Everyone sees both', blockTabs(d).length === 2, blockTabs(d).length);
-
   /* Everyone reads; a child's tab edits. Every question the bar puts is about
      one child — whose week this is, what it is called, when it ends — and a
      block made here would belong to nobody, which leaves no age to read a load
      ceiling from. */
   ok('the overview is not where a block is described', $(d, '#blockedit').hidden);
   ok('nor where one is started', !$(d, '#btn-add'));
+  ok('nor where a session is dragged from', $(d, '.palette').hidden);
+  // Nothing left to pick between: both blocks are already on the one calendar.
+  ok('and there are no chips to switch between',
+     blockTabs(d).length === 0 && $(d, '#blockbar').hidden, blockTabs(d).length);
   ok('but the blocks themselves are all still here and readable',
-     blockTabs(d).length === 2 && !!$(d, '#grid .day'), blockTabs(d).length);
+     $$(d, '#grid .day:not(.blank)').length > 0 &&
+     $(d, '#grid').textContent.includes('Olivia'),
+     $$(d, '#grid .day:not(.blank)').length);
 
   click(dom, trainTabs(d)[1]);
   ok('her tab asks the questions again', !$(d, '#blockedit').hidden && !!$(d, '#btn-add'));
   input(dom, $(d, '#blockname'), 'Renamed on her tab');
   ok('and takes the answers', saved(dom).blocks.some(b => b.name === 'Renamed on her tab'));
+}
+
+/* Two children, the same fortnight, both on court. The question a house with
+   two players actually has is not "how is her block shaped" — that is what her
+   tab is for — but "who is out on Thursday morning, and is anybody free at the
+   same time". Answering that by tabbing between two identically named camps is
+   holding the fortnight in your head, so Everyone draws them onto one grid. */
+const sameWeekPlan = () => {
+  const Y = new Date().getFullYear();
+  return JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [
+      { id: 'ba', name: 'Camp plan', start: `${Y}-06-01`, days: 7, playerId: 'pa',
+        plan: { 0: { am: [{ type: 'p1', at: '10:00' }] }, 1: { pm: 'g2' } } },
+      { id: 'bb', name: 'Camp plan', start: `${Y}-06-01`, days: 7, playerId: 'pb',
+        plan: { 0: { am: [{ type: 'p1', at: '08:00' }] } } },
+    ],
+    activeBlockId: 'ba',
+    players: [
+      { id: 'pa', name: 'Olivia Lin', birthYear: Y - 9,  colour: '#5B9BD5' },
+      { id: 'pb', name: 'Ian Lin',    birthYear: Y - 13, colour: '#D6E64B' },
+    ],
+    entries: [], manualMatches: [], trips: [], rewards: {},
+  });
+};
+
+group('Everyone is one calendar');
+{
+  const dom = boot({ [KEY]: sameWeekPlan() });
+  const d = dom.window.document;
+  const days = () => $$(d, '#grid .day:not(.blank)');
+
+  ok('it opens on Everyone', trainTabs(d)[0].classList.contains('on'),
+     trainTabs(d).map(b => b.className).join('|'));
+  ok('with no chips to pick between',
+     blockTabs(d).length === 0 && $(d, '#blockbar').hidden, blockTabs(d).length);
+  ok('and nothing to drag, nothing here being editable', $(d, '.palette').hidden);
+  ok('the header names the family rather than a block',
+     $(d, '#title').textContent === 'Everyone', $(d, '#title').textContent);
+  ok('the two camps are one fortnight, not two', days().length === 7, days().length);
+
+  // The whole point: one morning, both children, without changing tab.
+  const morning = $$(days()[0], '.placed.read');
+  ok('a shared morning carries both children', morning.length === 2, morning.length);
+  ok('ordered by the clock, not by whose block was written first',
+     morning[0].textContent.includes('Ian') && morning[1].textContent.includes('Olivia'),
+     morning.map(pl => pl.textContent).join('|'));
+  ok('a session says whose it is before it says what it is',
+     morning[0].textContent.includes('Ian · Private'), morning[0].textContent);
+  ok('and takes that child’s colour rather than the session type’s',
+     (morning[0].getAttribute('style') || '').includes('#D6E64B'),
+     morning[0].getAttribute('style'));
+  ok('with the times still readable', morning[0].textContent.includes('08:00–09:00'),
+     morning[0].textContent);
+  ok('but no handles on them — this is the reading tab',
+     !$(days()[0], '.placed .x') && !$(days()[0], '.add'));
+
+  /* Hours stay one child's. Two bodies averaged into a single figure describe
+     neither, so the foot lists them side by side against their own ceilings. */
+  const foot = $$(days()[0], '.dhrs');
+  ok('the foot reads each child’s hours separately', foot.length === 2, foot.length);
+  ok('and names whose is whose',
+     foot.map(f => f.textContent).join('|').includes('Olivia'),
+     foot.map(f => f.textContent).join('|'));
+  ok('the readout counts days instead, the diary being the shared thing',
+     $(d, '#lab1').textContent === 'Planned days' && $(d, '#tot').textContent === '7',
+     `${$(d, '#lab1').textContent}/${$(d, '#tot').textContent}`);
+  ok('a day nobody is booked on reads as clear',
+     $(d, '#lab3').textContent === 'Days clear' && $(d, '#restdays').textContent === '5',
+     `${$(d, '#lab3').textContent}/${$(d, '#restdays').textContent}`);
+  ok('a season total per child, because that is whose it is',
+     $$(d, '#weekcaps .wcap.who').length === 2, $$(d, '#weekcaps .wcap').length);
+  ok('and the load checks are said under the name they belong to',
+     $(d, '#notes').textContent.includes('Olivia Lin ·') &&
+     $(d, '#notes').textContent.includes('Ian Lin ·'),
+     $(d, '#notes').textContent.slice(0, 140));
+
+  // A child's tab is still where a block is written.
+  click(dom, trainTabs(d)[1]);
+  ok('her tab is one block again',
+     blockTabs(d).length === 1 && !$(d, '#blockbar').hidden, blockTabs(d).length);
+  ok('with the palette back', !$(d, '.palette').hidden);
+  ok('the hours are hers again', $(d, '#lab1').textContent === 'Total hrs' &&
+     $(d, '#tot').textContent === '3.0', $(d, '#tot').textContent);
+  ok('and his morning is off the grid', !$(d, '#grid').textContent.includes('Ian'),
+     $(d, '#grid').textContent.slice(0, 90));
+}
+
+group('the quiet months between two camps collapse');
+{
+  /* A season is mostly not a training block. Scrolling past three empty months
+     to reach September would bury both camps, so the weeks nobody trains are
+     said rather than drawn. */
+  const Y = new Date().getFullYear();
+  const dom = boot({ [KEY]: JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [
+      { id: 'ba', name: 'June camp', start: `${Y}-06-01`, days: 7, playerId: 'pa', plan: {} },
+      { id: 'bb', name: 'Sept camp', start: `${Y}-09-01`, days: 7, playerId: 'pb', plan: {} },
+    ],
+    activeBlockId: 'ba',
+    players: [
+      { id: 'pa', name: 'Olivia Lin', birthYear: Y - 9,  colour: '#5B9BD5' },
+      { id: 'pb', name: 'Ian Lin',    birthYear: Y - 13, colour: '#D6E64B' },
+    ],
+    entries: [], manualMatches: [], trips: [], rewards: {},
+  }) });
+  const d = dom.window.document;
+  const gap = $$(d, '#grid .weekgap');
+  ok('the empty weeks are a rule, not rows of blank cards', gap.length === 1, gap.length);
+  ok('and it says how many there were', /\d+ weeks with nothing planned/.test(gap[0].textContent),
+     gap[0].textContent);
+  ok('both camps are still drawn', $(d, '#grid').textContent.includes('June camp') &&
+     $(d, '#grid').textContent.includes('Sept camp'));
+  ok('the span runs from the first to the last',
+     $(d, '#range').textContent === '1 Jun – 7 Sep', $(d, '#range').textContent);
 }
 
 group('handing a block to a child');
@@ -3807,12 +3929,17 @@ group('handing a block to a child');
   const d = dom.window.document;
   const kids = saved(dom).players;
 
-  ok('an unowned block shows on every tab', blockTabs(d).length === 2);
+  // A block nobody has claimed is reachable from either tab, so it can never
+  // go missing behind a child it does not belong to.
+  click(dom, trainTabs(d)[1]);
+  ok('an unowned block shows on her tab',
+     blockTabs(d).some(b => b.textContent.includes('Her block')),
+     blockTabs(d).map(b => b.textContent).join('|'));
   click(dom, trainTabs(d)[2]);
   ok('his tab shows his own and the unowned one', blockTabs(d).length === 2,
      blockTabs(d).map(b => b.textContent).join('|'));
 
-  click(dom, trainTabs(d)[0]);
+  click(dom, trainTabs(d)[1]);
   click(dom, blockTabs(d)[0]);                       // Her block, still unowned
   ok('a block filed under nobody is asked whose it is', !$(d, '#blockwho').hidden);
   ok('and needs no label, "Nobody yet" being the question and the answer at once',
@@ -3880,8 +4007,10 @@ group('load checks belong to one child');
   ok('and names her rather than guessing a pronoun',
      $(d, '#notes').textContent.includes('Olivia will stop learning'),
      $(d, '#notes').textContent);
-  ok('the day bar reads as over', $$(d, '#grid .load-bar i.over').length === 1,
-     $$(d, '#grid .load-bar i.over').length);
+  // Everyone puts each child's hours in the foot of the day, read against
+  // their own ceiling — hers is over at nine, his is not at thirteen.
+  ok('the day reads as over for her alone', $$(d, '#grid .dhrs.over').length === 1,
+     $$(d, '#grid .dhrs.over').length);
 
   click(dom, trainTabs(d)[2]);                        // Ian, 13
   ok('the same 4h day is an ordinary one at thirteen',
@@ -4862,6 +4991,9 @@ group('a plan written for one child, fitted to the other');
   const copier = () => $(d, '#copyto');
   const opts = () => [...copier().options];
 
+  // Copying is an edit, so it is asked on the tab of the child being copied
+  // from rather than on the overview, which edits nothing.
+  click(dom, trainTabs(d)[1]);
   ok('the copier offers the child the block does not belong to',
      !copier().hidden && opts().length === 2 && opts()[1].textContent === 'Ian',
      opts().map(o => o.textContent).join('|'));
