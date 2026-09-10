@@ -3818,7 +3818,10 @@ const sameWeekPlan = () => {
     version: 2, updatedAt: 1,
     blocks: [
       { id: 'ba', name: 'Camp plan', start: `${Y}-06-01`, days: 7, playerId: 'pa',
-        plan: { 0: { am: [{ type: 'p1', at: '10:00' }] }, 1: { pm: 'g2' } } },
+        // stored out of order on purpose — a lane runs to the clock, not to
+        // whichever session was dropped on the morning first
+        plan: { 0: { am: [{ type: 'p1', at: '10:00' }, { type: 'phys', at: '07:00' }] },
+                1: { pm: 'g2' } } },
       { id: 'bb', name: 'Camp plan', start: `${Y}-06-01`, days: 7, playerId: 'pb',
         plan: { 0: { am: [{ type: 'p1', at: '08:00' }] } } },
     ],
@@ -3846,20 +3849,36 @@ group('Everyone is one calendar');
      $(d, '#title').textContent === 'Everyone', $(d, '#title').textContent);
   ok('the two camps are one fortnight, not two', days().length === 7, days().length);
 
-  // The whole point: one morning, both children, without changing tab.
-  const morning = $$(days()[0], '.placed.read');
-  ok('a shared morning carries both children', morning.length === 2, morning.length);
-  ok('ordered by the clock, not by whose block was written first',
-     morning[0].textContent.includes('Ian') && morning[1].textContent.includes('Olivia'),
-     morning.map(pl => pl.textContent).join('|'));
-  ok('a session says whose it is before it says what it is',
-     morning[0].textContent.includes('Ian · Private'), morning[0].textContent);
-  ok('and takes that child’s colour rather than the session type’s',
-     (morning[0].getAttribute('style') || '').includes('#D6E64B'),
-     morning[0].getAttribute('style'));
-  ok('with the times still readable', morning[0].textContent.includes('08:00–09:00'),
-     morning[0].textContent);
-  ok('but no handles on them — this is the reading tab',
+  /* The whole point: one morning, both children, without changing tab — and
+     side by side rather than stacked, so the slot reads across and a child with
+     nothing booked leaves a gap you can see. */
+  const am = $(days()[0], '.slot');
+  const lanes = $$(am, '.whocol');
+  ok('a shared morning is one row with a lane each', lanes.length === 2, lanes.length);
+  ok('and says so to the layout', am.parentNode.classList.contains('tight') &&
+     am.parentNode.getAttribute('style').includes('--cols: 2'),
+     am.parentNode.getAttribute('style'));
+  // Lanes follow the strip above, so a child keeps the same side of every cell
+  // all the way down the calendar.
+  ok('the lanes run in the order of the strip, not of the clock',
+     $(lanes[0], '.who').textContent.includes('Olivia') &&
+     $(lanes[1], '.who').textContent.includes('Ian'),
+     lanes.map(l => $(l, '.who').textContent).join('|'));
+  ok('each lane takes that child’s colour rather than the session type’s',
+     ($(lanes[1], '.placed').getAttribute('style') || '').includes('#D6E64B'),
+     $(lanes[1], '.placed').getAttribute('style'));
+  ok('a lane runs to the clock inside itself',
+     $$(lanes[0], '.placed .rg').map(e => e.textContent).join(' → ') ===
+     '07:00–08:00 → 10:00–11:00',
+     $$(lanes[0], '.placed .rg').map(e => e.textContent).join(' → '));
+  ok('and one lane apiece when only one thing is booked',
+     $$(lanes[1], '.placed').length === 1, $$(lanes[1], '.placed').length);
+  // The name is written even where the lane is too narrow to show it, so the
+  // hover and the phone layout both have it to hand.
+  ok('every card carries the whole line in its title',
+     $(lanes[1], '.placed').title === 'Ian · Private 08:00–09:00 1h',
+     $(lanes[1], '.placed').title);
+  ok('but no handles on any of them — this is the reading tab',
      !$(days()[0], '.placed .x') && !$(days()[0], '.add'));
 
   /* Hours stay one child's. Two bodies averaged into a single figure describe
@@ -3888,7 +3907,7 @@ group('Everyone is one calendar');
      blockTabs(d).length === 1 && !$(d, '#blockbar').hidden, blockTabs(d).length);
   ok('with the palette back', !$(d, '.palette').hidden);
   ok('the hours are hers again', $(d, '#lab1').textContent === 'Total hrs' &&
-     $(d, '#tot').textContent === '3.0', $(d, '#tot').textContent);
+     $(d, '#tot').textContent === '4.0', $(d, '#tot').textContent);
   ok('and his morning is off the grid', !$(d, '#grid').textContent.includes('Ian'),
      $(d, '#grid').textContent.slice(0, 90));
 }
@@ -3919,6 +3938,9 @@ group('the quiet months between two camps collapse');
      gap[0].textContent);
   ok('both camps are still drawn', $(d, '#grid').textContent.includes('June camp') &&
      $(d, '#grid').textContent.includes('Sept camp'));
+  // The camps never overlap, so no day has a sibling to share a cell with and
+  // every card keeps the full width — name, time and length.
+  ok('a child alone on a day keeps the whole cell', !$(d, '#grid .slots.tight'));
   ok('the span runs from the first to the last',
      $(d, '#range').textContent === '1 Jun – 7 Sep', $(d, '#range').textContent);
 }

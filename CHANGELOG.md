@@ -26,6 +26,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   — *planned*, *out*, *clear* — the diary being the thing a family actually
   shares. Season totals stay one chip per child.
 
+- **A slot is a row, not a stack.** Each child gets a lane in it, in the order
+  of the strip above, so a child keeps the same side of every cell all the way
+  down the calendar and a morning is read across rather than down. It halves
+  the height of a day two children are both out on, and a lane with nothing in
+  it is left empty on purpose — that gap is the answer to *is anybody free*.
+
+  A shared lane is about sixty-five pixels, so the card gives back what it can:
+  the name, its dot and the session length come off, leaving the type and the
+  hours it runs. The lane it sits in and the foot below — which names the
+  children in the same order — have already said whose it is, and the hover
+  carries the whole line. Alone in a cell, or on a phone where a day is the
+  full width, all three come back.
+
 - **The load checks are said under the name they belong to.** Everyone runs them
   once per block and prefixes each with the child, so the same 4h day can be a
   heavy one at nine and an ordinary one at thirteen on the same screen.

@@ -51,7 +51,9 @@ tests/                          jsdom harness + api tests — dev only, never de
   child there is no strip and nothing changes.
 - **Everyone is one calendar.** Not a list of blocks to pick between: every
   block is drawn onto a single grid, so a shared morning shows both children in
-  it, ordered by the clock and coloured by whose it is. It answers the question
+  it — side by side, a lane each, in the order of the strip above, so a child
+  keeps the same side of every cell and a slot is read across rather than down.
+  A lane left empty is the answer to *is anybody free*. It answers the question
   a house with two players actually has — who is out on Thursday morning, and is
   anybody free at the same time — without holding two fortnights in your head.
   Nothing there is editable: hours, rest and every load check are judgements

@@ -310,6 +310,24 @@ input[type=text]#blockname{flex:0 1 200px;min-width:0}
   font-size:10px;letter-spacing:.14em;text-transform:uppercase;
   color:var(--mute);opacity:.75;
 }
+/* One lane per child, so the same slot reads across and a child keeps the same
+   side of the cell all the way down the calendar. A lane with nothing in it is
+   left empty on purpose: that gap is the answer to "is anybody free". */
+#grid.merged .slot{
+  display:grid;grid-template-columns:repeat(var(--cols,1),minmax(0,1fr));
+  gap:4px;align-items:start;
+}
+#grid.merged .slotlab{grid-column:1/-1}
+.whocol{display:flex;flex-direction:column;gap:4px;min-width:0}
+/* Sharing a cell, a card gets about sixty-five pixels. Everything that can
+   give some back does: the padding, the type, and the colour bar down the
+   left, which only has to be seen rather than read. */
+#grid.merged .placed{min-width:0}
+#grid.merged .placed .nm{overflow-wrap:anywhere}
+.slots.tight .placed{padding:5px 5px;border-left-width:3px;min-height:38px}
+.slots.tight .placed .nm{font-size:11px}
+.slots.tight .placed .tm{font-size:12px;letter-spacing:0}
+.slots.tight .placed .who,.slots.tight .placed .ln{display:none}
 /* Two children means two loads, and averaging them would describe neither — so
    the foot lists them side by side, each read against its own age ceiling. */
 .day-foot.merged{flex-wrap:wrap;gap:3px 12px}
@@ -945,6 +963,12 @@ input[type=text]#blockname{flex:0 1 200px;min-width:0}
   .day.blank{display:none}
   .slots{flex-direction:row}
   .slot{flex:1}
+  /* On a phone a day is the full width, so the children get it: the slots go
+     back to a stack and each one splits between them, rather than six lanes
+     fighting over four hundred pixels. A lane that wide can say the name
+     again — and there is no hover here to fall back on. */
+  #grid.merged .slots{flex-direction:column}
+  .slots.tight .placed .who,.slots.tight .placed .ln{display:inline}
   /* On a phone the chips would wrap to three rows and eat the screen, so the
      pinned palette keeps them on one line and scrolls sideways instead. */
   .palette.stuck .chips{flex-wrap:nowrap;overflow-x:auto;gap:7px}
@@ -2378,19 +2402,54 @@ function weekStart(d){
 function mergedDayHours(day){
   return day.on.reduce((h, o) => h + dayHours(o.b, o.i), 0);
 }
-/* A day's sessions, every child's together and ordered by the clock rather
-   than by whose block was written first — a morning is a morning, and reading
-   one child's whole day before the other's starts is the tabbing again. */
-function mergedSlot(day, sl){
+/* Whose columns a day has, in the order of the strip above, so a child keeps
+   the same side of every cell all the way down the calendar. Drawn from the
+   blocks covering this day rather than from the family, so a child whose camp
+   has ended does not leave an empty lane running to Christmas. */
+function mergedCols(day){
+  const out = state.players.filter(p => day.on.some(o => o.owner && o.owner.id === p.id));
+  if(day.on.some(o => !o.owner)) out.push(null);   // a block nobody has claimed
+  return out;
+}
+// One child's sessions in one slot, in the order their day runs.
+function mergedSlot(day, sl, who){
   const list = [];
-  day.on.forEach(o => planAt(o.b, o.i)[sl].forEach(e => list.push({e, owner:o.owner})));
-  return list.sort((x, y)=>{
-    const a = minsOf(x.e), b = minsOf(y.e);
-    if(a === b) return 0;
-    if(a === null) return 1;
-    if(b === null) return -1;
-    return a - b;
+  day.on.forEach(o=>{
+    if((o.owner ? o.owner.id : null) !== (who ? who.id : null)) return;
+    planAt(o.b, o.i)[sl].forEach(e => list.push(e));
   });
+  return sortSlot(list);
+}
+/* Whose it is takes the colour here. On a child's tab the strip above already
+   answers that and the colour can say what kind of session it is; alongside a
+   sibling's morning, it cannot.
+
+   The name is always written and sometimes not shown — whether there is room
+   for it is a question about width, which CSS can see and this cannot. Sharing
+   a 65px lane it comes off, along with its dot (the same colour as the edge it
+   sits beside, and wide enough to push a word like "Physical" onto a second
+   line) and the length (09:00–10:30 is the length). Alone in the cell, or on a
+   phone where a day is the full width, all three fit and all three show. The
+   hover carries the whole line either way. */
+function mergedCard(e, owner){
+  const inf = entryInfo(e);
+  if(!inf) return '';
+  const resting = isRest(e);
+  const when = timeLabel(e);
+  const who = owner ? firstName(owner.name) : '';
+  const full = [who, inf.nm].filter(Boolean).join(' · ') +
+               (when ? ' ' + when : '') + (inf.span ? ' ' + inf.dur : '');
+  const name = owner ? `<span class="who"><i class="whodot"></i>${escapeHtml(who)} · </span>` : '';
+  return `<div class="placed read${inf.custom ? ' block' : ''}${resting ? ' off' : ''}"` +
+         ` style="--c:${owner ? owner.colour : inf.c}" title="${escapeHtml(full)}">` +
+         `<span class="nm">${name}${escapeHtml(inf.nm)}</span>` +
+         (resting
+           ? '<span class="tm">nothing booked</span>'
+           : `<span class="tm${when ? '' : ' unset'}">${
+               when ? `<span class="rg">${escapeHtml(when)}</span> <span class="ln">${escapeHtml(inf.dur)}</span>`
+                    : 'no time set'
+             }</span>`) +
+         '</div>';
 }
 function mergedCell(d, day){
   const el = document.createElement('div');
@@ -2408,33 +2467,26 @@ function mergedCell(d, day){
   el.innerHTML = `<div class="day-head"><span class="day-num">${fmt(d)}</span>` +
                  `<span class="day-tag">${escapeHtml(starts.join(' · '))}</span></div>`;
 
+  /* A morning is one morning. Stacked, two children made a day twice as tall
+     as it needed to be and put a sibling's session under your eye while you
+     were reading the first child's; side by side the slot reads across, and a
+     child with nothing booked that morning leaves a gap you can see. */
+  const cols = mergedCols(day);
   const slots = document.createElement('div');
-  slots.className = 'slots';
+  // More than one lane in a cell is what makes the room tight — the cards give
+  // back what padding and type they can, and drop the name and the length.
+  slots.className = 'slots' + (cols.length > 1 ? ' tight' : '');
+  slots.style.setProperty('--cols', cols.length);
   SLOTS.forEach(sl=>{
-    const list = mergedSlot(day, sl);
-    if(!list.length) return;          // nothing to drop on here, so nothing to draw
+    const byCol = cols.map(who => mergedSlot(day, sl, who));
+    if(!byCol.some(l => l.length)) return;   // nobody is out — nothing to draw
     const box = document.createElement('div');
     box.className = 'slot';
     box.innerHTML = `<div class="slotlab">${SLOT_NAME[sl]}</div>` +
-      list.map(({e, owner})=>{
-        const inf = entryInfo(e);
-        if(!inf) return '';
-        const resting = isRest(e);
-        const when = timeLabel(e);
-        // Whose it is takes the colour here. On a child's tab the tab above
-        // already answers that and the colour can say what kind of session it
-        // is; stacked against a sibling's morning, it cannot.
-        return `<div class="placed read${inf.custom ? ' block' : ''}${resting ? ' off' : ''}"` +
-               ` style="--c:${owner ? owner.colour : inf.c}">` +
-               `<span class="nm">${owner ? '<i class="whodot"></i>' + escapeHtml(firstName(owner.name)) + ' · ' : ''}` +
-               `${escapeHtml(inf.nm)}</span>` +
-               (resting
-                 ? '<span class="tm">nothing booked</span>'
-                 : `<span class="tm${when ? '' : ' unset'}">${
-                     when ? `<span class="rg">${escapeHtml(when)}</span> <span class="ln">${escapeHtml(inf.dur)}</span>`
-                          : 'no time set'
-                   }</span>`) +
-               '</div>';
+      byCol.map((list, i)=>{
+        const owner = cols[i];
+        return `<div class="whocol">` +
+               list.map(e => mergedCard(e, owner)).join('') + '</div>';
       }).join('');
     slots.appendChild(box);
   });
@@ -2540,6 +2592,9 @@ function renderEveryone(){
 function renderTraining(){
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
+  // The lane-per-child layout is Everyone's alone — a child's own tab has one
+  // child in a slot and wants the full width for them.
+  grid.classList.toggle('merged', merged());
 
   renderTrainWho();
   renderBlockBar();
