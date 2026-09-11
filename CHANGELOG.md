@@ -5,6 +5,71 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.28.0] — 2026-09-11
+
+### Added
+
+- **A plan is not a booking, and now says so.** Everything on the training grid
+  is something you are proposing to a coach who has not yet agreed to it, and
+  a calendar that drew an asked-for session exactly like a settled one was
+  telling you the fortnight was arranged when half of it was still a question.
+  Every session the coach runs now carries the state of that conversation: a
+  proposed one is drawn as an outline, its colour bar hollowed out and its
+  surface dropped nearly to the cell behind it, and an agreed one is the solid
+  card this app has always drawn. Confirmed is the calm state on purpose,
+  because it is what a finished plan is entirely made of — an unanswered
+  fortnight should look unfinished.
+
+  The dot on each card is both the answer and the button that gives it: a ring
+  while the session is only asked for, filled with a tick once it is agreed. It
+  sits on the name line rather than in the corner beside the remove button,
+  where a mis-aimed thumb would be deleting a session instead of confirming
+  one. The coach agrees to them one at a time — a Tuesday private but not the
+  Thursday one — so this is per session, and a whole day can be taken in one
+  click from its date for the call where he says yes to all of it.
+
+  Study, school and rest carry no status at all rather than one that is always
+  the same: neither is his to agree to, and marking them would make *three of
+  five confirmed* a number about nothing.
+
+- **A session that moves asks the question again.** He said yes to Tuesday
+  morning; dropped on Thursday, or moved from nine o'clock to eleven, or grown
+  from an hour to ninety minutes, it is a new question — so the tick comes off
+  rather than following the session across and having the calendar claim an
+  agreement nobody gave.
+
+- **What is still outstanding, said in words.** The load check ends with how
+  many sessions have not been agreed yet, so you know whether there is a call
+  still to make without counting dots across a fortnight. It is deliberately
+  last and deliberately not part of the judging above it: a plan nobody has
+  agreed to can be a perfectly balanced plan, and this is the state of the
+  conversation, not of the week.
+
+- **The pasted plan ticks what is settled.** *Copy as text* is the message the
+  coach is actually sent, which makes it the last place to be coy about what he
+  has already said yes to — agreed sessions carry a tick, the bare lines read
+  as the question they are, and a closing line counts what is left. A printed
+  plan marks them too, in ink rather than colour, and spells out *(to confirm)*
+  because a page is read away from the app that would otherwise explain it.
+
+### Changed
+
+- Hours are unchanged by any of this. An unconfirmed session counts towards the
+  day and week totals exactly like an agreed one: it is the load you are
+  proposing, and the warning about a heavy week is only useful while you can
+  still redesign it — which is before the coach is asked, not after.
+
+- On Everyone, the state shows but does not change: it is the tab you look at
+  to see whether the fortnight is settled, and answering belongs where the
+  session can also be moved and removed. A shared lane is about sixty-five
+  pixels and will not hold a mark and the word *Private* on one line, so there
+  the mark comes off with the name and the length — the hollow card is already
+  saying it, and the hover carries the word.
+
+- The tally under each day of the shared calendar now names the children in the
+  order their lanes run above it, rather than the order the blocks happened to
+  be written in, which had Olivia's hours sitting under Ian's column.
+
 ## [2.27.0] — 2026-09-10
 
 ### Changed

@@ -3879,7 +3879,7 @@ group('Everyone is one calendar');
   // The name is written even where the lane is too narrow to show it, so the
   // hover and the phone layout both have it to hand.
   ok('every card carries the whole line in its title',
-     $(lanes[1], '.placed').title === 'Ian · Private 08:00–09:00 1h',
+     $(lanes[1], '.placed').title === 'Ian · Private 08:00–09:00 1h · not confirmed yet',
      $(lanes[1], '.placed').title);
   ok('but no handles on any of them — this is the reading tab',
      !$(days()[0], '.placed .x') && !$(days()[0], '.add'));
@@ -5881,6 +5881,134 @@ group('nothing to save yet says so');
   ok('it says there is nothing yet',
      $(d, '#datanote').textContent.includes('No results to save yet'), $(d, '#datanote').textContent);
   ok('and downloads nothing', !made);
+}
+
+/* A plan is not a booking. Every session on this grid is something you are
+   proposing to a coach who has not yet said yes, and until he has, a calendar
+   that draws it the same as an agreed one is telling you it is settled when
+   it is not. So a session carries the state of that conversation. */
+group('asked, and answered');
+{
+  const Y = new Date().getFullYear();
+  const dom = boot({ [KEY]: JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [{ id: 'b1', name: 'Camp', start: `${Y}-06-01`, days: 3, playerId: 'p1',
+      plan: { 0: { am: [{ type: 'p1', at: '09:00' }], pm: [{ type: 'g2', at: '14:00' }] },
+              1: { am: [{ type: 'other', at: '09:00', label: 'School', hrs: 3 }],
+                   pm: [{ type: 'rest' }] } } }],
+    activeBlockId: 'b1',
+    players: [{ id: 'p1', name: 'Ian Lin', birthYear: Y - 13, colour: '#D6E64B' }],
+    entries: [], manualMatches: [], trips: [], rewards: {},
+  }) });
+  const d = dom.window.document;
+  const cards = i => $$($$(d, '#grid .day:not(.blank)')[i], '.placed');
+
+  ok('a plan read off disk has nothing agreed on it yet',
+     $$(d, '#grid .placed.todo').length === 2, $$(d, '#grid .placed.todo').length);
+  ok('and every one of those carries the dot to agree it',
+     $$(d, '#grid .okdot').length === 2, $$(d, '#grid .okdot').length);
+  /* School is not the coach's to agree to and rest is the absence of a session.
+     Marking either would make "3 of 5 confirmed" a number about nothing. */
+  ok('school and rest are nobody\u2019s to confirm, so they carry no dot',
+     $$($$(d, '#grid .day:not(.blank)')[1], '.okdot').length === 0 &&
+     cards(1).every(c => !c.classList.contains('todo')),
+     cards(1).map(c => c.className).join('|'));
+
+  click(dom, $(cards(0)[0], '.okdot'));
+  ok('clicking the dot agrees that session', slot(dom, 0, 'am').confirmed === true,
+     JSON.stringify(slot(dom, 0, 'am')));
+  ok('and it is written down, not just drawn',
+     JSON.parse(dom.window.localStorage.getItem(KEY)).blocks[0].plan[0].am[0].confirmed === true);
+  ok('the card stops reading as proposed',
+     !cards(0)[0].classList.contains('todo') && $(cards(0)[0], '.okdot').classList.contains('yes'),
+     cards(0)[0].className);
+  ok('its neighbour is untouched \u2014 he agreed to one, not to the day',
+     cards(0)[1].classList.contains('todo'), cards(0)[1].className);
+
+  click(dom, $(cards(0)[0], '.okdot'));
+  ok('and it can be taken back', slot(dom, 0, 'am').confirmed === false,
+     JSON.stringify(slot(dom, 0, 'am')));
+
+  // The call where he goes down the list and says yes to all of it, rather
+  // than the same answer typed once per session.
+  click(dom, $($$(d, '#grid .day:not(.blank)')[0], '.day-ok'));
+  ok('a whole day can be agreed at once',
+     slot(dom, 0, 'am').confirmed === true && slot(dom, 0, 'pm').confirmed === true);
+  ok('and the button turns into taking the day back',
+     $($$(d, '#grid .day:not(.blank)')[0], '.day-ok').textContent === 'Unconfirm',
+     $($$(d, '#grid .day:not(.blank)')[0], '.day-ok').textContent);
+  ok('a day with nothing to ask about is not offered one',
+     !$($$(d, '#grid .day:not(.blank)')[2], '.day-ok'));
+
+  /* Hours are the load you are proposing, and the warning about a heavy week
+     is only useful while you can still redesign it — which is before the coach
+     is asked, not after. So an unconfirmed session counts like any other. */
+  const before = $(d, '#tot').textContent;
+  click(dom, $($$(d, '#grid .day:not(.blank)')[0], '.day-ok'));
+  ok('what is agreed changes no total \u2014 the load is what you are proposing',
+     $(d, '#tot').textContent === before && before === '3.0', `${before}/${$(d, '#tot').textContent}`);
+
+  // Nine o'clock on Tuesday was the question. Moved or re-timed, it is a new
+  // one, and the tick must not follow it across.
+  click(dom, $(cards(0)[0], '.okdot'));
+  fillAt(dom, $(cards(0)[0], '.tm'), { time: '11:00' });
+  ok('changing the time asks the question again',
+     slot(dom, 0, 'am').at === '11:00' && slot(dom, 0, 'am').confirmed === false,
+     JSON.stringify(slot(dom, 0, 'am')));
+
+  click(dom, $(cards(0)[0], '.okdot'));
+  ok('agreed again where it now sits', slot(dom, 0, 'am').confirmed === true);
+  drop(dom, daySlots(d, 2)[0], JSON.stringify({
+    entry: slot(dom, 0, 'am'), from: { day: 0, slot: 'am', idx: 0 } }));
+  ok('and moving it to another day asks it again too',
+     slot(dom, 2, 'am').confirmed === false, JSON.stringify(slot(dom, 2, 'am')));
+
+  // What is still outstanding, said in words — the point being to know whether
+  // there is a call still to make, without counting dots across a fortnight.
+  const notes = () => $(d, '#notes').textContent;
+  ok('the checks say how much is still only asked for',
+     notes().includes('Not confirmed yet') && notes().includes('2 of 2 sessions'), notes());
+  $$(d, '#grid .day:not(.blank) .day-ok').forEach(b => click(dom, b));
+  ok('and say so plainly once the whole block is agreed',
+     notes().includes('all 2 of them'), notes());
+  ok('being unconfirmed is never itself a fault in the plan',
+     !notes().includes('Not confirmed yet'), notes());
+
+  /* The text is the message the coach is actually sent, which makes it the
+     last place to be coy about what he has already said yes to. */
+  ok('the pasted plan ticks what is settled',
+     dom.window.asText().includes('Private 1h \u2713'), dom.window.asText());
+  ok('and says the whole block is, once it is',
+     dom.window.asText().includes('Everything here is confirmed'), dom.window.asText());
+  click(dom, $($$(d, '#grid .day:not(.blank)')[0], '.day-ok'));
+  ok('otherwise it counts what is still being asked for',
+     dom.window.asText().includes('The other 1 still need confirming'), dom.window.asText());
+  // A slot's sessions share a line, so the tick is read against the session it
+  // follows rather than against the day.
+  ok('and the one still being asked for carries no tick',
+     dom.window.asText().includes('Group 2h') && !dom.window.asText().includes('Group 2h \u2713'),
+     dom.window.asText());
+}
+
+/* Everyone reads across the children rather than editing one, so the state of
+   the conversation shows there too — it is the tab you look at to see whether
+   the fortnight is settled — but the answering belongs where the session can
+   also be moved and removed. */
+group('what is agreed reads across the children too');
+{
+  const dom = boot({ [KEY]: sameWeekPlan() });
+  const d = dom.window.document;
+  const cards = $$(d, '#grid .placed');
+  ok('every session on the shared calendar reads as proposed',
+     cards.length === 4 && cards.every(c => c.classList.contains('todo')),
+     cards.map(c => c.className).join('|'));
+  ok('each carries the mark, so the state is visible here',
+     $$(d, '#grid .okdot').length === 4, $$(d, '#grid .okdot').length);
+  ok('but not as a button \u2014 this tab does not change a plan',
+     $$(d, '#grid button.okdot').length === 0 && !$(d, '#grid .day-ok'),
+     $$(d, '#grid button.okdot').length);
+  ok('and the hover line says which it is',
+     $(d, '#grid .placed').title.includes('not confirmed yet'), $(d, '#grid .placed').title);
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
