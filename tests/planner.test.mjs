@@ -5919,8 +5919,11 @@ group('asked, and answered');
      JSON.stringify(slot(dom, 0, 'am')));
   ok('and it is written down, not just drawn',
      JSON.parse(dom.window.localStorage.getItem(KEY)).blocks[0].plan[0].am[0].confirmed === true);
-  ok('the card stops reading as proposed',
-     !cards(0)[0].classList.contains('todo') && $(cards(0)[0], '.okdot').classList.contains('yes'),
+  // Two classes, not one: the agreed card has something of its own to be
+  // brighter with, rather than only lacking the dashes of an asked-for one.
+  ok('the card stops reading as proposed and starts reading as agreed',
+     !cards(0)[0].classList.contains('todo') && cards(0)[0].classList.contains('done') &&
+     $(cards(0)[0], '.okdot').classList.contains('yes'),
      cards(0)[0].className);
   ok('its neighbour is untouched \u2014 he agreed to one, not to the day',
      cards(0)[1].classList.contains('todo'), cards(0)[1].className);
@@ -6000,7 +6003,8 @@ group('what is agreed reads across the children too');
   const d = dom.window.document;
   const cards = $$(d, '#grid .placed');
   ok('every session on the shared calendar reads as proposed',
-     cards.length === 4 && cards.every(c => c.classList.contains('todo')),
+     cards.length === 4 && cards.every(c => c.classList.contains('todo')) &&
+     !cards.some(c => c.classList.contains('done')),
      cards.map(c => c.className).join('|'));
   ok('each carries the mark, so the state is visible here',
      $$(d, '#grid .okdot').length === 4, $$(d, '#grid .okdot').length);

@@ -384,20 +384,31 @@ input[type=text]#blockname{flex:0 1 200px;min-width:0}
    drawn. Confirmed is the calm state on purpose, because it is the one a
    finished plan is entirely made of — an unanswered fortnight should look
    unfinished. */
+/* A session nobody has agreed to yet is drawn as a draft of one: emptied of
+   its fill, outlined in dashes rather than edged in colour, and faded as a
+   whole so that a cell of them reads as unfinished from across the room. The
+   colour bar goes with the rest of it — on Everyone the lane a card sits in
+   and the tally beneath already say whose session it is, and a bright stripe
+   was the one thing making an unanswered card look as settled as an answered
+   one. Nothing here depends on a mark small enough to fit a shared lane,
+   because in a shared lane no mark fits. */
 .placed.todo{
-  /* Three things at once, because one of them has to survive a sixty-five
-     pixel lane where the tick cannot fit: no fill at all against the filled
-     card beside it, a dashed outline all the way round, and a colour bar cut
-     back to a hairline. A single quiet difference in the background was
-     readable on a full-width day and invisible on a shared one. */
   background:transparent;
   border-left-color:transparent;
-  box-shadow:inset 2px 0 0 0 var(--c);
-  outline:1px dashed rgba(255,255,255,.30);
-  outline-offset:-1px;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.13);
+  outline:1px dashed rgba(233,240,246,.38);
+  outline-offset:-3px;
+  opacity:.72;
 }
-.placed.todo .nm{color:#AFC0CD}
-.placed.todo .tm{opacity:.8}
+.placed.todo .nm{color:#AFC0CD;font-weight:600}
+/* And the answered ones are given something to be brighter than: a confirmed
+   session keeps its full colour bar and gains a faint wash of the agreement
+   green behind it, so a day that is settled reads as a block of solid cards
+   rather than as the absence of dashes. */
+.placed.done{
+  background:linear-gradient(90deg, rgba(79,169,124,.20), rgba(79,169,124,.07) 60%),
+             rgba(255,255,255,.09);
+}
 /* The dot is the answer and the button that gives it: a ring while the session
    is only asked for, filled with a tick once it is agreed. It sits on the name
    line rather than in the corner with the remove button, where a mis-aimed
@@ -1057,7 +1068,15 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
      tick; a session still being asked for prints hollow and dashed, and says
      so in words because a page is read away from the app that explains it. */
   .day-ok{display:none}
-  .placed.todo{background:#fff;border-left:4px solid #999;box-shadow:none;outline:1px dashed #999}
+  /* Paper has no opacity to spare and no green to wash with, so the same two
+     states are made out of ink: the agreed one keeps a solid edge and a grey
+     ground, the asked-for one is white inside a dashed rule and says so. */
+  .placed.todo{
+    background:#fff;border-left:4px solid #fff;box-shadow:none;
+    outline:1px dashed #777;opacity:1;
+  }
+  .placed.todo .nm{color:#333}
+  .placed.done{background:#e9e9e9;border-left-color:#000}
   .placed.todo .nm::after{content:' (to confirm)';font-weight:400;color:#555}
   .okdot{border-color:#666;background:#fff;print-color-adjust:exact}
   .okdot.yes{border-color:#000;background:#000}
@@ -2575,7 +2594,7 @@ function mergedCard(e, owner){
      the tab where the session can also be moved or removed. */
   const dot = asks(e.type) ? `<i class="okdot${e.confirmed ? ' yes' : ''}"></i>` : '';
   return `<div class="placed read${inf.custom ? ' block' : ''}${resting ? ' off' : ''}` +
-         `${isProposed(e) ? ' todo' : ''}"` +
+         `${isProposed(e) ? ' todo' : ''}${isConfirmed(e) ? ' done' : ''}"` +
          ` style="--c:${owner ? owner.colour : inf.c}" title="${escapeHtml(full)}">` +
          `<span class="nm">${dot}<span class="txt">${name}${escapeHtml(inf.nm)}</span></span>` +
          (resting
@@ -2835,7 +2854,7 @@ function renderTraining(){
           const p = document.createElement('div');
           const resting = isRest(val);
           p.className = 'placed' + (inf.custom ? ' block' : '') + (resting ? ' off' : '') +
-                        (isProposed(val) ? ' todo' : '');
+                        (isProposed(val) ? ' todo' : '') + (isConfirmed(val) ? ' done' : '');
           p.style.setProperty('--c', inf.c);
           p.draggable = true;
           const when = timeLabel(val);

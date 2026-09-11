@@ -13,14 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is something you are proposing to a coach who has not yet agreed to it, and
   a calendar that drew an asked-for session exactly like a settled one was
   telling you the fortnight was arranged when half of it was still a question.
-  Every session the coach runs now carries the state of that conversation: a
-  proposed one is drawn as an outline — no fill at all, a dashed border all the
-  way round, its colour bar cut back to a hairline — and an agreed one is the
-  solid card this app has always drawn. Three differences at once, because one
-  of them has to survive a sixty-five pixel lane on Everyone where a tick
-  cannot fit. Confirmed is the calm state on purpose, because it is what a
-  finished plan is entirely made of — an unanswered fortnight should look
-  unfinished.
+  Every session the coach runs now carries the state of that conversation. A
+  proposed one is drawn as a draft of a session: emptied of its fill, outlined
+  in dashes rather than edged in colour, its colour bar gone and the whole card
+  faded, so a cell of them reads as unfinished from across the room. An agreed
+  one keeps its full colour bar and gains a faint wash of green behind it, so a
+  settled day reads as a run of solid cards rather than as the absence of
+  dashes. None of it depends on a mark small enough to fit a shared lane on
+  Everyone, because in a shared lane no mark fits — the card has to be the
+  thing that says it.
+
+  The colour bar going is deliberate: on Everyone the lane a card sits in and
+  the tally beneath it already say whose session it is, and a bright stripe was
+  the single thing making an unanswered card look as settled as an answered
+  one.
 
   The dot on each card is both the answer and the button that gives it: a ring
   while the session is only asked for, filled with a tick once it is agreed. It
