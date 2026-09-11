@@ -14,11 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a calendar that drew an asked-for session exactly like a settled one was
   telling you the fortnight was arranged when half of it was still a question.
   Every session the coach runs now carries the state of that conversation: a
-  proposed one is drawn as an outline, its colour bar hollowed out and its
-  surface dropped nearly to the cell behind it, and an agreed one is the solid
-  card this app has always drawn. Confirmed is the calm state on purpose,
-  because it is what a finished plan is entirely made of — an unanswered
-  fortnight should look unfinished.
+  proposed one is drawn as an outline — no fill at all, a dashed border all the
+  way round, its colour bar cut back to a hairline — and an agreed one is the
+  solid card this app has always drawn. Three differences at once, because one
+  of them has to survive a sixty-five pixel lane on Everyone where a tick
+  cannot fit. Confirmed is the calm state on purpose, because it is what a
+  finished plan is entirely made of — an unanswered fortnight should look
+  unfinished.
 
   The dot on each card is both the answer and the button that gives it: a ring
   while the session is only asked for, filled with a tick once it is agreed. It
@@ -63,8 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to see whether the fortnight is settled, and answering belongs where the
   session can also be moved and removed. A shared lane is about sixty-five
   pixels and will not hold a mark and the word *Private* on one line, so there
-  the mark comes off with the name and the length — the hollow card is already
-  saying it, and the hover carries the word.
+  the mark comes off with the name and the length — the unfilled, dashed card
+  is doing the saying, and the hover carries the word.
 
 - The tally under each day of the shared calendar now names the children in the
   order their lanes run above it, rather than the order the blocks happened to

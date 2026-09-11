@@ -385,11 +385,19 @@ input[type=text]#blockname{flex:0 1 200px;min-width:0}
    finished plan is entirely made of — an unanswered fortnight should look
    unfinished. */
 .placed.todo{
-  background:rgba(255,255,255,.035);
+  /* Three things at once, because one of them has to survive a sixty-five
+     pixel lane where the tick cannot fit: no fill at all against the filled
+     card beside it, a dashed outline all the way round, and a colour bar cut
+     back to a hairline. A single quiet difference in the background was
+     readable on a full-width day and invisible on a shared one. */
+  background:transparent;
   border-left-color:transparent;
-  box-shadow:inset 3px 0 0 -1px var(--c), inset 0 0 0 1px rgba(255,255,255,.11);
+  box-shadow:inset 2px 0 0 0 var(--c);
+  outline:1px dashed rgba(255,255,255,.30);
+  outline-offset:-1px;
 }
-.placed.todo .nm{color:#B9C8D3}
+.placed.todo .nm{color:#AFC0CD}
+.placed.todo .tm{opacity:.8}
 /* The dot is the answer and the button that gives it: a ring while the session
    is only asked for, filled with a tick once it is agreed. It sits on the name
    line rather than in the corner with the remove button, where a mis-aimed
@@ -1049,7 +1057,7 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
      tick; a session still being asked for prints hollow and dashed, and says
      so in words because a page is read away from the app that explains it. */
   .day-ok{display:none}
-  .placed.todo{background:#fff;border-left:4px dashed #999;box-shadow:none}
+  .placed.todo{background:#fff;border-left:4px solid #999;box-shadow:none;outline:1px dashed #999}
   .placed.todo .nm::after{content:' (to confirm)';font-weight:400;color:#555}
   .okdot{border-color:#666;background:#fff;print-color-adjust:exact}
   .okdot.yes{border-color:#000;background:#000}
