@@ -245,6 +245,7 @@ input[type=text]#blockname{flex:0 1 200px;min-width:0}
 .day-head{
   display:flex;justify-content:space-between;align-items:baseline;
   border-bottom:1px solid var(--hair);padding-bottom:6px;margin-bottom:7px;
+  position:relative;
 }
 .day-num{
   font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:600;
@@ -327,7 +328,13 @@ input[type=text]#blockname{flex:0 1 200px;min-width:0}
 .slots.tight .placed{padding:5px 5px;border-left-width:3px;min-height:38px}
 .slots.tight .placed .nm{font-size:11px}
 .slots.tight .placed .tm{font-size:12px;letter-spacing:0}
-.slots.tight .placed .who,.slots.tight .placed .ln{display:none}
+/* Sixty-five pixels will not hold a mark and the word "Private" on one line,
+   and breaking the word to keep the tick is the wrong trade: the card itself
+   is already saying it — hollow and outlined while it is only asked for,
+   solid once it is agreed — and the hover carries the word. So the mark comes
+   off here with the name's dot and the length, and comes back with them. */
+.slots.tight .placed .who,.slots.tight .placed .ln,
+.slots.tight .placed .okdot{display:none}
 /* Two children means two loads, and averaging them would describe neither — so
    the foot lists them side by side, each read against its own age ceiling. */
 .day-foot.merged{flex-wrap:wrap;gap:3px 12px}
@@ -367,6 +374,77 @@ input[type=text]#blockname{flex:0 1 200px;min-width:0}
     rgba(79,179,166,.12);
 }
 .chip.block.armed{background:var(--ball)}
+/* ---------- asked, and answered ----------
+   A plan is not a booking. Everything here is proposed until the coach has
+   agreed to it, and the difference has to be readable at a glance across a
+   fortnight — which rules out a word on the card, there being no room for one
+   in a shared lane. So the card itself carries it: a proposed session is drawn
+   as an outline, its colour bar hollowed out and its surface dropped nearly to
+   the cell behind it, and a confirmed one is the solid card this app has always
+   drawn. Confirmed is the calm state on purpose, because it is the one a
+   finished plan is entirely made of — an unanswered fortnight should look
+   unfinished. */
+/* A session nobody has agreed to yet is drawn as a draft of one: emptied of
+   its fill, outlined in dashes rather than edged in colour, and faded as a
+   whole so that a cell of them reads as unfinished from across the room. The
+   colour bar goes with the rest of it — on Everyone the lane a card sits in
+   and the tally beneath already say whose session it is, and a bright stripe
+   was the one thing making an unanswered card look as settled as an answered
+   one. Nothing here depends on a mark small enough to fit a shared lane,
+   because in a shared lane no mark fits. */
+.placed.todo{
+  background:transparent;
+  border-left-color:transparent;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.13);
+  outline:1px dashed rgba(233,240,246,.38);
+  outline-offset:-3px;
+  opacity:.72;
+}
+.placed.todo .nm{color:#AFC0CD;font-weight:600}
+/* And the answered ones are given something to be brighter than: a confirmed
+   session keeps its full colour bar and gains a faint wash of the agreement
+   green behind it, so a day that is settled reads as a block of solid cards
+   rather than as the absence of dashes. */
+.placed.done{
+  background:linear-gradient(90deg, rgba(79,169,124,.20), rgba(79,169,124,.07) 60%),
+             rgba(255,255,255,.09);
+}
+/* The dot is the answer and the button that gives it: a ring while the session
+   is only asked for, filled with a tick once it is agreed. It sits on the name
+   line rather than in the corner with the remove button, where a mis-aimed
+   thumb would be undoing a session rather than confirming one. */
+.okdot{
+  flex:0 0 auto;
+  width:13px;height:13px;padding:0;margin-right:5px;
+  border-radius:50%;border:1.5px solid var(--mute);
+  background:transparent;color:transparent;
+  font-size:9px;line-height:1;text-align:center;
+  cursor:pointer;vertical-align:-2px;
+}
+button.okdot:hover{border-color:var(--court-line)}
+button.okdot:hover::after{content:'\2713';color:var(--mute)}
+.okdot.yes{border-color:var(--ok);background:var(--ok);color:var(--ink)}
+.okdot.yes::after{content:'\2713';color:var(--ink);font-weight:700}
+button.okdot.yes:hover{opacity:.75}
+button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
+.placed .nm{display:flex;align-items:baseline}
+.placed .nm .txt{min-width:0}
+/* A day's worth in one click, for the call where he says yes to all of it. It
+   stays out of the way until the day is hovered — a row of buttons down the
+   calendar would read as more important than the sessions. */
+.day-ok{
+  /* Lifted out of the row so the date and the day number do not shift sideways
+     on every cell to keep a button company that is invisible most of the time.
+     It covers the day's tag while it is showing, which is the one thing on the
+     head that can be read again once the pointer moves away. */
+  position:absolute;right:0;bottom:6px;
+  font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--mute);
+  background:var(--court-deep);border:1px solid var(--hair);border-radius:3px;
+  padding:1px 5px;cursor:pointer;opacity:0;transition:opacity .12s;
+}
+.day:hover .day-ok,.day-ok:focus{opacity:1}
+.day-ok:hover{color:var(--court-line);border-color:var(--mute)}
 .placed .x{
   position:absolute;top:2px;right:2px;
   width:19px;height:19px;line-height:17px;text-align:center;
@@ -969,6 +1047,7 @@ input[type=text]#blockname{flex:0 1 200px;min-width:0}
      again — and there is no hover here to fall back on. */
   #grid.merged .slots{flex-direction:column}
   .slots.tight .placed .who,.slots.tight .placed .ln{display:inline}
+  .slots.tight .placed .okdot{display:inline-block}
   /* On a phone the chips would wrap to three rows and eat the screen, so the
      pinned palette keeps them on one line and scrolls sideways instead. */
   .palette.stuck .chips{flex-wrap:nowrap;overflow-x:auto;gap:7px}
@@ -984,6 +1063,24 @@ input[type=text]#blockname{flex:0 1 200px;min-width:0}
   .placed .tm,.dhrs,.slotlab,.wcap small{color:#444}
   .weekgap{color:#555}
   .weekgap::before,.weekgap::after{background:#bbb}
+  /* A printed plan is the thing taken to the coach, so which sessions are
+     already agreed has to survive the loss of colour. The tick prints as a
+     tick; a session still being asked for prints hollow and dashed, and says
+     so in words because a page is read away from the app that explains it. */
+  .day-ok{display:none}
+  /* Paper has no opacity to spare and no green to wash with, so the same two
+     states are made out of ink: the agreed one keeps a solid edge and a grey
+     ground, the asked-for one is white inside a dashed rule and says so. */
+  .placed.todo{
+    background:#fff;border-left:4px solid #fff;box-shadow:none;
+    outline:1px dashed #777;opacity:1;
+  }
+  .placed.todo .nm{color:#333}
+  .placed.done{background:#e9e9e9;border-left-color:#000}
+  .placed.todo .nm::after{content:' (to confirm)';font-weight:400;color:#555}
+  .okdot{border-color:#666;background:#fff;print-color-adjust:exact}
+  .okdot.yes{border-color:#000;background:#000}
+  .okdot.yes::after{color:#fff}
 }
 </style>
 </head>
@@ -1471,6 +1568,12 @@ function normEntry(v){
   const t = TYPES[type];
   if(!t) return null;
   const e = {type, at:validTime(raw.at)};
+  /* Everything on this grid is a proposal until the coach has said yes to it.
+     Only the sessions he runs carry the question: school and rest have nobody
+     to ask, so they get no status at all rather than one that is always the
+     same. Plans written before 2.28 had never been asked, so they read as
+     proposed, which is what they were. */
+  if(asks(type)) e.confirmed = raw.confirmed === true;
   if(t.custom){
     e.label = (typeof raw.label === 'string' && raw.label.trim())
               ? raw.label.trim().slice(0, 24) : 'Blocked';
@@ -1530,6 +1633,15 @@ function emptyCell(){ return {am:[], pm:[], eve:[]}; }
 // slot rather than the day: an afternoon can be off while the morning is not.
 // It sits alone in its slot — a slot cannot be both resting and booked.
 function isRest(e){ return !!e && e.type === 'rest'; }
+/* Whether a session is the coach's to agree to. A blocked afternoon is school
+   and a rest is the absence of a session; neither is his to confirm, and
+   marking them would make the tally of what is outstanding meaningless. */
+function asks(type){
+  const t = TYPES[type];
+  return !!t && !t.custom && type !== 'rest';
+}
+function isConfirmed(e){ return !!e && asks(e.type) && e.confirmed === true; }
+function isProposed(e){ return !!e && asks(e.type) && e.confirmed !== true; }
 function hasRest(list){ return list.some(isRest); }
 // A day still reads as a rest day when it is marked as one and nothing is
 // booked; that is what tints the card.
@@ -2203,6 +2315,11 @@ function place(day, slot, entry, from){
     if(src[from.slot]) src[from.slot].splice(from.idx || 0, 1);
     b.plan[from.day] = src;
   }
+  /* A session that moves is no longer the session that was agreed to. The
+     coach said yes to Tuesday morning; dropped on Thursday it is a new
+     question, and carrying the tick across would have the calendar claiming an
+     agreement nobody gave. Shuffling within the same slot is not a move. */
+  if(asks(e.type) && from && !(from.day === day && from.slot === slot)) e.confirmed = false;
   const now = planAt(b, day);
   // Rest empties the slot it lands on, and anything landing on a rest ends it.
   now[slot] = e.type === 'rest' ? [e]
@@ -2216,9 +2333,40 @@ function setEntry(day, slot, idx, entry){
   const e = normEntry(entry);
   if(!b || !e || SLOTS.indexOf(slot) < 0) return;
   const d = planAt(b, day);
-  if(!d[slot][idx]) return;
+  const was = d[slot][idx];
+  if(!was) return;
+  // Same reason a move lapses it: an hour agreed for nine o'clock was not
+  // agreed for eleven, and a private that grows to ninety minutes is a longer
+  // session than the one he said yes to. Renaming a blocked afternoon is not a
+  // session at all and never carried a tick to lose.
+  if(asks(e.type) && (was.at !== e.at || was.hrs !== e.hrs)) e.confirmed = false;
   d[slot][idx] = e;
   d[slot] = sortSlot(d[slot]);
+  b.plan[day] = d;
+  render(); save();
+}
+/* Saying yes to one session. The coach agrees to them one at a time — a
+   Tuesday private but not the Thursday one — so this is per session rather
+   than per day, and it toggles because a confirmation can be taken back. */
+function toggleConfirmed(day, slot, idx){
+  const b = active();
+  if(!b || SLOTS.indexOf(slot) < 0) return;
+  const d = planAt(b, day);
+  const e = d[slot][idx];
+  if(!e || !asks(e.type)) return;
+  e.confirmed = !e.confirmed;
+  b.plan[day] = d;
+  render(); save();
+}
+/* Everything on a day, or in a whole block, agreed at once — for the call
+   where the coach goes down the list and says yes to all of it. Clicking
+   through fourteen days one session at a time is the same answer typed
+   fourteen times. */
+function confirmDay(day, yes){
+  const b = active();
+  if(!b) return;
+  const d = planAt(b, day);
+  SLOTS.forEach(sl => d[sl].forEach(e => { if(asks(e.type)) e.confirmed = yes; }));
   b.plan[day] = d;
   render(); save();
 }
@@ -2438,11 +2586,17 @@ function mergedCard(e, owner){
   const when = timeLabel(e);
   const who = owner ? firstName(owner.name) : '';
   const full = [who, inf.nm].filter(Boolean).join(' · ') +
-               (when ? ' ' + when : '') + (inf.span ? ' ' + inf.dur : '');
+               (when ? ' ' + when : '') + (inf.span ? ' ' + inf.dur : '') +
+               (asks(e.type) ? (e.confirmed ? ' · confirmed' : ' · not confirmed yet') : '');
   const name = owner ? `<span class="who"><i class="whodot"></i>${escapeHtml(who)} · </span>` : '';
-  return `<div class="placed read${inf.custom ? ' block' : ''}${resting ? ' off' : ''}"` +
+  /* Read-only here, so the dot is a mark rather than a button — this tab
+     answers "who is out on Thursday", and saying yes to a session belongs on
+     the tab where the session can also be moved or removed. */
+  const dot = asks(e.type) ? `<i class="okdot${e.confirmed ? ' yes' : ''}"></i>` : '';
+  return `<div class="placed read${inf.custom ? ' block' : ''}${resting ? ' off' : ''}` +
+         `${isProposed(e) ? ' todo' : ''}${isConfirmed(e) ? ' done' : ''}"` +
          ` style="--c:${owner ? owner.colour : inf.c}" title="${escapeHtml(full)}">` +
-         `<span class="nm">${name}${escapeHtml(inf.nm)}</span>` +
+         `<span class="nm">${dot}<span class="txt">${name}${escapeHtml(inf.nm)}</span></span>` +
          (resting
            ? '<span class="tm">nothing booked</span>'
            : `<span class="tm${when ? '' : ' unset'}">${
@@ -2494,15 +2648,27 @@ function mergedCell(d, day){
 
   const foot = document.createElement('div');
   foot.className = 'day-foot merged';
-  foot.innerHTML = day.on.map(o=>{
-    const h = dayHours(o.b, o.i);
-    const cap = blockCaps(o.b).day;
-    const cls = h > cap ? 'over' : (h >= cap * 0.85 ? 'hot' : '');
-    const nm = o.owner ? firstName(o.owner.name) : 'Nobody';
-    return `<span class="dhrs ${cls}"${o.owner ? ` style="--c:${o.owner.colour}"` : ''}>` +
-           (o.owner ? '<i class="whodot"></i>' : '') + escapeHtml(nm) +
-           `<b>${h ? h.toFixed(1) : '—'}</b></span>`;
-  }).join('');
+  /* Read in the order the cell above is read. The totals came out in the order
+     the blocks were added, which put Olivia's hours under Ian's column often
+     enough to make you check which was which — the lanes and the tally now
+     name the children in one order. */
+  const lane = o => {
+    const id = o.owner ? o.owner.id : null;
+    const i = cols.findIndex(p => (p ? p.id : null) === id);
+    return i < 0 ? cols.length : i;
+  };
+  foot.innerHTML = day.on
+    .map((o, i) => ({o, i}))
+    .sort((a, b) => lane(a.o) - lane(b.o) || a.i - b.i)
+    .map(({o})=>{
+      const h = dayHours(o.b, o.i);
+      const cap = blockCaps(o.b).day;
+      const cls = h > cap ? 'over' : (h >= cap * 0.85 ? 'hot' : '');
+      const nm = o.owner ? firstName(o.owner.name) : 'Nobody';
+      return `<span class="dhrs ${cls}"${o.owner ? ` style="--c:${o.owner.colour}"` : ''}>` +
+             (o.owner ? '<i class="whodot"></i>' : '') + escapeHtml(nm) +
+             `<b>${h ? h.toFixed(1) : '—'}</b></span>`;
+    }).join('');
   el.appendChild(foot);
   return el;
 }
@@ -2659,7 +2825,18 @@ function renderTraining(){
     if(i === b.days-1) d.classList.add('last');
 
     const tag = i === b.days-1 ? 'Last day' : `Day ${i+1}`;
-    d.innerHTML = `<div class="day-head"><span class="day-num">${fmt(dateFor(b,i))}</span><span class="day-tag">${tag}</span></div>`;
+    // Only offered while there is something on the day left to answer for.
+    const asked = dayEntries(b, i).filter(e => asks(e.type));
+    const openOnes = asked.filter(isProposed).length;
+    d.innerHTML = `<div class="day-head"><span class="day-num">${fmt(dateFor(b,i))}</span><span class="day-tag">${tag}</span>` +
+      (asked.length
+        ? `<button class="day-ok" title="${openOnes
+              ? 'Mark every session this day agreed with the coach'
+              : 'Take back every confirmation on this day'}">${
+            openOnes ? 'Confirm day' : 'Unconfirm'}</button>`
+        : '') + '</div>';
+    const dayOk = d.querySelector('.day-ok');
+    if(dayOk) dayOk.addEventListener('click', ev=>{ ev.stopPropagation(); confirmDay(i, openOnes > 0); });
 
     const slots = document.createElement('div');
     slots.className = 'slots';
@@ -2676,14 +2853,22 @@ function renderTraining(){
           const inf = entryInfo(val);
           const p = document.createElement('div');
           const resting = isRest(val);
-          p.className = 'placed' + (inf.custom ? ' block' : '') + (resting ? ' off' : '');
+          p.className = 'placed' + (inf.custom ? ' block' : '') + (resting ? ' off' : '') +
+                        (isProposed(val) ? ' todo' : '') + (isConfirmed(val) ? ' done' : '');
           p.style.setProperty('--c', inf.c);
           p.draggable = true;
           const when = timeLabel(val);
           // Name on top, then the time — which is also the button that changes
           // it, so the whole schedule is editable in place. Rest has no time to
           // set, so it says what it is instead.
-          p.innerHTML = `<span class="nm">${escapeHtml(inf.nm)}</span>` +
+          // The dot leads the name so the answer is read before the session is.
+          const dot = asks(val.type)
+            ? `<button class="okdot${val.confirmed ? ' yes' : ''}" title="${
+                val.confirmed ? 'Agreed with the coach — click to take it back'
+                              : 'Mark this agreed with the coach'
+              }" aria-pressed="${val.confirmed ? 'true' : 'false'}"></button>`
+            : '';
+          p.innerHTML = `<span class="nm">${dot}<span class="txt">${escapeHtml(inf.nm)}</span></span>` +
                         (resting
                           ? `<span class="tm">nothing booked</span>`
                           : `<button class="tm${when ? '' : ' unset'}" title="Change the time">${
@@ -2696,6 +2881,8 @@ function renderTraining(){
             e.dataTransfer.effectAllowed = 'move';
           });
           p.querySelector('.x').addEventListener('click', ev=>{ ev.stopPropagation(); clearSlot(i,s,idx); });
+          const ok = p.querySelector('.okdot');
+          if(ok) ok.addEventListener('click', ev=>{ ev.stopPropagation(); toggleConfirmed(i,s,idx); });
           if(!resting) p.querySelector('.tm').addEventListener('click', ev=>{ ev.stopPropagation(); editEntry(i,s,idx); });
           el.appendChild(p);
         });
@@ -2841,6 +3028,26 @@ function checkNotes(b){
     'Nothing scheduled yet. Load the suggested plan, or start dragging sessions onto the days.']);
   else if(!out.length) out.push(['ok','Balanced',
     `${total.toFixed(1)}h across ${b.days} days with rest built in. Serves in the morning slot only, 40–50 balls, never two days running.`]);
+
+  /* What is still only asked for. Deliberately last, and deliberately not part
+     of the judging above: a fortnight nobody has agreed to yet can be a
+     perfectly balanced fortnight, and this should not be the thing that stops
+     it saying so. It is the state of the conversation with the coach, not of
+     the plan. */
+  let asked = 0, agreed = 0;
+  for(let i=0;i<b.days;i++) dayEntries(b, i).forEach(e=>{
+    if(!asks(e.type)) return;
+    asked++;
+    if(isConfirmed(e)) agreed++;
+  });
+  const openOnes = asked - agreed;
+  if(openOnes) out.push(['warn','Not confirmed yet',
+    `${openOnes} of ${asked} session${asked > 1 ? 's' : ''} ${openOnes > 1 ? 'have' : 'has'} not been ` +
+    `agreed with the coach. Tick the dot on each one he says yes to, or confirm a whole day at once ` +
+    `from its date.`]);
+  else if(asked) out.push(['ok','Confirmed',
+    asked > 1 ? `Every session in this block is agreed with the coach \u2014 all ${asked} of them.`
+              : 'The one session in this block is agreed with the coach.']);
 
   return out;
 }
@@ -5815,7 +6022,12 @@ function asText(){
         const inf = entryInfo(e);
         if(!inf) return;
         const when = timeLabel(e);
-        bits.push(`${SLOT_NAME[sl].toUpperCase()} ${when ? when + ' ' : ''}${inf.nm}${inf.span ? ' ' + inf.dur : ''}`);
+        /* This text is the message the coach is actually sent, so it is the
+           last place that should be coy about which of these he has already
+           agreed to. A tick against the settled ones leaves the bare lines
+           reading as the question they are. */
+        const mark = isConfirmed(e) ? ' \u2713' : '';
+        bits.push(`${SLOT_NAME[sl].toUpperCase()} ${when ? when + ' ' : ''}${inf.nm}${inf.span ? ' ' + inf.dur : ''}${mark}`);
       });
     });
     const h = dayHours(b, i);
@@ -5823,6 +6035,16 @@ function asText(){
   }
   s += '\n' + weekChunks(b).map((w,i)=>`Week ${i+1}: ${w.hrs.toFixed(1)}h`).join('   ');
   s += `   Total: ${totalHours(b).toFixed(1)}h\n`;
+  // The legend is only worth a line while there is still something to answer;
+  // once the whole block is agreed, every line carries a tick and says so.
+  let asked = 0, agreed = 0;
+  for(let i=0;i<b.days;i++) dayEntries(b, i).forEach(e=>{
+    if(!asks(e.type)) return;
+    asked++;
+    if(isConfirmed(e)) agreed++;
+  });
+  if(asked && agreed < asked) s += `\n\u2713 = agreed already. The other ${asked - agreed} still need confirming.\n`;
+  else if(asked) s += '\n\u2713 = agreed. Everything here is confirmed.\n';
   return s;
 }
 
