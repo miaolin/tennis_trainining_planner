@@ -2494,15 +2494,27 @@ function mergedCell(d, day){
 
   const foot = document.createElement('div');
   foot.className = 'day-foot merged';
-  foot.innerHTML = day.on.map(o=>{
-    const h = dayHours(o.b, o.i);
-    const cap = blockCaps(o.b).day;
-    const cls = h > cap ? 'over' : (h >= cap * 0.85 ? 'hot' : '');
-    const nm = o.owner ? firstName(o.owner.name) : 'Nobody';
-    return `<span class="dhrs ${cls}"${o.owner ? ` style="--c:${o.owner.colour}"` : ''}>` +
-           (o.owner ? '<i class="whodot"></i>' : '') + escapeHtml(nm) +
-           `<b>${h ? h.toFixed(1) : '—'}</b></span>`;
-  }).join('');
+  /* Read in the order the cell above is read. The totals came out in the order
+     the blocks were added, which put Olivia's hours under Ian's column often
+     enough to make you check which was which — the lanes and the tally now
+     name the children in one order. */
+  const lane = o => {
+    const id = o.owner ? o.owner.id : null;
+    const i = cols.findIndex(p => (p ? p.id : null) === id);
+    return i < 0 ? cols.length : i;
+  };
+  foot.innerHTML = day.on
+    .map((o, i) => ({o, i}))
+    .sort((a, b) => lane(a.o) - lane(b.o) || a.i - b.i)
+    .map(({o})=>{
+      const h = dayHours(o.b, o.i);
+      const cap = blockCaps(o.b).day;
+      const cls = h > cap ? 'over' : (h >= cap * 0.85 ? 'hot' : '');
+      const nm = o.owner ? firstName(o.owner.name) : 'Nobody';
+      return `<span class="dhrs ${cls}"${o.owner ? ` style="--c:${o.owner.colour}"` : ''}>` +
+             (o.owner ? '<i class="whodot"></i>' : '') + escapeHtml(nm) +
+             `<b>${h ? h.toFixed(1) : '—'}</b></span>`;
+    }).join('');
   el.appendChild(foot);
   return el;
 }

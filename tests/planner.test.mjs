@@ -3816,14 +3816,17 @@ const sameWeekPlan = () => {
   const Y = new Date().getFullYear();
   return JSON.stringify({
     version: 2, updatedAt: 1,
+    // The younger child's block is stored second on purpose: a cell is read in
+    // the order of the strip above, and neither the lanes nor the tally under
+    // them should fall back on which block was added first.
     blocks: [
+      { id: 'bb', name: 'Camp plan', start: `${Y}-06-01`, days: 7, playerId: 'pb',
+        plan: { 0: { am: [{ type: 'p1', at: '08:00' }] } } },
       { id: 'ba', name: 'Camp plan', start: `${Y}-06-01`, days: 7, playerId: 'pa',
         // stored out of order on purpose — a lane runs to the clock, not to
         // whichever session was dropped on the morning first
         plan: { 0: { am: [{ type: 'p1', at: '10:00' }, { type: 'phys', at: '07:00' }] },
                 1: { pm: 'g2' } } },
-      { id: 'bb', name: 'Camp plan', start: `${Y}-06-01`, days: 7, playerId: 'pb',
-        plan: { 0: { am: [{ type: 'p1', at: '08:00' }] } } },
     ],
     activeBlockId: 'ba',
     players: [
@@ -3887,6 +3890,12 @@ group('Everyone is one calendar');
   ok('the foot reads each child’s hours separately', foot.length === 2, foot.length);
   ok('and names whose is whose',
      foot.map(f => f.textContent).join('|').includes('Olivia'),
+     foot.map(f => f.textContent).join('|'));
+  // Read down the cell and the names come in one order: the tally under the
+  // lanes lists the children the lanes were drawn in, not the order the blocks
+  // happened to be added in.
+  ok('the foot runs in the order of the lanes above it',
+     foot.map(f => f.textContent.replace(/[\d.—]+$/, '')).join('|') === 'Olivia|Ian',
      foot.map(f => f.textContent).join('|'));
   ok('the readout counts days instead, the diary being the shared thing',
      $(d, '#lab1').textContent === 'Planned days' && $(d, '#tot').textContent === '7',
