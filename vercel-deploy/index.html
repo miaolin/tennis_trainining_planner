@@ -1388,10 +1388,11 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
 
 <div class="modal-back" id="paymodal" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pay-title">
-    <h3 id="pay-title">Paid by hand</h3>
+    <h3 id="pay-title">Reward by hand</h3>
     <p class="hint" id="pay-worked"></p>
-    <div class="mrow"><label class="lab" for="pay-amt">Pay</label>
-      <input type="number" id="pay-amt" min="0" max="10000" step="0.01" placeholder="0"></div>
+    <div class="mrow"><label class="lab" for="pay-amt">Reward</label>
+      <input type="text" id="pay-amt" inputmode="decimal" maxlength="12"
+             autocomplete="off" spellcheck="false" placeholder="0"></div>
     <div class="mrow"><label class="lab" for="pay-why">Because</label>
       <input type="text" id="pay-why" maxlength="60"
              placeholder="why it is not what the scheme worked out"></div>
@@ -3820,9 +3821,16 @@ function money(x){
    normMoney refuses it: a scheme line of $0 is a line left blank, but a hand-set
    $0 is somebody saying out loud that this afternoon pays nothing. So null is
    "not set" and 0 is a figure, and the two are never the same. */
+/* It is typed into a plain box rather than nudged with a spinner, so it arrives
+   written the way money is written: a dollar sign that was only ever decoration,
+   a thousands comma, a stray space either side. Those come off. What is left has
+   to be a number and nothing else — parseFloat would read "45ish" as 45, and a
+   reward nobody meant is exactly what this dialog exists to prevent. */
 function normPay(v){
-  if(v === null || v === undefined || v === '') return null;
-  const x = Math.round(parseFloat(v) * 100) / 100;
+  if(v === null || v === undefined) return null;
+  const s = String(v).replace(/[$,\s]/g, '');
+  if(!/\d/.test(s) || !/^\d*\.?\d*$/.test(s)) return null;
+  const x = Math.round(parseFloat(s) * 100) / 100;
   return (Number.isFinite(x) && x >= 0 && x <= MAX_MONEY) ? x : null;
 }
 function normPayNote(t){
@@ -4488,7 +4496,7 @@ function openPay(mId, pId){
   const worked = workedPay(m, p);
   const set = handPay(mId, pId);
   document.getElementById('pay-title').textContent =
-    `Paid by hand — ${p.name} at ${m.name}`;
+    `Reward by hand — ${p.name} at ${m.name}`;
   // What is being overruled, said before the box that overrules it. Where the
   // scheme reaches nothing there is nothing to overrule, and that is worth
   // saying too: it is the case where this dialog is the only way to pay at all.
@@ -4533,7 +4541,7 @@ function commitPay(){
   // cleared it meant that rather than nought.
   const amount = raw === '' ? null : normPay(raw);
   if(raw !== '' && amount === null){
-    payNote(`A purse has to be a figure from 0 to ${money(MAX_MONEY)}.`);
+    payNote(`A reward has to be an amount from 0 to ${money(MAX_MONEY)}.`);
     document.getElementById('pay-amt').focus();
     return;
   }
@@ -4943,7 +4951,7 @@ function renderTournList(list, ms, {setup, who}){
       const fix = locked ? '' :
         `<button class="rfix${byHand ? ' set' : ''}" data-fixm="${m.id}" data-fixp="${p.id}"` +
         ` title="${byHand ? 'Set by hand — press to change it or put it back'
-                          : 'Pay something other than the scheme works out'}"` +
+                          : 'Reward something other than the scheme works out'}"` +
         ` aria-label="Adjust what ${escapeHtml(p.name)} is paid at ${escapeHtml(m.name)}"` +
         `>${byHand ? 'Change' : 'Adjust'}</button>`;
       return `<div class="res" style="--c:${p.colour}"><span class="rnm">${escapeHtml(p.name)}</span>` +

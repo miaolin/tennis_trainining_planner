@@ -6063,6 +6063,11 @@ group('a purse settled by hand');
      $(d, '#pay-worked').textContent.includes('$40') &&
      $(d, '#pay-worked').textContent.includes('4 wins'),
      $(d, '#pay-worked').textContent);
+  ok('the amount is a plain box to write in, not a spinner to nudge',
+     $(d, '#pay-amt').type === 'text', $(d, '#pay-amt').type);
+  ok('and it is called what the rest of the app calls this money',
+     $(d, 'label[for="pay-amt"]').textContent.trim() === 'Reward',
+     $(d, 'label[for="pay-amt"]').textContent);
   ok('the box starts empty rather than pre-agreeing to anything',
      $(d, '#pay-amt').value === '', $(d, '#pay-amt').value);
   ok('but the worked-out figure waits in it, so adding a fiver is not arithmetic',
@@ -6123,10 +6128,29 @@ group('a purse settled by hand');
      resOf(d, 'Club Meet', 'Ian').querySelector('.rfix').textContent === 'Change');
   $(d, '#pay-amt').value = '-5';
   click(dom, $(d, '#pay-ok'));
-  ok('a purse that cannot be paid is refused rather than stored',
+  ok('a reward that cannot be paid is refused rather than stored',
      !$(d, '#paymodal').hidden && $(d, '#pay-hint').classList.contains('bad'),
      $(d, '#pay-hint').textContent);
   ok('and the one that was there is untouched', saved(dom).entries[0].paid === 45);
+
+  /* A free box means it arrives written the way money is written, and also
+     written the way nothing is. Both have to be answered. */
+  $(d, '#pay-amt').value = '45ish';
+  click(dom, $(d, '#pay-ok'));
+  ok('a figure with words round it is not a figure',
+     !$(d, '#paymodal').hidden && saved(dom).entries[0].paid === 45,
+     $(d, '#pay-hint').textContent);
+  $(d, '#pay-amt').value = '$1,250.50';
+  click(dom, $(d, '#pay-ok'));
+  ok('but a dollar sign and a comma are only how money is written',
+     $(d, '#paymodal').hidden && saved(dom).entries[0].paid === 1250.5,
+     JSON.stringify(saved(dom).entries[0]));
+  click(dom, resOf(d, 'Club Meet', 'Ian').querySelector('.rfix'));
+  ok('and it reads back as the amount, not as what was typed',
+     $(d, '#pay-amt').value === '1250.5', $(d, '#pay-amt').value);
+  $(d, '#pay-amt').value = '45';
+  click(dom, $(d, '#pay-ok'));
+  click(dom, resOf(d, 'Club Meet', 'Ian').querySelector('.rfix'));   // left open for what follows
 
   // and the way back
   $(d, '#pay-amt').value = '';

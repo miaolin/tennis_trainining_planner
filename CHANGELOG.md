@@ -25,10 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scheme works this out at $40 — 4 wins $20 · 1st $20* — because a revision
   nobody can see the before of is not a revision, it is just a number.
 
-  Two boxes: what is actually paid, and a short reason. The pay box starts empty
-  rather than pre-agreeing to anything, with the worked-out figure waiting in it
-  as a placeholder, so paying a fiver over is a number to read off rather than
-  arithmetic to do in your head.
+  Two boxes, both plain ones you write in: the reward itself, and a short
+  reason. The reward box starts empty rather than pre-agreeing to anything, with
+  the worked-out figure waiting in it as a placeholder, so paying a fiver over is
+  a number to read off rather than arithmetic to do in your head. It takes an
+  amount written the way money is written — a dollar sign and a thousands comma
+  come off — but what is left has to be a number and nothing else, since
+  parseFloat would read *45ish* as 45 and a reward nobody meant is the thing the
+  dialog exists to prevent.
 
   What is saved is what is paid, and the scheme is not asked again for that
   child at that tournament — a later win must not quietly undo a decision

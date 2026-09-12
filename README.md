@@ -305,12 +305,15 @@ what it is about to overrule: *The scheme works this out at **$40** — 4 wins
 $20 · 1st $20.* Where no scheme reaches the tournament it says that instead,
 which is the case where a purse set here is the only purse there can be.
 
-Two boxes. **Pay** is what is actually handed over. It starts empty rather than
-pre-agreeing to anything, with the worked-out figure sitting in it as a grey
-placeholder — so paying a fiver over is a number to read off rather than
-arithmetic to do in your head. **Because** is a short reason, and it is worth
-typing: it shows on the row and in the spreadsheet, so a figure nobody can
-account for six months later does not happen.
+Two boxes, both plain ones you write in. **Reward** is what is actually handed
+over. It starts empty rather than pre-agreeing to anything, with the worked-out
+figure sitting in it as a grey placeholder — so paying a fiver over is a number
+to read off rather than arithmetic to do in your head. Write it the way money is
+written if you like: a dollar sign and a thousands comma come off, but the rest
+has to be a number and nothing else, since *45ish* is not 45. **Because** is a
+short reason, and it is worth typing: it shows on the row and in the
+spreadsheet, so a figure nobody can account for six months later does not
+happen.
 
 What is saved is what is paid, and **the scheme is not asked again** for that
 child at that tournament. A later win does not quietly raise a figure somebody
@@ -320,7 +323,7 @@ revision never hides what it replaced:
     $45 · set by hand · played the last two with a sprained wrist · not $50 as worked out
 
 **$0** is a figure and not a blank: *this one pays nothing* is an answer, and it
-is kept as one. Leaving the **Pay** box empty is the other thing — that, and
+is kept as one. Leaving the **Reward** box empty is the other thing — that, and
 **Back to the scheme**, hand the arithmetic back and the row works itself out
 again.
 
