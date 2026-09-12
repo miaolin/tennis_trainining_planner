@@ -492,7 +492,10 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
 .mrow{display:flex;align-items:center;gap:12px;margin-bottom:10px}
 .mrow[hidden]{display:none}
 .mrow .lab{min-width:58px}
-.mrow input{flex:1;min-width:0}
+.mrow input,.mrow select{flex:1;min-width:0}
+/* Beside a time field, which iOS sizes from its own control. Matching it here
+   keeps the two rows of the dialog the same height on a tablet. */
+.mrow select{min-height:34px}
 .mfoot{display:flex;justify-content:flex-end;gap:9px;margin-top:16px}
 .mfoot button.go{border-color:var(--ball);color:var(--ball)}
 .mfoot button.go:hover{background:rgba(214,230,75,.16)}
@@ -1307,8 +1310,8 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
       <input type="time" id="m-time" step="300">
     </div>
     <div class="mrow" id="m-durrow">
-      <label class="lab" for="m-dur">Length (h)</label>
-      <input type="number" id="m-dur" min="0.25" max="12" step="0.25">
+      <label class="lab" for="m-dur">Length</label>
+      <select id="m-dur"></select>
     </div>
     <p class="hint" id="m-note"></p>
     <div class="mfoot">
@@ -1584,6 +1587,17 @@ function validTime(v){
   if(h > 23 || +m[2] > 59) return null;
   return String(h).padStart(2, '0') + ':' + m[2];
 }
+/* The lengths a session is ever actually set to. On a tablet the start time is
+   a wheel you spin and the length was a box you typed a decimal into, which is
+   the harder of the two by a long way — and the only one where a thumb can
+   produce 15 when it meant 1.5.
+
+   Quarter hours through the range sessions live in, halves to four, whole ones
+   after that: a piano lesson is 45 minutes and a school day is six hours, and
+   nothing in between them is set to the quarter of an hour. The list is the
+   validation — an impossible length is no longer a thing that can be chosen —
+   but roundHrs still stands behind it for lengths that arrive some other way. */
+const DURS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.5, 4, 5, 6, 7, 8];
 // Quarter hours. Anything longer than half a day is a mistake, not a session.
 function roundHrs(v){
   const n = Math.round(parseFloat(v) * 4) / 4;
@@ -2068,6 +2082,18 @@ function arm(key){
    and collects the label and length of a blocked slot. */
 let dialogEntry = null;   // the entry being built; null when the dialog is shut
 
+/* The length box, written for the session being placed. A length already on a
+   session that the list does not offer — set before there was a list, or come
+   in on an imported plan — is added to it rather than dropped, because the box
+   has to say what the session actually carries. */
+function fillDurs(h){
+  const sel = document.getElementById('m-dur');
+  const cur = roundHrs(h) || 1;
+  const opts = DURS.includes(cur) ? DURS : DURS.concat(cur).sort((a, b) => a - b);
+  sel.innerHTML = opts.map(v =>
+    `<option value="${v}"${v === cur ? ' selected' : ''}>${fmtHrs(v)}</option>`).join('');
+  sel.value = String(cur);
+}
 function openDialog(o){
   const t = TYPES[o.entry.type];
   const custom = !!(t && t.custom);
@@ -2081,7 +2107,7 @@ function openDialog(o){
   const lab = document.getElementById('m-label');
   const tm  = document.getElementById('m-time');
   lab.value = o.entry.label && o.entry.label !== 'Blocked' ? o.entry.label : '';
-  document.getElementById('m-dur').value = o.entry.hrs || (t && t.hrs) || 1;
+  fillDurs(o.entry.hrs || (t && t.hrs) || 1);
   tm.value = o.entry.at || '';
   dialogEntry.done = o.ok;
   document.getElementById('modal').hidden = false;

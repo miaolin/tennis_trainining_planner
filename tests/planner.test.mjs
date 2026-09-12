@@ -484,10 +484,11 @@ group('a session sets its own length');
   ok('and redraws the end time', $(d, '#grid .placed .tm').textContent.includes('09:00–11:30'),
      $(d, '#grid .placed .tm').textContent);
 
-  // a nonsense length falls back to the chip's own
+  // the length is picked from a list now, so an impossible one cannot be
+  // chosen at all — and what the picker cannot produce, the fallback catches
   tap(dom, 'phys', daySlots(d)[1], { time: '14:00', hours: '0' });
-  ok('an impossible length falls back to the usual', slot(dom, 0, 'pm').hrs === 1,
-     JSON.stringify(slot(dom, 0, 'pm')));
+  ok('a length the list does not offer never reaches the plan',
+     slot(dom, 0, 'pm').hrs === 1, JSON.stringify(slot(dom, 0, 'pm')));
 
   // rest has no length to set
   tap(dom, 'rest', daySlots(d)[2]);
@@ -601,8 +602,8 @@ group('blocking a slot with study');
      $(d, '#grid .placed .tm').textContent);
   click(dom, $(d, '#btn-clear'));
   tap(dom, 'other', daySlots(d)[0], { label: '', hours: '999', time: '10:00' });
-  ok('an absurd length falls back to an hour', slot(dom, 0, 'am').hrs === 1,
-     JSON.stringify(slot(dom, 0, 'am')));
+  ok('an absurd length is not on offer, and falls back to an hour',
+     slot(dom, 0, 'am').hrs === 1, JSON.stringify(slot(dom, 0, 'am')));
   ok('an unnamed block still gets a name', $(d, '#grid .placed .nm').textContent === 'Blocked',
      $(d, '#grid .placed .nm').textContent);
 }
@@ -6187,6 +6188,84 @@ group('putting a revised purse back');
      resOf(d, 'Ian').textContent);
   ok('the result it was sitting over is still there',
      saved(dom).entries[0].wins === 2, JSON.stringify(saved(dom).entries[0]));
+}
+
+/* On a tablet the start time is a wheel you spin and the length was a box you
+   typed a decimal into — the harder of the two by a long way, and the only one
+   where a thumb can produce 15 where it meant 1.5. */
+group('a length is picked, not typed');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  const dur = () => $(d, '#m-dur');
+  const offered = () => [...dur().options].map(o => Number(o.value));
+  click(dom, $(d, '#btn-clear'));
+
+  click(dom, $$(d, '.chip').find(c => c.dataset.type === 'g2'));
+  click(dom, daySlots(d)[0]);
+  ok('the length is a list rather than a box to type into',
+     dur().tagName === 'SELECT', dur().tagName);
+  ok('and the label no longer has to say what unit it wants',
+     $(d, 'label[for="m-dur"]').textContent.trim() === 'Length',
+     $(d, 'label[for="m-dur"]').textContent);
+  ok('it opens on the chip’s usual length, already picked',
+     dur().value === '2', dur().value);
+  ok('the options read as lengths and not as numbers',
+     [...dur().options].find(o => o.value === '1.5').textContent === '1.5h',
+     [...dur().options].map(o => o.textContent).join(' '));
+
+  const off = offered();
+  ok('quarter hours are offered where sessions live',
+     [0.25, 0.75, 1.25, 1.75, 2.75].every(v => off.includes(v)), off.join(' '));
+  ok('and whole ones once they are school days rather than sessions',
+     off.includes(6) && off.includes(8) && !off.includes(6.25), off.join(' '));
+  ok('nothing impossible is on the list at all',
+     !off.some(v => v <= 0 || v > 12), off.join(' '));
+  ok('the list is in order, so a wheel spins the way the clock runs',
+     off.every((v, i) => i === 0 || v > off[i - 1]), off.join(' '));
+
+  fill(dom, { time: '09:00', hours: '1.5' });
+  ok('what is picked is what is placed', slot(dom, 0, 'am').hrs === 1.5,
+     JSON.stringify(slot(dom, 0, 'am')));
+  click(dom, $(d, '#grid .placed .tm'));
+  ok('and reopening a session opens on the length it carries',
+     dur().value === '1.5', dur().value);
+  click(dom, $(d, '#m-cancel'));
+}
+
+/* A plan written before there was a list, or one imported from somewhere with
+   its own ideas, can carry a length the list does not offer. The box has to say
+   what the session actually carries, so the odd one is added rather than
+   dropped — the same bargain the draw-type picker strikes with a tag nobody
+   else uses. */
+group('a length the list does not offer still shows');
+{
+  const Y = new Date().getFullYear();
+  const seed = JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [{ id: 'b1', name: 'B', start: `${Y}-06-01`, days: 7,
+               plan: { 0: { am: [{ type: 'p1', at: '09:00', hrs: 4.25 }] } } }],
+    activeBlockId: 'b1', players: [], entries: [], trips: [], manualMatches: [],
+    rewards: {}, forKids: {},
+  });
+  const dom = boot({ [KEY]: seed });
+  const d = dom.window.document;
+  click(dom, $(d, '#grid .placed .tm'));
+  ok('the odd length is what the box opens on',
+     $(d, '#m-dur').value === '4.25', $(d, '#m-dur').value);
+  ok('it is added to the list rather than the list being abandoned',
+     [...$(d, '#m-dur').options].map(o => o.value).includes('1'),
+     [...$(d, '#m-dur').options].map(o => o.value).join(' '));
+  ok('and it sits where it belongs in the order',
+     [...$(d, '#m-dur').options].map(o => Number(o.value))
+       .every((v, i, a) => i === 0 || v > a[i - 1]),
+     [...$(d, '#m-dur').options].map(o => o.value).join(' '));
+  fill(dom, {});
+  ok('leaving it alone keeps it', slot(dom, 0, 'am').hrs === 4.25,
+     JSON.stringify(slot(dom, 0, 'am')));
+  ok('and the grid still draws the window it runs for',
+     $(d, '#grid .placed .tm').textContent.includes('09:00–13:15'),
+     $(d, '#grid .placed .tm').textContent);
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

@@ -48,6 +48,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and it changes nothing about the result it sits over. Overruling a purse is
   not rewriting an afternoon.
 
+### Changed
+
+- **A session's length is picked from a list.** The start time on a tablet is a
+  wheel you spin; the length beside it was a box you typed a decimal into, which
+  is the harder of the two by a long way and the only one where a thumb can
+  produce *15* where it meant *1.5*. It is now a picker like the time, so both
+  halves of the dialog are answered the same way.
+
+  The list is quarter hours through the range sessions actually live in, halves
+  to four, and whole hours after that — a piano lesson is 45 minutes and a
+  school day is six hours, and nothing in between them is ever set to the
+  quarter of an hour. Lengths read as lengths, *1.5h* rather than *1.5*, so the
+  label no longer has to say what unit it wants.
+
+  The list is now the validation: an impossible length is not something that can
+  be chosen. `roundHrs` still stands behind it for lengths arriving from a saved
+  plan or an import. A session already carrying a length the list does not offer
+  keeps it — it is added to the list rather than dropped, because the box has to
+  say what the session actually carries, the same bargain the draw-type picker
+  strikes with a tag nobody else uses.
+
 ## [2.28.0] — 2026-09-11
 
 ### Added

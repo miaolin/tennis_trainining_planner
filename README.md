@@ -73,7 +73,11 @@ tests/                          jsdom harness + api tests — dev only, never de
   order and capped at four; the **+** strip under a filled slot adds another.
 - **A length on every session.** The dialog fills in the usual one for the chip
   you placed (1h private, 2h group, 1h physical) and you can change it there or
-  later from the grid — quarter hours, up to 12.
+  later from the grid. It is **picked from a list**, not typed: quarter hours
+  through the range sessions live in, halves to four, whole hours after that for
+  a school day. On a tablet that is a wheel you spin, the same as the start time
+  beside it — and it is the reason a thumb can no longer produce *15* where it
+  meant *1.5*.
 - **Four session types** — private, group, physical, and rest. Rest marks a
   single slot as off rather than the whole day, so a morning can be free while
   the afternoon is not; a day with nothing else booked still reads as a rest day
