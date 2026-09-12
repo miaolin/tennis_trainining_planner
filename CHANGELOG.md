@@ -5,6 +5,49 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.29.0] — 2026-09-12
+
+### Added
+
+- **A purse can be settled by hand.** A rewards scheme covers a season and not
+  every afternoon in it. A draw abandoned after two rounds, a consolation event
+  nobody wrote terms for, a fiver promised on the way to the courts for
+  something no scheme could have foreseen — the arithmetic is right and the
+  answer is still wrong, and the only person who can say so is the one paying.
+  Until now the only ways to say it were to distort the result until the sum
+  came out right, or to pay a different number from the one on the screen and
+  hope somebody remembered why.
+
+  **Adjust** now sits on every child's result row, on every tournament rather
+  than only the ones that pay: a tournament no scheme reaches is exactly where a
+  figure set by hand is the only figure there can be. It opens on that one child
+  at that one tournament and leads with what it is about to overrule — *The
+  scheme works this out at $40 — 4 wins $20 · 1st $20* — because a revision
+  nobody can see the before of is not a revision, it is just a number.
+
+  Two boxes: what is actually paid, and a short reason. The pay box starts empty
+  rather than pre-agreeing to anything, with the worked-out figure waiting in it
+  as a placeholder, so paying a fiver over is a number to read off rather than
+  arithmetic to do in your head.
+
+  What is saved is what is paid, and the scheme is not asked again for that
+  child at that tournament — a later win must not quietly undo a decision
+  somebody made. But the row keeps saying what the scheme *would* say now, so
+  the revision never hides what it replaced: *$45 · set by hand · played the
+  last two with a sprained wrist · not $50 as worked out*. The same line goes
+  into the spreadsheet's **How** column, so a season opened in Numbers next
+  April still accounts for itself.
+
+  **$0** is a figure and not a blank. *This one pays nothing* is a real answer
+  and it is kept as one, which is the difference between a hand-set purse and a
+  scheme line left empty. Emptying the pay box, or **Back to the scheme**, hands
+  the arithmetic back.
+
+  The revision rides on the child's entry beside their wins and place, so it
+  survives a reload, travels in a backup and reaches the other device on sync —
+  and it changes nothing about the result it sits over. Overruling a purse is
+  not rewriting an afternoon.
+
 ## [2.28.0] — 2026-09-11
 
 ### Added

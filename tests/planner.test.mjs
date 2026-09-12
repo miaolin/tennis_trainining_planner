@@ -6015,5 +6015,179 @@ group('what is agreed reads across the children too');
      $(d, '#grid .placed').title.includes('not confirmed yet'), $(d, '#grid .placed').title);
 }
 
+/* A scheme covers a season and not every afternoon in it. When the arithmetic
+   is right and the answer is still wrong — an abandoned draw, a consolation
+   event nobody wrote terms for — the parent overrules it for that one child at
+   that one tournament, and the figure it replaced stays beside it. */
+group('a purse settled by hand');
+{
+  const Y = new Date().getFullYear();
+  const rowNamed = (d, t) => $$(d, '#tournlist .tourn').find(r => r.textContent.includes(t));
+  const resOf = (d, t, kid) => [...rowNamed(d, t).querySelectorAll('.res')]
+    .find(r => r.textContent.trim().startsWith(kid));
+  const seed = JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [{ id: 'b1', name: 'B', start: `${Y}-06-01`, days: 7, plan: {} }],
+    activeBlockId: 'b1',
+    players: [{ id: 'p1', name: 'Ian', birthYear: Y - 11, colour: '#5B9BD5' }],
+    manualMatches: [
+      { id: 'm1', source: 'manual', name: 'Club Meet', start: `${Y}-03-07`, end: `${Y}-03-07` },
+      { id: 'm2', source: 'manual', name: 'Nobody’s Terms', start: `${Y}-04-04`, end: `${Y}-04-04` }],
+    entries: [{ matchId: 'm1', playerId: 'p1', wins: 4, place: 1 }],
+    trips: [], rewards: {}, forKids: { m1: ['p1'], m2: ['p1'] },
+    schemes: { Group: { kind: 'group', perWin: 5, places: [20], improve: 0, bestEver: 0 } },
+    matchTag: { m1: 'Group' },
+  });
+  const dom = boot({ [KEY]: seed });
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-matches'));
+
+  ok('the scheme works the afternoon out on its own',
+     resOf(d, 'Club Meet', 'Ian').querySelector('.rpay').textContent === '$40',
+     resOf(d, 'Club Meet', 'Ian').textContent);
+  ok('and every row offers a way to overrule it',
+     !!resOf(d, 'Club Meet', 'Ian').querySelector('.rfix'));
+  // the point of the thing: a tournament no scheme reaches is exactly where a
+  // hand-set purse is the only purse there can be
+  ok('including one no scheme reaches',
+     !!resOf(d, 'Nobody’s Terms', 'Ian').querySelector('.rfix') &&
+     !resOf(d, 'Nobody’s Terms', 'Ian').querySelector('.rpay'));
+
+  click(dom, resOf(d, 'Club Meet', 'Ian').querySelector('.rfix'));
+  ok('the dialog opens on that child at that tournament',
+     !$(d, '#paymodal').hidden && $(d, '#pay-title').textContent.includes('Ian') &&
+     $(d, '#pay-title').textContent.includes('Club Meet'),
+     $(d, '#pay-title').textContent);
+  ok('it says what it is about to overrule, and how that was reached',
+     $(d, '#pay-worked').textContent.includes('$40') &&
+     $(d, '#pay-worked').textContent.includes('4 wins'),
+     $(d, '#pay-worked').textContent);
+  ok('the box starts empty rather than pre-agreeing to anything',
+     $(d, '#pay-amt').value === '', $(d, '#pay-amt').value);
+  ok('but the worked-out figure waits in it, so adding a fiver is not arithmetic',
+     $(d, '#pay-amt').placeholder === '40', $(d, '#pay-amt').placeholder);
+  ok('and there is nothing to put back yet', $(d, '#pay-clear').hidden);
+
+  $(d, '#pay-amt').value = '45';
+  $(d, '#pay-why').value = 'played the last two with a sprained wrist';
+  click(dom, $(d, '#pay-ok'));
+  ok('the dialog shuts', $(d, '#paymodal').hidden);
+  ok('the hand-set figure is what shows',
+     resOf(d, 'Club Meet', 'Ian').querySelector('.rpay').textContent === '$45',
+     resOf(d, 'Club Meet', 'Ian').textContent);
+  ok('it reads as set by hand rather than worked out',
+     resOf(d, 'Club Meet', 'Ian').querySelector('.rpay').classList.contains('byhand'));
+  ok('the reason is on the row',
+     resOf(d, 'Club Meet', 'Ian').textContent.includes('sprained wrist'),
+     resOf(d, 'Club Meet', 'Ian').textContent);
+  ok('and so is the figure it replaced',
+     resOf(d, 'Club Meet', 'Ian').textContent.includes('not $40 as worked out'),
+     resOf(d, 'Club Meet', 'Ian').textContent);
+  ok('the season counts the figure that was paid',
+     $(d, '#sumrows').textContent.includes('$45'), $(d, '#sumrows').textContent);
+  ok('the result is untouched — overruling the purse is not rewriting the afternoon',
+     saved(dom).entries[0].wins === 4 && saved(dom).entries[0].place === 1,
+     JSON.stringify(saved(dom).entries[0]));
+  ok('the figure and the reason are both stored',
+     saved(dom).entries[0].paid === 45 &&
+     saved(dom).entries[0].payNote === 'played the last two with a sprained wrist',
+     JSON.stringify(saved(dom).entries[0]));
+
+  // a later win must not quietly undo a decision somebody made
+  change(dom, resOf(d, 'Club Meet', 'Ian').querySelector('.rwin'), '6');
+  ok('the scheme is not asked again once it has been overruled',
+     resOf(d, 'Club Meet', 'Ian').querySelector('.rpay').textContent === '$45',
+     resOf(d, 'Club Meet', 'Ian').textContent);
+  ok('and it still says what the scheme would say now',
+     resOf(d, 'Club Meet', 'Ian').textContent.includes('not $50 as worked out'),
+     resOf(d, 'Club Meet', 'Ian').textContent);
+
+  // the tournament with no terms at all
+  click(dom, resOf(d, 'Nobody’s Terms', 'Ian').querySelector('.rfix'));
+  ok('a tournament with no terms says so rather than showing a sum',
+     $(d, '#pay-worked').textContent.includes('no scheme reaches'),
+     $(d, '#pay-worked').textContent);
+  $(d, '#pay-amt').value = '0';
+  click(dom, $(d, '#pay-ok'));
+  ok('nought is a figure and not a blank — "this one pays nothing" is an answer',
+     resOf(d, 'Nobody’s Terms', 'Ian').querySelector('.rpay').textContent === '$0',
+     resOf(d, 'Nobody’s Terms', 'Ian').textContent);
+  ok('and it is an entry of its own, with no result on it',
+     !!saved(dom).entries.find(e => e.matchId === 'm2' && e.paid === 0 && !('wins' in e)),
+     JSON.stringify(saved(dom).entries));
+
+  // a figure the box cannot mean
+  click(dom, resOf(d, 'Club Meet', 'Ian').querySelector('.rfix'));
+  ok('the button says the purse is already set',
+     resOf(d, 'Club Meet', 'Ian').querySelector('.rfix').textContent === 'Change');
+  $(d, '#pay-amt').value = '-5';
+  click(dom, $(d, '#pay-ok'));
+  ok('a purse that cannot be paid is refused rather than stored',
+     !$(d, '#paymodal').hidden && $(d, '#pay-hint').classList.contains('bad'),
+     $(d, '#pay-hint').textContent);
+  ok('and the one that was there is untouched', saved(dom).entries[0].paid === 45);
+
+  // and the way back
+  $(d, '#pay-amt').value = '';
+  click(dom, $(d, '#pay-ok'));
+  ok('an emptied box hands it back to the scheme',
+     resOf(d, 'Club Meet', 'Ian').querySelector('.rpay').textContent === '$50',
+     resOf(d, 'Club Meet', 'Ian').textContent);
+  ok('and nothing of the revision is left behind',
+     !('paid' in saved(dom).entries[0]) && !('payNote' in saved(dom).entries[0]),
+     JSON.stringify(saved(dom).entries[0]));
+
+  const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
+  const d2 = dom2.window.document;
+  click(dom2, $(d2, '#nav-matches'));
+  ok('a purse set by hand survives a reload',
+     resOf(d2, 'Nobody’s Terms', 'Ian').querySelector('.rpay').textContent === '$0',
+     resOf(d2, 'Nobody’s Terms', 'Ian').textContent);
+  const csv = dom2.window.resultsCsv();
+  ok('the spreadsheet totals the figure that was paid',
+     csv.includes(',0,') || /,0\r?$/m.test(csv) || csv.includes(',0,"'), csv);
+  ok('and its How column says who set it',
+     csv.includes('set by hand'), csv);
+}
+
+/* Back to the scheme is the other way out of a revision, and the one somebody
+   reaches for when the figure was simply a mistake. */
+group('putting a revised purse back');
+{
+  const Y = new Date().getFullYear();
+  const resOf = (d, kid) => [...$$(d, '#tournlist .res')]
+    .find(r => r.textContent.trim().startsWith(kid));
+  const seed = JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [{ id: 'b1', name: 'B', start: `${Y}-06-01`, days: 7, plan: {} }],
+    activeBlockId: 'b1',
+    players: [{ id: 'p1', name: 'Ian', birthYear: Y - 11, colour: '#5B9BD5' }],
+    manualMatches: [{ id: 'm1', source: 'manual', name: 'Club Meet',
+                      start: `${Y}-03-07`, end: `${Y}-03-07` }],
+    entries: [{ matchId: 'm1', playerId: 'p1', wins: 2, paid: 100, payNote: 'typed in a hurry' }],
+    trips: [], rewards: {}, forKids: { m1: ['p1'] },
+    schemes: { Group: { kind: 'group', perWin: 5, places: [], improve: 0, bestEver: 0 } },
+    matchTag: { m1: 'Group' },
+  });
+  const dom = boot({ [KEY]: seed });
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-matches'));
+  ok('a revision on a loaded file is honoured',
+     resOf(d, 'Ian').querySelector('.rpay').textContent === '$100',
+     resOf(d, 'Ian').textContent);
+
+  click(dom, resOf(d, 'Ian').querySelector('.rfix'));
+  ok('the dialog opens on what is set, not on a blank',
+     $(d, '#pay-amt').value === '100' && $(d, '#pay-why').value === 'typed in a hurry',
+     $(d, '#pay-amt').value);
+  ok('and the way back is offered', !$(d, '#pay-clear').hidden);
+  click(dom, $(d, '#pay-clear'));
+  ok('the scheme answers again',
+     resOf(d, 'Ian').querySelector('.rpay').textContent === '$10',
+     resOf(d, 'Ian').textContent);
+  ok('the result it was sitting over is still there',
+     saved(dom).entries[0].wins === 2, JSON.stringify(saved(dom).entries[0]));
+}
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('failed: ' + failures.join(' | ')); process.exit(1); }
