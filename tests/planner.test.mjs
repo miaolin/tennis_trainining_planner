@@ -484,10 +484,11 @@ group('a session sets its own length');
   ok('and redraws the end time', $(d, '#grid .placed .tm').textContent.includes('09:00–11:30'),
      $(d, '#grid .placed .tm').textContent);
 
-  // a nonsense length falls back to the chip's own
+  // the length is picked from a list now, so an impossible one cannot be
+  // chosen at all — and what the picker cannot produce, the fallback catches
   tap(dom, 'phys', daySlots(d)[1], { time: '14:00', hours: '0' });
-  ok('an impossible length falls back to the usual', slot(dom, 0, 'pm').hrs === 1,
-     JSON.stringify(slot(dom, 0, 'pm')));
+  ok('a length the list does not offer never reaches the plan',
+     slot(dom, 0, 'pm').hrs === 1, JSON.stringify(slot(dom, 0, 'pm')));
 
   // rest has no length to set
   tap(dom, 'rest', daySlots(d)[2]);
@@ -601,8 +602,8 @@ group('blocking a slot with study');
      $(d, '#grid .placed .tm').textContent);
   click(dom, $(d, '#btn-clear'));
   tap(dom, 'other', daySlots(d)[0], { label: '', hours: '999', time: '10:00' });
-  ok('an absurd length falls back to an hour', slot(dom, 0, 'am').hrs === 1,
-     JSON.stringify(slot(dom, 0, 'am')));
+  ok('an absurd length is not on offer, and falls back to an hour',
+     slot(dom, 0, 'am').hrs === 1, JSON.stringify(slot(dom, 0, 'am')));
   ok('an unnamed block still gets a name', $(d, '#grid .placed .nm').textContent === 'Blocked',
      $(d, '#grid .placed .nm').textContent);
 }
@@ -6013,6 +6014,282 @@ group('what is agreed reads across the children too');
      $$(d, '#grid button.okdot').length);
   ok('and the hover line says which it is',
      $(d, '#grid .placed').title.includes('not confirmed yet'), $(d, '#grid .placed').title);
+}
+
+/* A scheme covers a season and not every afternoon in it. When the arithmetic
+   is right and the answer is still wrong — an abandoned draw, a consolation
+   event nobody wrote terms for — the parent overrules it for that one child at
+   that one tournament, and the figure it replaced stays beside it. */
+group('a purse settled by hand');
+{
+  const Y = new Date().getFullYear();
+  const rowNamed = (d, t) => $$(d, '#tournlist .tourn').find(r => r.textContent.includes(t));
+  const resOf = (d, t, kid) => [...rowNamed(d, t).querySelectorAll('.res')]
+    .find(r => r.textContent.trim().startsWith(kid));
+  const seed = JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [{ id: 'b1', name: 'B', start: `${Y}-06-01`, days: 7, plan: {} }],
+    activeBlockId: 'b1',
+    players: [{ id: 'p1', name: 'Ian', birthYear: Y - 11, colour: '#5B9BD5' }],
+    manualMatches: [
+      { id: 'm1', source: 'manual', name: 'Club Meet', start: `${Y}-03-07`, end: `${Y}-03-07` },
+      { id: 'm2', source: 'manual', name: 'Nobody’s Terms', start: `${Y}-04-04`, end: `${Y}-04-04` }],
+    entries: [{ matchId: 'm1', playerId: 'p1', wins: 4, place: 1 }],
+    trips: [], rewards: {}, forKids: { m1: ['p1'], m2: ['p1'] },
+    schemes: { Group: { kind: 'group', perWin: 5, places: [20], improve: 0, bestEver: 0 } },
+    matchTag: { m1: 'Group' },
+  });
+  const dom = boot({ [KEY]: seed });
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-matches'));
+
+  ok('the scheme works the afternoon out on its own',
+     resOf(d, 'Club Meet', 'Ian').querySelector('.rpay').textContent === '$40',
+     resOf(d, 'Club Meet', 'Ian').textContent);
+  ok('and every row offers a way to overrule it',
+     !!resOf(d, 'Club Meet', 'Ian').querySelector('.rfix'));
+  // the point of the thing: a tournament no scheme reaches is exactly where a
+  // hand-set purse is the only purse there can be
+  ok('including one no scheme reaches',
+     !!resOf(d, 'Nobody’s Terms', 'Ian').querySelector('.rfix') &&
+     !resOf(d, 'Nobody’s Terms', 'Ian').querySelector('.rpay'));
+
+  click(dom, resOf(d, 'Club Meet', 'Ian').querySelector('.rfix'));
+  ok('the dialog opens on that child at that tournament',
+     !$(d, '#paymodal').hidden && $(d, '#pay-title').textContent.includes('Ian') &&
+     $(d, '#pay-title').textContent.includes('Club Meet'),
+     $(d, '#pay-title').textContent);
+  ok('it says what it is about to overrule, and how that was reached',
+     $(d, '#pay-worked').textContent.includes('$40') &&
+     $(d, '#pay-worked').textContent.includes('4 wins'),
+     $(d, '#pay-worked').textContent);
+  ok('the amount is a plain box to write in, not a spinner to nudge',
+     $(d, '#pay-amt').type === 'text', $(d, '#pay-amt').type);
+  ok('and it is called what the rest of the app calls this money',
+     $(d, 'label[for="pay-amt"]').textContent.trim() === 'Reward',
+     $(d, 'label[for="pay-amt"]').textContent);
+  ok('the box starts empty rather than pre-agreeing to anything',
+     $(d, '#pay-amt').value === '', $(d, '#pay-amt').value);
+  ok('but the worked-out figure waits in it, so adding a fiver is not arithmetic',
+     $(d, '#pay-amt').placeholder === '40', $(d, '#pay-amt').placeholder);
+  ok('and there is nothing to put back yet', $(d, '#pay-clear').hidden);
+
+  $(d, '#pay-amt').value = '45';
+  $(d, '#pay-why').value = 'played the last two with a sprained wrist';
+  click(dom, $(d, '#pay-ok'));
+  ok('the dialog shuts', $(d, '#paymodal').hidden);
+  ok('the hand-set figure is what shows',
+     resOf(d, 'Club Meet', 'Ian').querySelector('.rpay').textContent === '$45',
+     resOf(d, 'Club Meet', 'Ian').textContent);
+  ok('it reads as set by hand rather than worked out',
+     resOf(d, 'Club Meet', 'Ian').querySelector('.rpay').classList.contains('byhand'));
+  ok('the reason is on the row',
+     resOf(d, 'Club Meet', 'Ian').textContent.includes('sprained wrist'),
+     resOf(d, 'Club Meet', 'Ian').textContent);
+  ok('and so is the figure it replaced',
+     resOf(d, 'Club Meet', 'Ian').textContent.includes('not $40 as worked out'),
+     resOf(d, 'Club Meet', 'Ian').textContent);
+  ok('the season counts the figure that was paid',
+     $(d, '#sumrows').textContent.includes('$45'), $(d, '#sumrows').textContent);
+  ok('the result is untouched — overruling the purse is not rewriting the afternoon',
+     saved(dom).entries[0].wins === 4 && saved(dom).entries[0].place === 1,
+     JSON.stringify(saved(dom).entries[0]));
+  ok('the figure and the reason are both stored',
+     saved(dom).entries[0].paid === 45 &&
+     saved(dom).entries[0].payNote === 'played the last two with a sprained wrist',
+     JSON.stringify(saved(dom).entries[0]));
+
+  // a later win must not quietly undo a decision somebody made
+  change(dom, resOf(d, 'Club Meet', 'Ian').querySelector('.rwin'), '6');
+  ok('the scheme is not asked again once it has been overruled',
+     resOf(d, 'Club Meet', 'Ian').querySelector('.rpay').textContent === '$45',
+     resOf(d, 'Club Meet', 'Ian').textContent);
+  ok('and it still says what the scheme would say now',
+     resOf(d, 'Club Meet', 'Ian').textContent.includes('not $50 as worked out'),
+     resOf(d, 'Club Meet', 'Ian').textContent);
+
+  // the tournament with no terms at all
+  click(dom, resOf(d, 'Nobody’s Terms', 'Ian').querySelector('.rfix'));
+  ok('a tournament with no terms says so rather than showing a sum',
+     $(d, '#pay-worked').textContent.includes('no scheme reaches'),
+     $(d, '#pay-worked').textContent);
+  $(d, '#pay-amt').value = '0';
+  click(dom, $(d, '#pay-ok'));
+  ok('nought is a figure and not a blank — "this one pays nothing" is an answer',
+     resOf(d, 'Nobody’s Terms', 'Ian').querySelector('.rpay').textContent === '$0',
+     resOf(d, 'Nobody’s Terms', 'Ian').textContent);
+  ok('and it is an entry of its own, with no result on it',
+     !!saved(dom).entries.find(e => e.matchId === 'm2' && e.paid === 0 && !('wins' in e)),
+     JSON.stringify(saved(dom).entries));
+
+  // a figure the box cannot mean
+  click(dom, resOf(d, 'Club Meet', 'Ian').querySelector('.rfix'));
+  ok('the button says the purse is already set',
+     resOf(d, 'Club Meet', 'Ian').querySelector('.rfix').textContent === 'Change');
+  $(d, '#pay-amt').value = '-5';
+  click(dom, $(d, '#pay-ok'));
+  ok('a reward that cannot be paid is refused rather than stored',
+     !$(d, '#paymodal').hidden && $(d, '#pay-hint').classList.contains('bad'),
+     $(d, '#pay-hint').textContent);
+  ok('and the one that was there is untouched', saved(dom).entries[0].paid === 45);
+
+  /* A free box means it arrives written the way money is written, and also
+     written the way nothing is. Both have to be answered. */
+  $(d, '#pay-amt').value = '45ish';
+  click(dom, $(d, '#pay-ok'));
+  ok('a figure with words round it is not a figure',
+     !$(d, '#paymodal').hidden && saved(dom).entries[0].paid === 45,
+     $(d, '#pay-hint').textContent);
+  $(d, '#pay-amt').value = '$1,250.50';
+  click(dom, $(d, '#pay-ok'));
+  ok('but a dollar sign and a comma are only how money is written',
+     $(d, '#paymodal').hidden && saved(dom).entries[0].paid === 1250.5,
+     JSON.stringify(saved(dom).entries[0]));
+  click(dom, resOf(d, 'Club Meet', 'Ian').querySelector('.rfix'));
+  ok('and it reads back as the amount, not as what was typed',
+     $(d, '#pay-amt').value === '1250.5', $(d, '#pay-amt').value);
+  $(d, '#pay-amt').value = '45';
+  click(dom, $(d, '#pay-ok'));
+  click(dom, resOf(d, 'Club Meet', 'Ian').querySelector('.rfix'));   // left open for what follows
+
+  // and the way back
+  $(d, '#pay-amt').value = '';
+  click(dom, $(d, '#pay-ok'));
+  ok('an emptied box hands it back to the scheme',
+     resOf(d, 'Club Meet', 'Ian').querySelector('.rpay').textContent === '$50',
+     resOf(d, 'Club Meet', 'Ian').textContent);
+  ok('and nothing of the revision is left behind',
+     !('paid' in saved(dom).entries[0]) && !('payNote' in saved(dom).entries[0]),
+     JSON.stringify(saved(dom).entries[0]));
+
+  const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
+  const d2 = dom2.window.document;
+  click(dom2, $(d2, '#nav-matches'));
+  ok('a purse set by hand survives a reload',
+     resOf(d2, 'Nobody’s Terms', 'Ian').querySelector('.rpay').textContent === '$0',
+     resOf(d2, 'Nobody’s Terms', 'Ian').textContent);
+  const csv = dom2.window.resultsCsv();
+  ok('the spreadsheet totals the figure that was paid',
+     csv.includes(',0,') || /,0\r?$/m.test(csv) || csv.includes(',0,"'), csv);
+  ok('and its How column says who set it',
+     csv.includes('set by hand'), csv);
+}
+
+/* Back to the scheme is the other way out of a revision, and the one somebody
+   reaches for when the figure was simply a mistake. */
+group('putting a revised purse back');
+{
+  const Y = new Date().getFullYear();
+  const resOf = (d, kid) => [...$$(d, '#tournlist .res')]
+    .find(r => r.textContent.trim().startsWith(kid));
+  const seed = JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [{ id: 'b1', name: 'B', start: `${Y}-06-01`, days: 7, plan: {} }],
+    activeBlockId: 'b1',
+    players: [{ id: 'p1', name: 'Ian', birthYear: Y - 11, colour: '#5B9BD5' }],
+    manualMatches: [{ id: 'm1', source: 'manual', name: 'Club Meet',
+                      start: `${Y}-03-07`, end: `${Y}-03-07` }],
+    entries: [{ matchId: 'm1', playerId: 'p1', wins: 2, paid: 100, payNote: 'typed in a hurry' }],
+    trips: [], rewards: {}, forKids: { m1: ['p1'] },
+    schemes: { Group: { kind: 'group', perWin: 5, places: [], improve: 0, bestEver: 0 } },
+    matchTag: { m1: 'Group' },
+  });
+  const dom = boot({ [KEY]: seed });
+  const d = dom.window.document;
+  click(dom, $(d, '#nav-matches'));
+  ok('a revision on a loaded file is honoured',
+     resOf(d, 'Ian').querySelector('.rpay').textContent === '$100',
+     resOf(d, 'Ian').textContent);
+
+  click(dom, resOf(d, 'Ian').querySelector('.rfix'));
+  ok('the dialog opens on what is set, not on a blank',
+     $(d, '#pay-amt').value === '100' && $(d, '#pay-why').value === 'typed in a hurry',
+     $(d, '#pay-amt').value);
+  ok('and the way back is offered', !$(d, '#pay-clear').hidden);
+  click(dom, $(d, '#pay-clear'));
+  ok('the scheme answers again',
+     resOf(d, 'Ian').querySelector('.rpay').textContent === '$10',
+     resOf(d, 'Ian').textContent);
+  ok('the result it was sitting over is still there',
+     saved(dom).entries[0].wins === 2, JSON.stringify(saved(dom).entries[0]));
+}
+
+/* On a tablet the start time is a wheel you spin and the length was a box you
+   typed a decimal into — the harder of the two by a long way, and the only one
+   where a thumb can produce 15 where it meant 1.5. */
+group('a length is picked, not typed');
+{
+  const dom = boot();
+  const d = dom.window.document;
+  const dur = () => $(d, '#m-dur');
+  const offered = () => [...dur().options].map(o => Number(o.value));
+  click(dom, $(d, '#btn-clear'));
+
+  click(dom, $$(d, '.chip').find(c => c.dataset.type === 'g2'));
+  click(dom, daySlots(d)[0]);
+  ok('the length is a list rather than a box to type into',
+     dur().tagName === 'SELECT', dur().tagName);
+  ok('and the label no longer has to say what unit it wants',
+     $(d, 'label[for="m-dur"]').textContent.trim() === 'Length',
+     $(d, 'label[for="m-dur"]').textContent);
+  ok('it opens on the chip’s usual length, already picked',
+     dur().value === '2', dur().value);
+  ok('the options read as lengths and not as numbers',
+     [...dur().options].find(o => o.value === '1.5').textContent === '1.5h',
+     [...dur().options].map(o => o.textContent).join(' '));
+
+  const off = offered();
+  ok('quarter hours are offered where sessions live',
+     [0.25, 0.75, 1.25, 1.75, 2.75].every(v => off.includes(v)), off.join(' '));
+  ok('and whole ones once they are school days rather than sessions',
+     off.includes(6) && off.includes(8) && !off.includes(6.25), off.join(' '));
+  ok('nothing impossible is on the list at all',
+     !off.some(v => v <= 0 || v > 12), off.join(' '));
+  ok('the list is in order, so a wheel spins the way the clock runs',
+     off.every((v, i) => i === 0 || v > off[i - 1]), off.join(' '));
+
+  fill(dom, { time: '09:00', hours: '1.5' });
+  ok('what is picked is what is placed', slot(dom, 0, 'am').hrs === 1.5,
+     JSON.stringify(slot(dom, 0, 'am')));
+  click(dom, $(d, '#grid .placed .tm'));
+  ok('and reopening a session opens on the length it carries',
+     dur().value === '1.5', dur().value);
+  click(dom, $(d, '#m-cancel'));
+}
+
+/* A plan written before there was a list, or one imported from somewhere with
+   its own ideas, can carry a length the list does not offer. The box has to say
+   what the session actually carries, so the odd one is added rather than
+   dropped — the same bargain the draw-type picker strikes with a tag nobody
+   else uses. */
+group('a length the list does not offer still shows');
+{
+  const Y = new Date().getFullYear();
+  const seed = JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [{ id: 'b1', name: 'B', start: `${Y}-06-01`, days: 7,
+               plan: { 0: { am: [{ type: 'p1', at: '09:00', hrs: 4.25 }] } } }],
+    activeBlockId: 'b1', players: [], entries: [], trips: [], manualMatches: [],
+    rewards: {}, forKids: {},
+  });
+  const dom = boot({ [KEY]: seed });
+  const d = dom.window.document;
+  click(dom, $(d, '#grid .placed .tm'));
+  ok('the odd length is what the box opens on',
+     $(d, '#m-dur').value === '4.25', $(d, '#m-dur').value);
+  ok('it is added to the list rather than the list being abandoned',
+     [...$(d, '#m-dur').options].map(o => o.value).includes('1'),
+     [...$(d, '#m-dur').options].map(o => o.value).join(' '));
+  ok('and it sits where it belongs in the order',
+     [...$(d, '#m-dur').options].map(o => Number(o.value))
+       .every((v, i, a) => i === 0 || v > a[i - 1]),
+     [...$(d, '#m-dur').options].map(o => o.value).join(' '));
+  fill(dom, {});
+  ok('leaving it alone keeps it', slot(dom, 0, 'am').hrs === 4.25,
+     JSON.stringify(slot(dom, 0, 'am')));
+  ok('and the grid still draws the window it runs for',
+     $(d, '#grid .placed .tm').textContent.includes('09:00–13:15'),
+     $(d, '#grid .placed .tm').textContent);
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

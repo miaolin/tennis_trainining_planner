@@ -492,7 +492,10 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
 .mrow{display:flex;align-items:center;gap:12px;margin-bottom:10px}
 .mrow[hidden]{display:none}
 .mrow .lab{min-width:58px}
-.mrow input{flex:1;min-width:0}
+.mrow input,.mrow select{flex:1;min-width:0}
+/* Beside a time field, which iOS sizes from its own control. Matching it here
+   keeps the two rows of the dialog the same height on a tablet. */
+.mrow select{min-height:34px}
 .mfoot{display:flex;justify-content:flex-end;gap:9px;margin-top:16px}
 .mfoot button.go{border-color:var(--ball);color:var(--ball)}
 .mfoot button.go:hover{background:rgba(214,230,75,.16)}
@@ -895,6 +898,21 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
 }
 .kid .kyrv{font-size:12px;color:var(--court-line);padding:3px 2px}
 .res .rtodo{color:var(--warn)}
+/* A figure somebody typed rather than one the scheme reached. It is still
+   money, so it keeps the money colour; the dotted rule under it is the whole of
+   the difference, and the reason beside it says the rest. */
+.res .rpay.byhand{border-bottom:1px dotted var(--ball)}
+.res .rfix{
+  border:none;background:transparent;color:var(--mute);
+  font-size:11.5px;padding:3px 6px;border-radius:3px;cursor:pointer;
+  text-decoration:underline;text-underline-offset:2px;font-family:inherit;
+}
+.res .rfix.set{color:var(--ball)}
+.res .rfix:hover{background:rgba(214,230,75,.14);color:var(--ball)}
+#paymodal .mrow .lab{min-width:82px}
+/* What the scheme would have said, above the box that overrules it. */
+#pay-worked{margin:0 0 10px}
+#pay-worked b{color:var(--ball)}
 #rmodal .mrow .lab{min-width:82px}
 /* The scorecard box. A pasted group is wide and monospaced in its own sheet, so
    it is left that way here — the parent is checking they grabbed the right
@@ -1292,8 +1310,8 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
       <input type="time" id="m-time" step="300">
     </div>
     <div class="mrow" id="m-durrow">
-      <label class="lab" for="m-dur">Length (h)</label>
-      <input type="number" id="m-dur" min="0.25" max="12" step="0.25">
+      <label class="lab" for="m-dur">Length</label>
+      <select id="m-dur"></select>
     </div>
     <p class="hint" id="m-note"></p>
     <div class="mfoot">
@@ -1364,6 +1382,25 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
     <div class="mfoot">
       <button type="button" id="s-cancel">Cancel</button>
       <button type="button" id="s-ok" class="go">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-back" id="paymodal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pay-title">
+    <h3 id="pay-title">Reward by hand</h3>
+    <p class="hint" id="pay-worked"></p>
+    <div class="mrow"><label class="lab" for="pay-amt">Reward</label>
+      <input type="text" id="pay-amt" inputmode="decimal" maxlength="12"
+             autocomplete="off" spellcheck="false" placeholder="0"></div>
+    <div class="mrow"><label class="lab" for="pay-why">Because</label>
+      <input type="text" id="pay-why" maxlength="60"
+             placeholder="why it is not what the scheme worked out"></div>
+    <p class="hint" id="pay-hint"></p>
+    <div class="mfoot">
+      <button type="button" id="pay-clear">Back to the scheme</button>
+      <button type="button" id="pay-cancel">Cancel</button>
+      <button type="button" id="pay-ok" class="go">Save</button>
     </div>
   </div>
 </div>
@@ -1551,6 +1588,17 @@ function validTime(v){
   if(h > 23 || +m[2] > 59) return null;
   return String(h).padStart(2, '0') + ':' + m[2];
 }
+/* The lengths a session is ever actually set to. On a tablet the start time is
+   a wheel you spin and the length was a box you typed a decimal into, which is
+   the harder of the two by a long way — and the only one where a thumb can
+   produce 15 when it meant 1.5.
+
+   Quarter hours through the range sessions live in, halves to four, whole ones
+   after that: a piano lesson is 45 minutes and a school day is six hours, and
+   nothing in between them is set to the quarter of an hour. The list is the
+   validation — an impossible length is no longer a thing that can be chosen —
+   but roundHrs still stands behind it for lengths that arrive some other way. */
+const DURS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.5, 4, 5, 6, 7, 8];
 // Quarter hours. Anything longer than half a day is a mistake, not a session.
 function roundHrs(v){
   const n = Math.round(parseFloat(v) * 4) / 4;
@@ -1772,11 +1820,21 @@ function sanitiseState(raw, allowEmptyBlocks){
         const out = {matchId:e.matchId, playerId:e.playerId};
         if(Number.isInteger(e.wins) && e.wins >= 0 && e.wins <= MAX_WINS) out.wins = e.wins;
         if(Number.isInteger(e.place) && e.place >= 1 && e.place <= MAX_PLACE) out.place = e.place;
+        // A figure set by hand. Nought is a real one — "this afternoon pays
+        // nothing, whatever the scheme says" is a thing a parent decides — so
+        // the key is left off rather than defaulted, the same as the result.
+        const paid = normPay(e.paid);
+        if(paid !== null){
+          out.paid = paid;
+          const why = normPayNote(e.payNote);
+          if(why) out.payNote = why;
+        }
         return out;
       })
       // With the status gone, an entry recording nothing says nothing: the
-      // tournament's own list is what says who is playing it.
-      .filter(e => 'wins' in e || 'place' in e);
+      // tournament's own list is what says who is playing it. A hand-set purse
+      // is something recorded, even where no result ever was.
+      .filter(e => 'wins' in e || 'place' in e || 'paid' in e);
 
     // A child who had a status was on that tournament however the age rule
     // read, and a stated list that leaves them off would now drop them. Where
@@ -2025,6 +2083,18 @@ function arm(key){
    and collects the label and length of a blocked slot. */
 let dialogEntry = null;   // the entry being built; null when the dialog is shut
 
+/* The length box, written for the session being placed. A length already on a
+   session that the list does not offer — set before there was a list, or come
+   in on an imported plan — is added to it rather than dropped, because the box
+   has to say what the session actually carries. */
+function fillDurs(h){
+  const sel = document.getElementById('m-dur');
+  const cur = roundHrs(h) || 1;
+  const opts = DURS.includes(cur) ? DURS : DURS.concat(cur).sort((a, b) => a - b);
+  sel.innerHTML = opts.map(v =>
+    `<option value="${v}"${v === cur ? ' selected' : ''}>${fmtHrs(v)}</option>`).join('');
+  sel.value = String(cur);
+}
 function openDialog(o){
   const t = TYPES[o.entry.type];
   const custom = !!(t && t.custom);
@@ -2038,7 +2108,7 @@ function openDialog(o){
   const lab = document.getElementById('m-label');
   const tm  = document.getElementById('m-time');
   lab.value = o.entry.label && o.entry.label !== 'Blocked' ? o.entry.label : '';
-  document.getElementById('m-dur').value = o.entry.hrs || (t && t.hrs) || 1;
+  fillDurs(o.entry.hrs || (t && t.hrs) || 1);
   tm.value = o.entry.at || '';
   dialogEntry.done = o.ok;
   document.getElementById('modal').hidden = false;
@@ -3062,6 +3132,9 @@ const DEADLINE_WARN_DAYS = 21;
 // Rewards. A junior draw is a handful of matches, so the ceilings are only
 // there to stop a mistyped figure becoming a five-digit promise.
 const MAX_WINS = 99, MAX_PLACE = 128, MAX_MONEY = 10000, MAX_PLACES = 4;
+// Room for a reason and not for an argument: "he played the whole day with a
+// sprained wrist" fits, a paragraph does not.
+const MAX_PAYNOTE = 60;
 // A child's name. Long enough for a full one — matching a draw sheet wants the
 // surname — and short enough to sit in a chip. The add form says 24 too.
 const MAX_NAME = 24;
@@ -3744,6 +3817,25 @@ function money(x){
   const c = Math.round(x * 100);
   return '$' + (c % 100 === 0 ? String(c / 100) : (c / 100).toFixed(2));
 }
+/* A purse typed in rather than worked out. Nought is allowed here where
+   normMoney refuses it: a scheme line of $0 is a line left blank, but a hand-set
+   $0 is somebody saying out loud that this afternoon pays nothing. So null is
+   "not set" and 0 is a figure, and the two are never the same. */
+/* It is typed into a plain box rather than nudged with a spinner, so it arrives
+   written the way money is written: a dollar sign that was only ever decoration,
+   a thousands comma, a stray space either side. Those come off. What is left has
+   to be a number and nothing else — parseFloat would read "45ish" as 45, and a
+   reward nobody meant is exactly what this dialog exists to prevent. */
+function normPay(v){
+  if(v === null || v === undefined) return null;
+  const s = String(v).replace(/[$,\s]/g, '');
+  if(!/\d/.test(s) || !/^\d*\.?\d*$/.test(s)) return null;
+  const x = Math.round(parseFloat(s) * 100) / 100;
+  return (Number.isFinite(x) && x >= 0 && x <= MAX_MONEY) ? x : null;
+}
+function normPayNote(t){
+  return String(t || '').replace(/\s+/g, ' ').trim().slice(0, MAX_PAYNOTE);
+}
 // The shape of the draw the scheme is written for. Every scheme saved before
 // there was a choice is a group one, and an unreadable value is treated the
 // same way, so `kind` can be trusted to be one of the two from here on.
@@ -4385,6 +4477,86 @@ function commitScores(){
   render(); save();
 }
 
+/* ---- revising a purse by hand ----
+   The scheme covers the season and not every afternoon in it. A draw that was
+   abandoned after two rounds, a consolation event nobody wrote terms for, a
+   fiver promised on the way to the courts for something no scheme could have
+   foreseen — the arithmetic is right and the answer is still wrong, and the
+   only person who can say so is the one who is paying.
+
+   So the sum stays exactly as it was and this sits over the top of it, for one
+   child at one tournament, with the figure it replaced kept beside it. */
+let payTarget = null;      // {mId, pId}, or null when the dialog is shut
+
+function openPay(mId, pId){
+  const m = allMatches().find(x => x.id === mId);
+  const p = state.players.find(x => x.id === pId);
+  if(!m || !p) return;
+  payTarget = {mId, pId};
+  const worked = workedPay(m, p);
+  const set = handPay(mId, pId);
+  document.getElementById('pay-title').textContent =
+    `Reward by hand — ${p.name} at ${m.name}`;
+  // What is being overruled, said before the box that overrules it. Where the
+  // scheme reaches nothing there is nothing to overrule, and that is worth
+  // saying too: it is the case where this dialog is the only way to pay at all.
+  const el = document.getElementById('pay-worked');
+  el.innerHTML = worked
+    ? `The scheme works this out at <b>${money(worked.total)}</b>` +
+      (worked.parts.length ? ` — ${escapeHtml(worked.parts.join(' · '))}.` : '.')
+    : hasRewards(schemeFor(m))
+      ? 'The scheme pays for this draw, but there is no result on it yet, ' +
+        'so it has worked nothing out.'
+      : 'Nothing is worked out here — no scheme reaches this tournament.';
+  // An empty box is the honest starting point for a purse nobody has set. The
+  // worked-out figure goes in as the placeholder instead, so adding a fiver to
+  // it is a number to read off rather than arithmetic to do in your head.
+  const amt = document.getElementById('pay-amt');
+  amt.value = set ? String(set.amount) : '';
+  amt.placeholder = worked ? String(worked.total) : '0';
+  document.getElementById('pay-why').value = set ? set.note : '';
+  document.getElementById('pay-clear').hidden = !set;
+  payNote('');
+  document.getElementById('paymodal').hidden = false;
+  amt.focus();
+  amt.select();
+}
+function closePay(){
+  payTarget = null;
+  document.getElementById('paymodal').hidden = true;
+}
+function payNote(msg){
+  const el = document.getElementById('pay-hint');
+  el.textContent = msg ||
+    'What is saved here is what is paid, and the scheme is not asked again for ' +
+    'this one. The reason shows on the row and in the spreadsheet, so a figure ' +
+    'nobody can account for later does not happen. Leave the box empty to go ' +
+    'back to the scheme.';
+  el.classList.toggle('bad', !!msg);
+}
+function commitPay(){
+  if(!payTarget) return;
+  const raw = document.getElementById('pay-amt').value.trim();
+  // An emptied box is the same answer the Back button gives, and a parent who
+  // cleared it meant that rather than nought.
+  const amount = raw === '' ? null : normPay(raw);
+  if(raw !== '' && amount === null){
+    payNote(`A reward has to be an amount from 0 to ${money(MAX_MONEY)}.`);
+    document.getElementById('pay-amt').focus();
+    return;
+  }
+  setHandPay(payTarget.mId, payTarget.pId, amount,
+             document.getElementById('pay-why').value);
+  closePay();
+  render(); save();
+}
+function clearPay(){
+  if(!payTarget) return;
+  setHandPay(payTarget.mId, payTarget.pId, null, '');
+  closePay();
+  render(); save();
+}
+
 function resultOf(matchId, playerId){
   const e = (state.entries || []).find(x => x.matchId === matchId && x.playerId === playerId);
   if(!e) return null;
@@ -4405,7 +4577,7 @@ function pruneEntry(matchId, playerId){
   const i = state.entries.findIndex(x => x.matchId === matchId && x.playerId === playerId);
   if(i < 0) return;
   const e = state.entries[i];
-  if(!('wins' in e) && !('place' in e)) state.entries.splice(i, 1);
+  if(!('wins' in e) && !('place' in e) && !('paid' in e)) state.entries.splice(i, 1);
 }
 function setResult(matchId, playerId, field, raw){
   const e = entryFor(matchId, playerId);
@@ -4452,9 +4624,51 @@ function prevWins(m, playerId){
   }
   return null;
 }
+/* What somebody typed instead of what the scheme reached, for this child at
+   this tournament. It rides on the entry beside the result, because it is a
+   fact about one child's afternoon and not about the draw: a scheme that has to
+   carry an exception for one child is no longer a scheme. */
+function handPay(matchId, playerId){
+  const e = (state.entries || []).find(x => x.matchId === matchId && x.playerId === playerId);
+  if(!e || !('paid' in e)) return null;
+  return {amount: e.paid, note: typeof e.payNote === 'string' ? e.payNote : ''};
+}
+// Passing null takes the hand off it again and the scheme answers once more.
+function setHandPay(matchId, playerId, amount, note){
+  if(amount === null){
+    const e = (state.entries || []).find(x => x.matchId === matchId && x.playerId === playerId);
+    if(!e) return;
+    delete e.paid;
+    delete e.payNote;
+    pruneEntry(matchId, playerId);
+    return;
+  }
+  const e = entryFor(matchId, playerId);
+  e.paid = amount;
+  const why = normPayNote(note);
+  if(why) e.payNote = why; else delete e.payNote;
+}
+/* What is actually paid. A figure set by hand is the answer and the scheme is
+   not consulted again — a revision that the next win quietly undid would be
+   worse than no revision at all.
+
+   It still says what the scheme would have reached, though, and why it was
+   overruled. A number a child cannot get an account of is the one thing the
+   whole arrangement was meant to avoid, and that does not stop being true
+   because a parent was the one who typed it. */
+function payout(m, p){
+  const set = handPay(m.id, p.id);
+  if(!set) return workedPay(m, p);
+  const worked = workedPay(m, p);
+  const parts = ['set by hand'];
+  if(set.note) parts.push(set.note);
+  if(worked && worked.total !== set.amount) parts.push(`not ${money(worked.total)} as worked out`);
+  return {total: set.amount, parts, byHand: true,
+          worked: worked ? worked.total : null};
+}
 // null when there is nothing to work from; otherwise a total and the sum shown
 // in full, because a child should be able to see how the number was reached.
-function payout(m, p){
+function workedPay(m, p){
   const r = schemeFor(m);
   const res = resultOf(m.id, p.id);
   if(!hasRewards(r) || !res || (res.wins === null && res.place === null)) return null;
@@ -4727,12 +4941,22 @@ function renderTournList(list, ms, {setup, who}){
       // amount and "no result yet" both read as something missing, and neither
       // is. A blank line here means the numbers are the whole of it.
       const sum = pay
-        ? `<span class="rpay">${money(pay.total)}</span>` +
+        ? `<span class="rpay${pay.byHand ? ' byhand' : ''}">${money(pay.total)}</span>` +
           (pay.parts.length ? `<span class="rwhy">${escapeHtml(pay.parts.join(' · '))}</span>` : '')
         : pays ? '<span class="rtodo">No result yet</span>' : '';
+      // The way to overrule the sum, on every row rather than only the ones
+      // that pay: a tournament no scheme reaches is exactly where a purse
+      // settled by hand is the only purse there can be.
+      const byHand = !!handPay(m.id, p.id);
+      const fix = locked ? '' :
+        `<button class="rfix${byHand ? ' set' : ''}" data-fixm="${m.id}" data-fixp="${p.id}"` +
+        ` title="${byHand ? 'Set by hand — press to change it or put it back'
+                          : 'Reward something other than the scheme works out'}"` +
+        ` aria-label="Adjust what ${escapeHtml(p.name)} is paid at ${escapeHtml(m.name)}"` +
+        `>${byHand ? 'Change' : 'Adjust'}</button>`;
       return `<div class="res" style="--c:${p.colour}"><span class="rnm">${escapeHtml(p.name)}</span>` +
              box('rwin', 'wins', res.wins, 0, MAX_WINS, 'Wins') +
-             box('rpl', 'final place', res.place, 1, MAX_PLACE, 'Place') + sum + '</div>';
+             box('rpl', 'final place', res.place, 1, MAX_PLACE, 'Place') + sum + fix + '</div>';
     }).join('');
     // One question now: is this child playing this tournament? Being on it is
     // the whole of the answer — there is no entry to confirm afterwards, and
@@ -4812,6 +5036,8 @@ function renderTournList(list, ms, {setup, who}){
     btn.addEventListener('click', ()=>openRewards('match', btn.dataset.rew)));
   list.querySelectorAll('[data-sc]').forEach(btn=>
     btn.addEventListener('click', ()=>openScores(btn.dataset.sc)));
+  list.querySelectorAll('[data-fixm]').forEach(btn=>
+    btn.addEventListener('click', ()=>openPay(btn.dataset.fixm, btn.dataset.fixp)));
   // Not gated on the lock: what shape a draw is belongs to the event, not to
   // whichever child's tab happens to be open.
   list.querySelectorAll('[data-tag]').forEach(sel=>
@@ -6108,6 +6334,16 @@ document.getElementById('s-fetch').addEventListener('click', fetchDraw);
   }));
 document.getElementById('smodal').addEventListener('click', e=>{
   if(e.target.id === 'smodal') closeScores();
+});
+document.getElementById('pay-ok').addEventListener('click', commitPay);
+document.getElementById('pay-cancel').addEventListener('click', closePay);
+document.getElementById('pay-clear').addEventListener('click', clearPay);
+document.getElementById('paymodal').addEventListener('click', e=>{
+  if(e.target.id === 'paymodal') closePay();
+});
+document.getElementById('paymodal').addEventListener('keydown', e=>{
+  if(e.key === 'Enter'){ e.preventDefault(); commitPay(); }
+  else if(e.key === 'Escape'){ e.preventDefault(); closePay(); }
 });
 document.getElementById('smodal').addEventListener('keydown', e=>{
   // Enter inside the scorecard is a newline, the paste being many lines. Only

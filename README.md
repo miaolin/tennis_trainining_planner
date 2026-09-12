@@ -73,7 +73,11 @@ tests/                          jsdom harness + api tests — dev only, never de
   order and capped at four; the **+** strip under a filled slot adds another.
 - **A length on every session.** The dialog fills in the usual one for the chip
   you placed (1h private, 2h group, 1h physical) and you can change it there or
-  later from the grid — quarter hours, up to 12.
+  later from the grid. It is **picked from a list**, not typed: quarter hours
+  through the range sessions live in, halves to four, whole hours after that for
+  a school day. On a tablet that is a wheel you spin, the same as the start time
+  beside it — and it is the reason a thumb can no longer produce *15* where it
+  meant *1.5*.
 - **Four session types** — private, group, physical, and rest. Rest marks a
   single slot as off rather than the whole day, so a morning can be free while
   the afternoon is not; a day with nothing else booked still reads as a rest day
@@ -287,6 +291,47 @@ Nought wins is a real result and is kept as one; an empty box means *not yet
 entered*, which is what the season check chases after a tournament has
 finished. A row with nothing in either box is not stored at all — the
 tournament's own list is what says who is playing it.
+
+### Paying something other than what the scheme says
+
+A scheme covers a season and not every afternoon in it. A draw abandoned after
+two rounds, a consolation event nobody wrote terms for, a fiver promised on the
+way to the courts for something no scheme could have foreseen — the arithmetic
+is right and the answer is still wrong, and the only person who can say so is
+the one paying. **Adjust** on a child's result row is where they say it.
+
+The dialog opens on that one child at that one tournament, and it leads with
+what it is about to overrule: *The scheme works this out at **$40** — 4 wins
+$20 · 1st $20.* Where no scheme reaches the tournament it says that instead,
+which is the case where a purse set here is the only purse there can be.
+
+Two boxes, both plain ones you write in. **Reward** is what is actually handed
+over. It starts empty rather than pre-agreeing to anything, with the worked-out
+figure sitting in it as a grey placeholder — so paying a fiver over is a number
+to read off rather than arithmetic to do in your head. Write it the way money is
+written if you like: a dollar sign and a thousands comma come off, but the rest
+has to be a number and nothing else, since *45ish* is not 45. **Because** is a
+short reason, and it is worth typing: it shows on the row and in the
+spreadsheet, so a figure nobody can account for six months later does not
+happen.
+
+What is saved is what is paid, and **the scheme is not asked again** for that
+child at that tournament. A later win does not quietly raise a figure somebody
+decided on — but the row goes on saying what the scheme *would* say, so the
+revision never hides what it replaced:
+
+    $45 · set by hand · played the last two with a sprained wrist · not $50 as worked out
+
+**$0** is a figure and not a blank: *this one pays nothing* is an answer, and it
+is kept as one. Leaving the **Reward** box empty is the other thing — that, and
+**Back to the scheme**, hand the arithmetic back and the row works itself out
+again.
+
+A revision rides on the child's entry beside their wins and place, so it
+survives a reload, travels in a backup, and reaches the other device on sync. It
+changes nothing about the result it sits over: overruling a purse is not
+rewriting an afternoon. The season summary and the CSV both count the figure
+that was actually paid, with the reason in the CSV's **How** column.
 
 ### Results
 

@@ -5,6 +5,74 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.29.0] — 2026-09-12
+
+### Added
+
+- **A purse can be settled by hand.** A rewards scheme covers a season and not
+  every afternoon in it. A draw abandoned after two rounds, a consolation event
+  nobody wrote terms for, a fiver promised on the way to the courts for
+  something no scheme could have foreseen — the arithmetic is right and the
+  answer is still wrong, and the only person who can say so is the one paying.
+  Until now the only ways to say it were to distort the result until the sum
+  came out right, or to pay a different number from the one on the screen and
+  hope somebody remembered why.
+
+  **Adjust** now sits on every child's result row, on every tournament rather
+  than only the ones that pay: a tournament no scheme reaches is exactly where a
+  figure set by hand is the only figure there can be. It opens on that one child
+  at that one tournament and leads with what it is about to overrule — *The
+  scheme works this out at $40 — 4 wins $20 · 1st $20* — because a revision
+  nobody can see the before of is not a revision, it is just a number.
+
+  Two boxes, both plain ones you write in: the reward itself, and a short
+  reason. The reward box starts empty rather than pre-agreeing to anything, with
+  the worked-out figure waiting in it as a placeholder, so paying a fiver over is
+  a number to read off rather than arithmetic to do in your head. It takes an
+  amount written the way money is written — a dollar sign and a thousands comma
+  come off — but what is left has to be a number and nothing else, since
+  parseFloat would read *45ish* as 45 and a reward nobody meant is the thing the
+  dialog exists to prevent.
+
+  What is saved is what is paid, and the scheme is not asked again for that
+  child at that tournament — a later win must not quietly undo a decision
+  somebody made. But the row keeps saying what the scheme *would* say now, so
+  the revision never hides what it replaced: *$45 · set by hand · played the
+  last two with a sprained wrist · not $50 as worked out*. The same line goes
+  into the spreadsheet's **How** column, so a season opened in Numbers next
+  April still accounts for itself.
+
+  **$0** is a figure and not a blank. *This one pays nothing* is a real answer
+  and it is kept as one, which is the difference between a hand-set purse and a
+  scheme line left empty. Emptying the pay box, or **Back to the scheme**, hands
+  the arithmetic back.
+
+  The revision rides on the child's entry beside their wins and place, so it
+  survives a reload, travels in a backup and reaches the other device on sync —
+  and it changes nothing about the result it sits over. Overruling a purse is
+  not rewriting an afternoon.
+
+### Changed
+
+- **A session's length is picked from a list.** The start time on a tablet is a
+  wheel you spin; the length beside it was a box you typed a decimal into, which
+  is the harder of the two by a long way and the only one where a thumb can
+  produce *15* where it meant *1.5*. It is now a picker like the time, so both
+  halves of the dialog are answered the same way.
+
+  The list is quarter hours through the range sessions actually live in, halves
+  to four, and whole hours after that — a piano lesson is 45 minutes and a
+  school day is six hours, and nothing in between them is ever set to the
+  quarter of an hour. Lengths read as lengths, *1.5h* rather than *1.5*, so the
+  label no longer has to say what unit it wants.
+
+  The list is now the validation: an impossible length is not something that can
+  be chosen. `roundHrs` still stands behind it for lengths arriving from a saved
+  plan or an import. A session already carrying a length the list does not offer
+  keeps it — it is added to the list rather than dropped, because the box has to
+  say what the session actually carries, the same bargain the draw-type picker
+  strikes with a tag nobody else uses.
+
 ## [2.28.0] — 2026-09-11
 
 ### Added
