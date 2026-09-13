@@ -5,6 +5,68 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.30.0] — 2026-09-13
+
+### Changed
+
+- **The load check says its finding first.** Eleven rows of full coaching
+  advice, each prefixed with a name, is a wall rather than a check. A row is now
+  its finding and the evidence for it — *Times overlap · Day 2*, *Week 1 too
+  heavy · 14.5h* — and says no more until it is asked.
+
+  The advice is the same sentence it always was; it opens underneath when the
+  row is pressed, and is on the row's hover besides. Pressed rather than only
+  hovered because the tablet this is read on has no pointer to hover with.
+
+  They sort worst first now: what stops the fortnight running before what is
+  merely worth watching, and what is already fine last.
+
+  On **Everyone** they are read a child at a time, from a tab each. Stacking
+  them was two screens of rows where one was wanted, and it put the second
+  child's list below the fold on the very tab that exists to compare them. The
+  strip is the one already above the grid, so it is the same gesture in both
+  places: each child's colour, and a count of what wants doing behind their tab
+  — a tick where there is nothing. Which tab is open is a view preference and
+  resets on a reload, the same as which child is filtered for. One block is
+  nobody to tell apart, so no strip is drawn at all.
+
+### Added
+
+- **A note box under every calendar.** The checks read the hours and nothing
+  else. They cannot know that the coach is away that week, that this block is
+  building to one particular tournament, or which wrist to watch — so the
+  fortnight carries a line of its own.
+
+  It sits directly under the calendar, because it is an explanation of the plan
+  rather than a finding about it: it belongs to the thing it describes, and is
+  read before the judging below, which it outranks.
+
+  It belongs to the block, so a different fortnight gets its own, and it travels
+  in a backup and reaches the other device on sync like everything else. Each
+  box says which block it writes on, since Everyone has no active block and
+  draws several at once.
+
+  **Everyone** puts a shared box first, running the width of the calendar. Half
+  of what wants saying about a week belongs to the household rather than to
+  either plan — the car is in the garage on Thursday, both of them are at the
+  same tournament on the Saturday — and filing that under one child would be
+  filing it wrong, so it is kept with the season instead.
+
+  Under it, a named box for each child who has written something, and only
+  those. An empty box for a child with nothing to add is a field asking to be
+  filled in, which is not what this is; the place to start one is that child's
+  own tab, where the box always stands because writing is what you went there to
+  do. A box emptied under the cursor is kept until the cursor leaves, or
+  clearing one would pull it out from under the typing doing the clearing.
+
+  The named boxes divide the row between them — two children a half each, three
+  a third — and stack to full width once a share would be too narrow to write
+  in.
+
+  What is typed is normalised into the block and never in the box, so a
+  half-written point is not tidied out from under the person writing it. A box
+  emptied again leaves nothing behind on the block.
+
 ## [2.29.0] — 2026-09-12
 
 ### Added
