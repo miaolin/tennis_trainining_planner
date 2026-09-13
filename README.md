@@ -105,14 +105,20 @@ tests/                          jsdom harness + api tests — dev only, never de
   2* — and says no more until it is asked: press the row and the advice opens
   underneath. The advice is worth reading once per problem and worth nobody's
   time on the tenth row. They sort worst first, so what stops the fortnight
-  running is read before what is merely worth watching. On **Everyone** they sit
-  under a heading per child with a count of what wants doing, rather than the
-  child's name being glued to every line.
+  running is read before what is merely worth watching.
+
+  On **Everyone** they are read a child at a time, from a tab each — the same
+  strip as the one above the grid, with each child's colour and a count of what
+  wants doing behind their tab (a tick where there is nothing). Two children
+  stacked was two screens of rows where one was wanted, and the second child's
+  list sat below the fold on the very tab that exists to compare them. Which tab
+  is open is a view preference and resets on a reload. One block is nobody to
+  tell apart, so there is no strip at all.
 - **Your notes**, a box of your own above the checks. The checks read the hours
   and nothing else — they cannot know the coach is away that week, or that this
   block is building to one particular tournament, or which wrist to watch. The
-  note belongs to the block, so a different fortnight gets its own, and it reads
-  back under that child's heading on **Everyone**.
+  note belongs to the block, so a different fortnight gets its own; on
+  **Everyone** the box writes on whichever child's tab is open.
 - **Export** the plan as plain text to the clipboard, or print it — the print
   stylesheet drops the controls and prints the grid on white.
 

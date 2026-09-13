@@ -538,26 +538,16 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
 }
 .ckrow[aria-expanded="true"] .cktw{transform:rotate(90deg)}
 .ckwhy{margin-top:7px;color:var(--mute);font-size:13.5px;line-height:1.5;max-width:70ch}
-/* Whose block this is, said once above their rows rather than glued to each. */
-.ckgroup + .ckgroup{margin-top:18px}
-.ckhead{
-  display:flex;align-items:baseline;gap:10px;
-  padding-bottom:5px;border-bottom:1px solid var(--court-line);
-}
-.ckhead .cknm{
-  font-family:'Barlow Condensed',sans-serif;font-weight:500;
-  font-size:14px;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--court-line);border-left:3px solid var(--c,var(--hair));padding-left:8px;
-}
-.ckhead .ckct{margin-left:auto;font-size:12px;color:var(--mute)}
-.ckhead .ckct.clear{color:var(--ok)}
-/* What the parent wrote about this block, where the season is read across the
-   children. Read-only here: it is edited on the block it belongs to. */
-.cksaid{
-  font-size:13px;color:var(--court-line);font-style:italic;
-  border-left:2px solid var(--ball);padding:2px 0 2px 10px;margin:9px 0 2px;
-  white-space:pre-wrap;
-}
+/* Whose checks these are, picked rather than scrolled past. Two children
+   stacked is two screens of rows where one was wanted, and the second child's
+   list is below the fold on the tab that exists to compare them. Same strip as
+   the one above the grid, so it is the same gesture in both places. */
+.cktabs{margin-bottom:16px}
+.cktabs .whotab{font-size:14px;padding:7px 13px}
+/* The count is what wants doing, so it is not the quiet grey the block counts
+   above the grid are: a tab with eight problems behind it should say so. */
+.cktabs .whotab .ct{color:var(--warn)}
+.cktabs .whotab .ct.clear{color:var(--ok)}
 /* The box the parent writes in. It sits above the judging because it outranks
    it: the checks know the hours and nothing else about the fortnight. */
 .cknotebox{margin-bottom:18px}
@@ -1232,6 +1222,7 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
 
 <div class="checks">
   <h2>Load check</h2>
+  <div class="whotabs cktabs" id="cktabs" hidden></div>
   <div class="cknotebox" id="notebox">
     <label class="cknotelab" for="blocknote">Your notes</label>
     <textarea id="blocknote" rows="3" maxlength="600"
@@ -2840,8 +2831,13 @@ function renderEveryone(){
     document.getElementById('range').textContent = '';
     ['tot','ondays','restdays'].forEach(id => document.getElementById(id).textContent = '0');
     document.getElementById('weekcaps').innerHTML = '';
+    document.getElementById('cktabs').hidden = true;
+    renderBlockNote(null);
+    ckSeq = 0;
     document.getElementById('notes').innerHTML = noteHtml([['warn','No training blocks',
-      'Open a child’s tab to start one — a block belongs to whoever is going to train it.']]);
+      'Open a child’s tab to start one — a block belongs to whoever is going to train it.',
+      'none yet']]);
+    wireChecks();
     return;
   }
   const first = new Date(keys[0] + 'T00:00:00');
@@ -2899,14 +2895,17 @@ function renderEveryone(){
 
   /* Every check is still about one child, so they are run per block and said
      under the name they belong to rather than blended into a family verdict. */
+  /* Every check is still about one child, so they are run per block and read
+     one block at a time rather than blended into a family verdict. */
+  const blocks = checkBlocks();
+  // A restore or a sync can swap the whole state out from under the strip, so
+  // a tab pointing at a block that is no longer here falls back to the first.
+  const picked = blocks.find(b => b.id === checkWho) || blocks[0];
+  checkWho = picked.id;
+  renderCheckTabs(blocks, picked);
+  renderBlockNote(picked);
   ckSeq = 0;
-  document.getElementById('notes').innerHTML = state.blocks.slice()
-    .sort((a, b) => a.start < b.start ? -1 : a.start > b.start ? 1 : 0)
-    .map(b=>{
-      const own = blockOwner(b);
-      return noteGroupHtml(own ? own.name : b.name, own && own.colour,
-                           checkNotes(b), blockNote(b));
-    }).join('');
+  document.getElementById('notes').innerHTML = noteHtml(checkNotes(picked));
   wireChecks();
 }
 
@@ -2918,6 +2917,10 @@ function renderBlockNote(b){
   const box = document.getElementById('notebox');
   const ta = document.getElementById('blocknote');
   box.hidden = !b;
+  // Which block the box is writing on. Everyone reaches it through the tab
+  // strip and a child's own tab through the block bar, so the box says who it
+  // belongs to rather than the handler guessing from whichever is active.
+  ta.dataset.b = b ? b.id : '';
   if(!b) return;
   const note = blockNote(b);
   if(document.activeElement !== ta) ta.value = note;
@@ -2943,6 +2946,7 @@ function renderTraining(){
   renderBlockWho(b);
   renderCopyTo(b);
   renderBlockNote(b);
+  document.getElementById('cktabs').hidden = true;
   if(all){ document.getElementById('blockedit').hidden = true; renderEveryone(); return; }
 
   /* With no block there is nothing to describe. The bar would otherwise keep
@@ -3144,18 +3148,47 @@ function noteHtml(list){
       `</div></div>`;
   }).join('');
 }
-/* One child's checks under their own name, with the count of what wants doing.
-   On Everyone this is what stops eleven rows reading as one undifferentiated
-   wall; on a single block there is nobody to tell apart, so the heading is left
-   off and the rows stand on their own. */
-function noteGroupHtml(name, colour, list, said){
-  const left = list.filter(n => n[0] !== 'ok').length;
-  return `<div class="ckgroup" style="--c:${colour || 'transparent'}">` +
-    `<div class="ckhead"><span class="cknm">${escapeHtml(name)}</span>` +
-    `<span class="ckct${left ? '' : ' clear'}">` +
-    `${left ? left + ' to fix' : 'all clear'}</span></div>` +
-    (said ? `<div class="cksaid">${escapeHtml(said)}</div>` : '') +
-    noteHtml(list) + '</div>';
+// How much of a block wants doing, which is what its tab has to say.
+function toFix(b){
+  return checkNotes(b).filter(n => n[0] !== 'ok').length;
+}
+/* The blocks Everyone judges, in the order the season runs. Each gets a tab:
+   two children stacked is two screens of rows where one was wanted, and the
+   second child's list sits below the fold on the very tab that exists to
+   compare them. */
+function checkBlocks(){
+  return state.blocks.slice()
+    .sort((a, b) => a.start < b.start ? -1 : a.start > b.start ? 1 : 0);
+}
+// A tab is labelled by whose block it is. Two blocks of one child's would be
+// two tabs of one name, so those take the block's own name to tell them apart.
+function checkTabLabel(b, all){
+  const own = blockOwner(b);
+  if(!own) return b.name;
+  return all.filter(x => { const o = blockOwner(x); return o && o.id === own.id; }).length > 1
+    ? `${own.name} · ${b.name}` : own.name;
+}
+/* Which tab is open. A view preference and not a fact about the season, so it
+   lives here and resets on a reload — the same as which child is filtered for,
+   and the same as whether what is finished is folded away. */
+let checkWho = null;
+function renderCheckTabs(blocks, picked){
+  const row = document.getElementById('cktabs');
+  // One block is nobody to tell apart, so the strip stays away and the rows
+  // stand on their own — the same as a child's own tab.
+  row.hidden = blocks.length < 2;
+  if(row.hidden){ row.innerHTML = ''; return; }
+  row.innerHTML = blocks.map(b => {
+    const own = blockOwner(b);
+    const n = toFix(b);
+    return `<button class="whotab${b.id === picked.id ? ' on' : ''}"` +
+      (own ? ` style="--c:${own.colour}"` : '') + ` data-ck="${b.id}">` +
+      (own ? '<i class="whodot"></i>' : '') +
+      escapeHtml(checkTabLabel(b, blocks)) +
+      `<span class="ct${n ? '' : ' clear'}">${n || '\u2713'}</span></button>`;
+  }).join('');
+  row.querySelectorAll('button[data-ck]').forEach(el =>
+    el.addEventListener('click', ()=>{ checkWho = el.dataset.ck; render(); }));
 }
 // The rows the whole-page render hangs listeners on, wherever they were drawn.
 function wireChecks(){
@@ -6527,8 +6560,10 @@ document.getElementById('blockname').addEventListener('input', e=>{
 /* Typed into rather than committed with a button, the same as the block's
    name. It is normalised on the way into the block and not in the box, so a
    half-typed point is never tidied out from under the person typing it. */
+const noteBlock = () => state.blocks.find(b => b.id ===
+  document.getElementById('blocknote').dataset.b);
 document.getElementById('blocknote').addEventListener('input', e=>{
-  const b = active(); if(!b) return;
+  const b = noteBlock(); if(!b) return;
   setBlockNote(b, e.target.value);
   e.target.classList.toggle('said', !!blockNote(b));
   save();
@@ -6536,7 +6571,7 @@ document.getElementById('blocknote').addEventListener('input', e=>{
 // Leaving the box is where the tidying shows: trailing blank lines go, and what
 // is left is what was stored all along.
 document.getElementById('blocknote').addEventListener('blur', e=>{
-  const b = active(); if(!b) return;
+  const b = noteBlock(); if(!b) return;
   e.target.value = blockNote(b);
 });
 document.getElementById('start').addEventListener('change', e=>{

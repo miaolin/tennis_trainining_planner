@@ -19,9 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hovered because the tablet this is read on has no pointer to hover with.
 
   They sort worst first now: what stops the fortnight running before what is
-  merely worth watching, and what is already fine last. On **Everyone** each
-  child gets a heading and a count of what wants doing, instead of their name
-  being glued to the front of every line they own.
+  merely worth watching, and what is already fine last.
+
+  On **Everyone** they are read a child at a time, from a tab each. Stacking
+  them was two screens of rows where one was wanted, and it put the second
+  child's list below the fold on the very tab that exists to compare them. The
+  strip is the one already above the grid, so it is the same gesture in both
+  places: each child's colour, and a count of what wants doing behind their tab
+  — a tick where there is nothing. Which tab is open is a view preference and
+  resets on a reload, the same as which child is filtered for. One block is
+  nobody to tell apart, so no strip is drawn at all.
 
 ### Added
 
@@ -32,8 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   It belongs to the block, so a different fortnight gets its own, and it travels
   in a backup and reaches the other device on sync like everything else. On
-  **Everyone** it reads back under that child's heading, read-only: it is edited
-  on the block it belongs to.
+  **Everyone** the box writes on whichever child's tab is open, so a note can be
+  put on either child from the tab that compares them — the box says which block
+  it belongs to rather than the handler guessing from whichever is active.
 
   What is typed is normalised into the block and never in the box, so a
   half-written point is not tidied out from under the person writing it. A box
