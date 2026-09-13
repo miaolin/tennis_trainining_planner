@@ -114,11 +114,14 @@ tests/                          jsdom harness + api tests — dev only, never de
   list sat below the fold on the very tab that exists to compare them. Which tab
   is open is a view preference and resets on a reload. One block is nobody to
   tell apart, so there is no strip at all.
-- **Your notes**, a box of your own above the checks. The checks read the hours
-  and nothing else — they cannot know the coach is away that week, or that this
-  block is building to one particular tournament, or which wrist to watch. The
-  note belongs to the block, so a different fortnight gets its own; on
-  **Everyone** the box writes on whichever child's tab is open.
+- **Your notes**, a box directly under the calendar. It is an explanation of the
+  plan rather than a finding about it, so it belongs to the fortnight above it
+  and is read before the checks below — which know the hours and nothing else,
+  and cannot know that the coach is away that week, that this block is building
+  to one particular tournament, or which wrist to watch. The note belongs to the
+  block, so a different fortnight gets its own. **Everyone** draws one per plan
+  on the grid, side by side and named, because a merged calendar is several
+  plans and each has its own story.
 - **Export** the plan as plain text to the clipboard, or print it — the print
   stylesheet drops the controls and prints the grid on white.
 

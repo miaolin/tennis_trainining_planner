@@ -3916,8 +3916,9 @@ group('Everyone is one calendar');
   ok('one child\u2019s rows at a time, not both stacked',
      !$(d, '#notes').textContent.includes('Olivia Lin \u00b7') && !$(d, '#notes .ckgroup'),
      $(d, '#notes').textContent.slice(0, 80));
-  ok('and the note box is there to write in, on whichever is open',
-     !$(d, '#notebox').hidden);
+  ok('and a note box under the calendar for each plan drawn on it',
+     $$(d, '#noteboxes .blocknote').length === 2,
+     $$(d, '#noteboxes .blocknote').length);
 
   // A child's tab is still where a block is written.
   click(dom, trainTabs(d)[1]);
@@ -6366,10 +6367,17 @@ group('a block carries a note of its own');
   });
   const dom = boot({ [KEY]: seed });
   const d = dom.window.document;
-  const ta = $(d, '#blocknote');
+  const ta = $(d, '.blocknote');
 
-  ok('the box is there, above the judging', !$(d, '#notebox').hidden &&
-     $(d, '.checks').contains($(d, '#notebox')));
+  const FOLLOWS = d.defaultView.Node.DOCUMENT_POSITION_FOLLOWING;
+  ok('the box is there, under the plan it explains', !$(d, '#noteboxes').hidden &&
+     !!($(d, '#grid').compareDocumentPosition($(d, '#noteboxes')) & FOLLOWS));
+  ok('and above the judging, which it outranks',
+     !$(d, '.checks').contains($(d, '#noteboxes')) &&
+     !!($(d, '#noteboxes').compareDocumentPosition($(d, '.checks')) & FOLLOWS));
+  ok('one plan on this tab, so the box needs no name over it',
+     $$(d, '.blocknote').length === 1 && !$(d, '.cknotelab .who'),
+     $(d, '.cknotelab').textContent);
   ok('and it starts empty rather than pre-filled', ta.value === '');
   ok('an empty one does not read as something somebody said',
      !ta.classList.contains('said'));
@@ -6396,8 +6404,8 @@ group('a block carries a note of its own');
   input(dom, ta, 'Building to the county.');
   const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
   ok('a note survives a reload',
-     $(dom2.window.document, '#blocknote').value === 'Building to the county.',
-     $(dom2.window.document, '#blocknote').value);
+     $(dom2.window.document, '.blocknote').value === 'Building to the county.',
+     $(dom2.window.document, '.blocknote').value);
 }
 
 /* Two children stacked was two screens of rows where one was wanted, and the
@@ -6445,24 +6453,36 @@ group('the season across the children is read a child at a time');
   ok('the first block is open to begin with', tabNamed('Ian').classList.contains('on'));
   ok('and only its checks are drawn',
      rowTitles().includes('Times overlap'), rowTitles().join('|'));
-  ok('the note box writes on the block that is open',
-     !$(d, '#notebox').hidden && $(d, '#blocknote').value === 'Building to the county.',
-     $(d, '#blocknote').value);
+  /* The boxes belong to the calendar, not to the check tabs: the merged
+     calendar is several plans and each has its own story to tell under it. */
+  const boxes = () => $$(d, '#noteboxes .blocknote');
+  const boxOf = id => boxes().find(t => t.dataset.b === id);
+  ok('a box for each plan, under the calendar and not among the checks',
+     boxes().length === 2 && !$(d, '.checks').contains($(d, '#noteboxes')),
+     boxes().length);
+  ok('each named for whose plan it explains',
+     $$(d, '.cknotelab .who').map(e => e.textContent).join('|') === 'Ian|Olivia',
+     $$(d, '.cknotelab .who').map(e => e.textContent).join('|'));
+  ok('and each carrying what was written on its own block',
+     boxOf('b1').value === 'Building to the county.' && boxOf('b2').value === '',
+     boxes().map(t => t.value).join('|'));
 
+  input(dom, boxOf('b2'), 'Her wrist — light week.');
+  ok('writing in one lands on that block and not on the other',
+     saved(dom).blocks[1].note === 'Her wrist — light week.' &&
+     saved(dom).blocks[0].note === 'Building to the county.',
+     JSON.stringify(saved(dom).blocks.map(b => b.note)));
+
+  // the tabs are the checks' own, and move only those
   click(dom, tabNamed('Olivia'));
   ok('picking the other tab opens it', tabNamed('Olivia').classList.contains('on') &&
      !tabNamed('Ian').classList.contains('on'));
   ok('and swaps the rows for hers',
      !rowTitles().includes('Times overlap') && rowTitles().includes('Balanced'),
      rowTitles().join('|'));
-  ok('the box follows, empty because nobody wrote on her block',
-     $(d, '#blocknote').value === '', $(d, '#blocknote').value);
-
-  input(dom, $(d, '#blocknote'), 'Her wrist — light week.');
-  ok('writing here lands on her block and not on his',
-     saved(dom).blocks[1].note === 'Her wrist — light week.' &&
-     saved(dom).blocks[0].note === 'Building to the county.',
-     JSON.stringify(saved(dom).blocks.map(b => b.note)));
+  ok('while the notes stay put \u2014 they are the calendar\u2019s, not the checks\u2019',
+     boxes().length === 2 && boxOf('b1').value === 'Building to the county.',
+     boxes().map(t => t.value).join('|'));
 
   // which tab is open is a view preference, not a fact about the season
   const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
@@ -6485,7 +6505,7 @@ group('one block needs no tab to pick it');
   const dom = boot({ [KEY]: seed });
   const d = dom.window.document;
   ok('no strip on a child’s own tab', $(d, '#cktabs').hidden);
-  ok('but the box is still there to write in', !$(d, '#notebox').hidden);
+  ok('but the box is still there to write in', !$(d, '#noteboxes').hidden);
   ok('and the checks still read', $$(d, '#notes .ckrow').length > 0);
 }
 

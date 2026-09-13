@@ -32,16 +32,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **A note box on every block.** The checks read the hours and nothing else.
-  They cannot know that the coach is away that week, that this block is building
-  to one particular tournament, or which wrist to watch — so the block carries a
-  line of its own, and it sits above the judging because it outranks it.
+- **A note box under every calendar.** The checks read the hours and nothing
+  else. They cannot know that the coach is away that week, that this block is
+  building to one particular tournament, or which wrist to watch — so the
+  fortnight carries a line of its own.
+
+  It sits directly under the calendar, because it is an explanation of the plan
+  rather than a finding about it: it belongs to the thing it describes, and is
+  read before the judging below, which it outranks.
 
   It belongs to the block, so a different fortnight gets its own, and it travels
-  in a backup and reaches the other device on sync like everything else. On
-  **Everyone** the box writes on whichever child's tab is open, so a note can be
-  put on either child from the tab that compares them — the box says which block
-  it belongs to rather than the handler guessing from whichever is active.
+  in a backup and reaches the other device on sync like everything else.
+  **Everyone** draws one per plan on the grid, side by side and named for whose
+  plan each explains — a merged calendar is several plans and each has its own
+  story. Each box says which block it writes on, since Everyone has no active
+  block and draws several at once.
 
   What is typed is normalised into the block and never in the box, so a
   half-written point is not tidied out from under the person writing it. A box

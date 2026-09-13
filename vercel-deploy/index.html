@@ -548,26 +548,37 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
    above the grid are: a tab with eight problems behind it should say so. */
 .cktabs .whotab .ct{color:var(--warn)}
 .cktabs .whotab .ct.clear{color:var(--ok)}
-/* The box the parent writes in. It sits above the judging because it outranks
-   it: the checks know the hours and nothing else about the fortnight. */
-.cknotebox{margin-bottom:18px}
-.cknotebox[hidden]{display:none}
+/* What the parent wants said about the fortnight, directly under the fortnight
+   it is about. It is an explanation of the plan and not a finding about it, so
+   it belongs to the calendar rather than to the judging underneath — and it is
+   read before the checks because it outranks them: they know the hours and
+   nothing else.
+
+   Everyone draws one per plan on the grid, side by side while they fit, because
+   the merged calendar is several plans and each has its own story. */
+.noteboxes{
+  display:grid;gap:14px 18px;margin-top:18px;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+}
+.noteboxes[hidden]{display:none}
 .cknotelab{
   display:block;font-family:'Barlow Condensed',sans-serif;font-weight:500;
   font-size:12px;letter-spacing:.16em;text-transform:uppercase;
   color:var(--mute);margin-bottom:6px;
 }
-#blocknote{
-  width:100%;box-sizing:border-box;resize:vertical;min-height:62px;
+/* Named for whose plan it explains, once there is more than one on the page. */
+.cknotelab .who{color:var(--c,var(--court-line));border-left:3px solid var(--c,var(--hair));padding-left:7px}
+.blocknote{
+  width:100%;box-sizing:border-box;resize:vertical;min-height:58px;
   font-family:'Karla',sans-serif;font-size:13.5px;line-height:1.5;
   background:transparent;color:var(--court-line);
   border:1px dashed var(--hair);border-radius:3px;padding:9px 11px;
 }
-#blocknote:focus{outline:2px solid var(--ball);outline-offset:2px;border-style:solid}
-#blocknote::placeholder{color:var(--mute);opacity:.8}
+.blocknote:focus{outline:2px solid var(--ball);outline-offset:2px;border-style:solid}
+.blocknote::placeholder{color:var(--mute);opacity:.8}
 /* Written in, so it stops looking like an empty field and starts looking like
    something somebody said. */
-#blocknote.said{border-style:solid;border-color:var(--ball)}
+.blocknote.said{border-style:solid;border-color:var(--ball)}
 
 /* ---------- backup bar ---------- */
 .databar{
@@ -1220,14 +1231,11 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
 </div>
 <div class="grid" id="grid"></div>
 
+<div class="noteboxes" id="noteboxes" hidden></div>
+
 <div class="checks">
   <h2>Load check</h2>
   <div class="whotabs cktabs" id="cktabs" hidden></div>
-  <div class="cknotebox" id="notebox">
-    <label class="cknotelab" for="blocknote">Your notes</label>
-    <textarea id="blocknote" rows="3" maxlength="600"
-      placeholder="Anything the checks below cannot know — the coach is away that week, watch the left wrist, this block is building to the county."></textarea>
-  </div>
   <div id="notes"></div>
 </div>
 
@@ -2832,7 +2840,7 @@ function renderEveryone(){
     ['tot','ondays','restdays'].forEach(id => document.getElementById(id).textContent = '0');
     document.getElementById('weekcaps').innerHTML = '';
     document.getElementById('cktabs').hidden = true;
-    renderBlockNote(null);
+    renderBlockNotes([]);
     ckSeq = 0;
     document.getElementById('notes').innerHTML = noteHtml([['warn','No training blocks',
       'Open a child’s tab to start one — a block belongs to whoever is going to train it.',
@@ -2898,12 +2906,14 @@ function renderEveryone(){
   /* Every check is still about one child, so they are run per block and read
      one block at a time rather than blended into a family verdict. */
   const blocks = checkBlocks();
+  // The calendar above is drawn from all of them, so all of them get their say
+  // under it — side by side, named, and each writing on its own block.
+  renderBlockNotes(blocks);
   // A restore or a sync can swap the whole state out from under the strip, so
   // a tab pointing at a block that is no longer here falls back to the first.
   const picked = blocks.find(b => b.id === checkWho) || blocks[0];
   checkWho = picked.id;
   renderCheckTabs(blocks, picked);
-  renderBlockNote(picked);
   ckSeq = 0;
   document.getElementById('notes').innerHTML = noteHtml(checkNotes(picked));
   wireChecks();
@@ -2913,18 +2923,44 @@ function renderEveryone(){
    write on: Everyone, and a child with no block of their own. What was typed is
    never rewritten under a cursor that is in it — a normalise on every keystroke
    would eat the space before the next word. */
-function renderBlockNote(b){
-  const box = document.getElementById('notebox');
-  const ta = document.getElementById('blocknote');
-  box.hidden = !b;
-  // Which block the box is writing on. Everyone reaches it through the tab
-  // strip and a child's own tab through the block bar, so the box says who it
-  // belongs to rather than the handler guessing from whichever is active.
-  ta.dataset.b = b ? b.id : '';
-  if(!b) return;
-  const note = blockNote(b);
-  if(document.activeElement !== ta) ta.value = note;
-  ta.classList.toggle('said', !!note);
+/* A box for every plan drawn on the grid above: one on a child's tab, one per
+   block on Everyone. Each says which block it writes on, because the handler
+   cannot ask the block bar — Everyone has no active block and draws several
+   boxes at once.
+
+   The boxes are rebuilt only when the set of blocks changes. A render during
+   typing is ordinary — every keystroke saves — and rebuilding the box under the
+   cursor would take the cursor with it. */
+function renderBlockNotes(list){
+  const wrap = document.getElementById('noteboxes');
+  const blocks = (list || []).filter(Boolean);
+  wrap.hidden = !blocks.length;
+  const key = blocks.map(b => b.id).join('|');
+  if(wrap.dataset.key !== key){
+    wrap.dataset.key = key;
+    // Named for whose plan it explains, but only where more than one is on the
+    // page: on a child's own tab the calendar above is already theirs.
+    const many = blocks.length > 1;
+    wrap.innerHTML = blocks.map((b, i)=>{
+      const own = blockOwner(b);
+      const nm = own ? own.name : b.name;
+      return `<div class="cknotebox"><label class="cknotelab" for="bn${i}">` +
+        (many ? `<span class="who" style="--c:${own ? own.colour : 'transparent'}">` +
+                `${escapeHtml(nm)}</span>` : 'Your notes') + '</label>' +
+        `<textarea class="blocknote" id="bn${i}" data-b="${escapeHtml(b.id)}" rows="3"` +
+        ` maxlength="${MAX_BLOCKNOTE}" aria-label="Notes on ${escapeHtml(nm)}\u2019s plan"` +
+        ` placeholder="${many ? 'Anything the plan above cannot say for itself.'
+          : 'Anything the plan above cannot say for itself \u2014 the coach is away that week, watch the left wrist, this block is building to the county.'}"></textarea></div>`;
+    }).join('');
+  }
+  // The text itself, on every render, but never into the one being typed in.
+  blocks.forEach((b, i)=>{
+    const ta = document.getElementById('bn' + i);
+    if(!ta) return;
+    const note = blockNote(b);
+    if(document.activeElement !== ta) ta.value = note;
+    ta.classList.toggle('said', !!note);
+  });
 }
 function renderTraining(){
   const grid = document.getElementById('grid');
@@ -2945,7 +2981,7 @@ function renderTraining(){
   const b = all ? null : active();
   renderBlockWho(b);
   renderCopyTo(b);
-  renderBlockNote(b);
+  renderBlockNotes(b ? [b] : []);
   document.getElementById('cktabs').hidden = true;
   if(all){ document.getElementById('blockedit').hidden = true; renderEveryone(); return; }
 
@@ -6560,18 +6596,20 @@ document.getElementById('blockname').addEventListener('input', e=>{
 /* Typed into rather than committed with a button, the same as the block's
    name. It is normalised on the way into the block and not in the box, so a
    half-typed point is never tidied out from under the person typing it. */
-const noteBlock = () => state.blocks.find(b => b.id ===
-  document.getElementById('blocknote').dataset.b);
-document.getElementById('blocknote').addEventListener('input', e=>{
-  const b = noteBlock(); if(!b) return;
+/* Delegated, because the boxes are drawn rather than standing in the markup:
+   a strip that changes with the blocks cannot carry listeners of its own. */
+const noteBlockOf = el => el && el.classList.contains('blocknote')
+  ? state.blocks.find(b => b.id === el.dataset.b) : null;
+document.getElementById('noteboxes').addEventListener('input', e=>{
+  const b = noteBlockOf(e.target); if(!b) return;
   setBlockNote(b, e.target.value);
   e.target.classList.toggle('said', !!blockNote(b));
   save();
 });
 // Leaving the box is where the tidying shows: trailing blank lines go, and what
 // is left is what was stored all along.
-document.getElementById('blocknote').addEventListener('blur', e=>{
-  const b = noteBlock(); if(!b) return;
+document.getElementById('noteboxes').addEventListener('focusout', e=>{
+  const b = noteBlockOf(e.target); if(!b) return;
   e.target.value = blockNote(b);
 });
 document.getElementById('start').addEventListener('change', e=>{
