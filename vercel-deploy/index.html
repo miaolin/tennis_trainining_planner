@@ -556,13 +556,17 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
 
    Everyone draws one per plan on the grid, side by side while they fit, because
    the merged calendar is several plans and each has its own story. */
-.noteboxes{
-  display:grid;gap:14px 18px;margin-top:18px;
-  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-}
+/* Flex and not an auto-fit grid: auto-fit lays as many columns as the width
+   will take and then leaves the spare ones empty, so two children got a quarter
+   of the row each and half the row got nothing. Growing from a basis divides
+   whatever is there between however many there are — two children a half each,
+   three a third — and wraps to a column once a share would be too narrow to
+   write in. */
+.noteboxes{display:flex;flex-wrap:wrap;gap:14px 18px;margin-top:18px}
+.cknotebox{flex:1 1 260px;min-width:0}
 /* The one that belongs to no child runs the width of the calendar above it,
    because that is what it is about. The named ones share the row beneath. */
-.cknotebox.all{grid-column:1/-1}
+.cknotebox.all{flex-basis:100%}
 .noteboxes[hidden]{display:none}
 .cknotelab{
   display:block;font-family:'Barlow Condensed',sans-serif;font-weight:500;

@@ -128,7 +128,9 @@ tests/                          jsdom harness + api tests — dev only, never de
   box for each child who has written something on their own plan, and only
   those: an empty box for a child with nothing to add is a field asking to be
   filled in, which is not what this is. The place to start one is that child's
-  own tab, where the box always stands.
+  own tab, where the box always stands. The named boxes divide the row between
+  them — two children a half each, three a third — and stack to full width once
+  a share would be too narrow to write in.
 - **Export** the plan as plain text to the clipboard, or print it — the print
   stylesheet drops the controls and prints the grid on white.
 

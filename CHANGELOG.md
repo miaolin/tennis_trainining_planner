@@ -59,6 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   do. A box emptied under the cursor is kept until the cursor leaves, or
   clearing one would pull it out from under the typing doing the clearing.
 
+  The named boxes divide the row between them — two children a half each, three
+  a third — and stack to full width once a share would be too narrow to write
+  in.
+
   What is typed is normalised into the block and never in the box, so a
   half-written point is not tidied out from under the person writing it. A box
   emptied again leaves nothing behind on the block.
