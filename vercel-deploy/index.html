@@ -518,6 +518,66 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
 .note.bad .dot{background:var(--bad)}
 .note b{font-weight:700}
 .note span{color:var(--mute)}
+/* A check reads as its finding and the evidence for it, and says no more until
+   it is asked. The advice underneath is the same sentence it always was — it is
+   worth reading once per problem, and worth nobody's time on the tenth row. */
+.ckbody{flex:1;min-width:0}
+.ckrow{
+  display:flex;width:100%;gap:8px 16px;align-items:baseline;
+  border:none;background:transparent;padding:0;margin:0;
+  font-family:inherit;font-size:14px;color:var(--court-line);
+  text-align:left;cursor:pointer;
+}
+.ckrow:hover b{color:var(--ball)}
+.ckrow .gist{margin-left:auto;color:var(--mute);font-size:13px;text-align:right}
+/* The arrow is the only thing saying there is more, so it turns rather than
+   swapping glyph: a rotation reads as the same thing opening. */
+.ckrow .cktw{
+  flex:none;color:var(--mute);font-size:10px;margin-left:2px;
+  transition:transform .15s;
+}
+.ckrow[aria-expanded="true"] .cktw{transform:rotate(90deg)}
+.ckwhy{margin-top:7px;color:var(--mute);font-size:13.5px;line-height:1.5;max-width:70ch}
+/* Whose block this is, said once above their rows rather than glued to each. */
+.ckgroup + .ckgroup{margin-top:18px}
+.ckhead{
+  display:flex;align-items:baseline;gap:10px;
+  padding-bottom:5px;border-bottom:1px solid var(--court-line);
+}
+.ckhead .cknm{
+  font-family:'Barlow Condensed',sans-serif;font-weight:500;
+  font-size:14px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--court-line);border-left:3px solid var(--c,var(--hair));padding-left:8px;
+}
+.ckhead .ckct{margin-left:auto;font-size:12px;color:var(--mute)}
+.ckhead .ckct.clear{color:var(--ok)}
+/* What the parent wrote about this block, where the season is read across the
+   children. Read-only here: it is edited on the block it belongs to. */
+.cksaid{
+  font-size:13px;color:var(--court-line);font-style:italic;
+  border-left:2px solid var(--ball);padding:2px 0 2px 10px;margin:9px 0 2px;
+  white-space:pre-wrap;
+}
+/* The box the parent writes in. It sits above the judging because it outranks
+   it: the checks know the hours and nothing else about the fortnight. */
+.cknotebox{margin-bottom:18px}
+.cknotebox[hidden]{display:none}
+.cknotelab{
+  display:block;font-family:'Barlow Condensed',sans-serif;font-weight:500;
+  font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--mute);margin-bottom:6px;
+}
+#blocknote{
+  width:100%;box-sizing:border-box;resize:vertical;min-height:62px;
+  font-family:'Karla',sans-serif;font-size:13.5px;line-height:1.5;
+  background:transparent;color:var(--court-line);
+  border:1px dashed var(--hair);border-radius:3px;padding:9px 11px;
+}
+#blocknote:focus{outline:2px solid var(--ball);outline-offset:2px;border-style:solid}
+#blocknote::placeholder{color:var(--mute);opacity:.8}
+/* Written in, so it stops looking like an empty field and starts looking like
+   something somebody said. */
+#blocknote.said{border-style:solid;border-color:var(--ball)}
 
 /* ---------- backup bar ---------- */
 .databar{
@@ -1172,6 +1232,11 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
 
 <div class="checks">
   <h2>Load check</h2>
+  <div class="cknotebox" id="notebox">
+    <label class="cknotelab" for="blocknote">Your notes</label>
+    <textarea id="blocknote" rows="3" maxlength="600"
+      placeholder="Anything the checks below cannot know — the coach is away that week, watch the left wrist, this block is building to the county."></textarea>
+  </div>
   <div id="notes"></div>
 </div>
 
@@ -1745,6 +1810,25 @@ function save(touch){
 // Accept only what we still understand. A block that survives sanitising keeps
 // its sessions; anything unrecognised is dropped rather than allowed to wedge
 // the grid.
+/* What the parent wants said about this fortnight, in their own words. The
+   checks read the hours and nothing else: they cannot know the coach is away
+   that week, or that this block is building to one particular tournament, or
+   which wrist to watch. So the block carries a line of its own, and it sits
+   above the judging because it outranks it. */
+const MAX_BLOCKNOTE = 600;
+function normBlockNote(t){
+  // Newlines stay — it is a list of points as often as a sentence — but the
+  // trailing blank ones a textarea collects on the way out do not.
+  return String(t == null ? '' : t).replace(/\r/g, '').replace(/[ \t]+$/gm, '')
+    .replace(/\n{3,}/g, '\n\n').trim().slice(0, MAX_BLOCKNOTE);
+}
+function blockNote(b){
+  return (b && typeof b.note === 'string') ? b.note : '';
+}
+function setBlockNote(b, t){
+  const note = normBlockNote(t);
+  if(note) b.note = note; else delete b.note;
+}
 function sanitiseBlock(raw){
   if(!raw || typeof raw !== 'object') return null;
   const days = Math.min(MAX_DAYS, Math.max(1, parseInt(raw.days, 10) || DEFAULT_DAYS));
@@ -1753,6 +1837,7 @@ function sanitiseBlock(raw){
   if(typeof raw.id === 'string' && raw.id) b.id = raw.id;
   if(typeof raw.anchorMatchId === 'string') b.anchorMatchId = raw.anchorMatchId;
   if(typeof raw.playerId === 'string' && raw.playerId) b.playerId = raw.playerId;
+  setBlockNote(b, raw.note);
   const p = raw.plan;
   if(p && typeof p === 'object'){
     for(const k in p){
@@ -2814,17 +2899,30 @@ function renderEveryone(){
 
   /* Every check is still about one child, so they are run per block and said
      under the name they belong to rather than blended into a family verdict. */
-  const notes = [];
-  state.blocks.slice()
+  ckSeq = 0;
+  document.getElementById('notes').innerHTML = state.blocks.slice()
     .sort((a, b) => a.start < b.start ? -1 : a.start > b.start ? 1 : 0)
-    .forEach(b=>{
+    .map(b=>{
       const own = blockOwner(b);
-      checkNotes(b).forEach(([k, t, body]) =>
-        notes.push([k, (own ? escapeHtml(own.name) + ' · ' : '') + t, body]));
-    });
-  document.getElementById('notes').innerHTML = noteHtml(notes);
+      return noteGroupHtml(own ? own.name : b.name, own && own.colour,
+                           checkNotes(b), blockNote(b));
+    }).join('');
+  wireChecks();
 }
 
+/* The box is the block's, so it is put away wherever there is no one block to
+   write on: Everyone, and a child with no block of their own. What was typed is
+   never rewritten under a cursor that is in it — a normalise on every keystroke
+   would eat the space before the next word. */
+function renderBlockNote(b){
+  const box = document.getElementById('notebox');
+  const ta = document.getElementById('blocknote');
+  box.hidden = !b;
+  if(!b) return;
+  const note = blockNote(b);
+  if(document.activeElement !== ta) ta.value = note;
+  ta.classList.toggle('said', !!note);
+}
 function renderTraining(){
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
@@ -2844,6 +2942,7 @@ function renderTraining(){
   const b = all ? null : active();
   renderBlockWho(b);
   renderCopyTo(b);
+  renderBlockNote(b);
   if(all){ document.getElementById('blockedit').hidden = true; renderEveryone(); return; }
 
   /* With no block there is nothing to describe. The bar would otherwise keep
@@ -3022,13 +3121,56 @@ function wireDrop(el, day, slot){
 }
 
 /* ------------------------------------------------------- load checks --- */
+/* Severity is the order to read them in: what stops the fortnight running,
+   then what is worth watching, then what is already fine. Within a rank the
+   order the checks were written in stands, which is roughly worst-first too. */
+const CHECK_RANK = {bad:0, warn:1, ok:2};
+function bySeverity(list){
+  return list.map((n, i) => [n, i])
+    .sort((a, b) => (CHECK_RANK[a[0][0]] - CHECK_RANK[b[0][0]]) || (a[1] - b[1]))
+    .map(x => x[0]);
+}
+// Ids for the panel each row opens, unique across a render so two children's
+// rows never point at one another's advice.
+let ckSeq = 0;
 function noteHtml(list){
-  return list.map(([k,t,body])=>
-    `<div class="note ${k}"><span class="dot"></span><div><b>${t}.</b> <span>${body}</span></div></div>`
-  ).join('');
+  return bySeverity(list).map(([k, t, body, gist])=>{
+    const id = 'ckwhy' + (++ckSeq);
+    return `<div class="note ${k}"><span class="dot"></span><div class="ckbody">` +
+      `<button type="button" class="ckrow" aria-expanded="false" aria-controls="${id}"` +
+      ` title="${escapeHtml(body)}"><b>${escapeHtml(t)}</b>` +
+      `<span class="gist">${escapeHtml(gist || '')}</span><span class="cktw">\u25b8</span>` +
+      `</button><div class="ckwhy" id="${id}" hidden>${escapeHtml(body)}</div>` +
+      `</div></div>`;
+  }).join('');
+}
+/* One child's checks under their own name, with the count of what wants doing.
+   On Everyone this is what stops eleven rows reading as one undifferentiated
+   wall; on a single block there is nobody to tell apart, so the heading is left
+   off and the rows stand on their own. */
+function noteGroupHtml(name, colour, list, said){
+  const left = list.filter(n => n[0] !== 'ok').length;
+  return `<div class="ckgroup" style="--c:${colour || 'transparent'}">` +
+    `<div class="ckhead"><span class="cknm">${escapeHtml(name)}</span>` +
+    `<span class="ckct${left ? '' : ' clear'}">` +
+    `${left ? left + ' to fix' : 'all clear'}</span></div>` +
+    (said ? `<div class="cksaid">${escapeHtml(said)}</div>` : '') +
+    noteHtml(list) + '</div>';
+}
+// The rows the whole-page render hangs listeners on, wherever they were drawn.
+function wireChecks(){
+  document.querySelectorAll('#notes .ckrow').forEach(btn =>
+    btn.addEventListener('click', ()=>{
+      const why = document.getElementById(btn.getAttribute('aria-controls'));
+      const open = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', String(!open));
+      if(why) why.hidden = open;
+    }));
 }
 function runChecks(b){
+  ckSeq = 0;
   document.getElementById('notes').innerHTML = noteHtml(checkNotes(b));
+  wireChecks();
 }
 // The judging, kept apart from the writing, because Everyone runs it once per
 // block and prints the lot under one heading.
@@ -3049,21 +3191,26 @@ function checkNotes(b){
   if(heavy.length) out.push(['bad','Heavy days',
     `Day ${heavy.join(', ')} exceed ${caps.day}h. That is past the useful ceiling for ` +
     (age === null ? 'a junior' : 'a ' + age + '-year-old') +
-    ` \u2014 ${who} will stop learning and start surviving the session.`]);
+    ` \u2014 ${who} will stop learning and start surviving the session.`,
+    `Day ${heavy.join(', ')}`]);
 
   let run = 0, worst = 0;
   for(let i=0;i<b.days;i++){ if(isRestDay(b,i)) run = 0; else { run++; worst = Math.max(worst, run); } }
   if(worst >= 6) out.push(['bad','No rest day',
-    `${worst} days in a row on court. Put a full rest day in — off court means off court, not a light hit.`]);
+    `${worst} days in a row on court. Put a full rest day in — off court means off court, not a light hit.`,
+    `${worst} days running`]);
   else if(worst === 5) out.push(['warn','Long run',
-    `${worst} days in a row. Workable, but watch ${their} energy on the last two.`]);
+    `${worst} days in a row. Workable, but watch ${their} energy on the last two.`,
+    `${worst} days running`]);
 
   let groups = 0;
   for(let i=0;i<b.days;i++) groups += dayEntries(b,i).filter(e=>e.type === 'g2').length;
   if(groups === 0) out.push(['bad','No peer time',
-    'No group sessions. Weeks of drilling with no other children means technique that never gets tested and a child who gets bored.']);
+    'No group sessions. Weeks of drilling with no other children means technique that never gets tested and a child who gets bored.',
+    'no group sessions']);
   else if(groups <= 2) out.push(['warn','Thin peer time',
-    `Only ${groups} group session${groups>1?'s':''}. Ask the club to pair ${own ? own.name : 'them'} with another junior for some privates, and end every private with live points.`]);
+    `Only ${groups} group session${groups>1?'s':''}. Ask the club to pair ${own ? own.name : 'them'} with another junior for some privates, and end every private with live points.`,
+    `${groups} group session${groups>1?'s':''}`]);
 
   const twoPriv = [];
   for(let i=0;i<b.days;i++){
@@ -3071,7 +3218,8 @@ function checkNotes(b){
     if(tennis.length >= 2 && !tennis.some(e=>e.type === 'g2')) twoPriv.push(i+1);
   }
   if(twoPriv.length) out.push(['warn','Two tennis blocks',
-    `Day ${twoPriv.join(', ')} have two private sessions. Split them morning and late afternoon with a real break — never back to back.`]);
+    `Day ${twoPriv.join(', ')} have two private sessions. Split them morning and late afternoon with a real break — never back to back.`,
+    `Day ${twoPriv.join(', ')}`]);
 
   // Now that sessions carry times, a day can be over-booked without breaking
   // any hour cap — two things claiming the same hour is worth saying out loud.
@@ -3081,23 +3229,28 @@ function checkNotes(b){
     for(let k=1;k<spans.length;k++) if(spans[k].from < spans[k-1].to){ clash.push(i+1); break; }
   }
   if(clash.length) out.push(['bad','Times overlap',
-    `Day ${clash.join(', ')} have two things booked at once. Move one — the day cannot run as written.`]);
+    `Day ${clash.join(', ')} have two things booked at once. Move one — the day cannot run as written.`,
+    `Day ${clash.join(', ')}`]);
 
   let phys = 0;
   for(let i=0;i<b.days;i++) phys += dayEntries(b,i).filter(e=>e.type === 'phys').length;
   if(phys > 5) out.push(['warn','Heavy on physical',
-    `${phys} physical sessions. At ${atAge}, movement work belongs mostly in the warm-up \u2014 court time teaches more.`]);
+    `${phys} physical sessions. At ${atAge}, movement work belongs mostly in the warm-up \u2014 court time teaches more.`,
+    `${phys} sessions`]);
 
   weekChunks(b).forEach((w,i)=>{
     // Only judge a full week — a 3-day tail is not "under target", it is short.
     if(w.days === 7 && w.hrs > caps.week) out.push(['bad',`Week ${i+1} too heavy`,
-      `${w.hrs.toFixed(1)}h. Trim a second session or two — private hours are far denser than group hours.`]);
+      `${w.hrs.toFixed(1)}h. Trim a second session or two — private hours are far denser than group hours.`,
+      `${w.hrs.toFixed(1)}h of ${caps.week}h`]);
   });
 
   if(total === 0) out.push(['warn','Empty block',
-    'Nothing scheduled yet. Load the suggested plan, or start dragging sessions onto the days.']);
+    'Nothing scheduled yet. Load the suggested plan, or start dragging sessions onto the days.',
+    'nothing scheduled']);
   else if(!out.length) out.push(['ok','Balanced',
-    `${total.toFixed(1)}h across ${b.days} days with rest built in. Serves in the morning slot only, 40–50 balls, never two days running.`]);
+    `${total.toFixed(1)}h across ${b.days} days with rest built in. Serves in the morning slot only, 40–50 balls, never two days running.`,
+    `${total.toFixed(1)}h over ${b.days} days`]);
 
   /* What is still only asked for. Deliberately last, and deliberately not part
      of the judging above: a fortnight nobody has agreed to yet can be a
@@ -3114,10 +3267,12 @@ function checkNotes(b){
   if(openOnes) out.push(['warn','Not confirmed yet',
     `${openOnes} of ${asked} session${asked > 1 ? 's' : ''} ${openOnes > 1 ? 'have' : 'has'} not been ` +
     `agreed with the coach. Tick the dot on each one he says yes to, or confirm a whole day at once ` +
-    `from its date.`]);
+    `from its date.`,
+    `${openOnes} of ${asked} open`]);
   else if(asked) out.push(['ok','Confirmed',
     asked > 1 ? `Every session in this block is agreed with the coach \u2014 all ${asked} of them.`
-              : 'The one session in this block is agreed with the coach.']);
+              : 'The one session in this block is agreed with the coach.',
+    asked > 1 ? `all ${asked} agreed` : 'agreed']);
 
   return out;
 }
@@ -6368,6 +6523,21 @@ document.getElementById('blockname').addEventListener('input', e=>{
   b.name = e.target.value || 'Training block';
   document.getElementById('title').textContent = b.name;
   renderBlockBar(); save();
+});
+/* Typed into rather than committed with a button, the same as the block's
+   name. It is normalised on the way into the block and not in the box, so a
+   half-typed point is never tidied out from under the person typing it. */
+document.getElementById('blocknote').addEventListener('input', e=>{
+  const b = active(); if(!b) return;
+  setBlockNote(b, e.target.value);
+  e.target.classList.toggle('said', !!blockNote(b));
+  save();
+});
+// Leaving the box is where the tidying shows: trailing blank lines go, and what
+// is left is what was stored all along.
+document.getElementById('blocknote').addEventListener('blur', e=>{
+  const b = active(); if(!b) return;
+  e.target.value = blockNote(b);
 });
 document.getElementById('start').addEventListener('change', e=>{
   const b = active(); if(!b) return;

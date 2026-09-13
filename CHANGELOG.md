@@ -5,6 +5,40 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.30.0] — 2026-09-13
+
+### Changed
+
+- **The load check says its finding first.** Eleven rows of full coaching
+  advice, each prefixed with a name, is a wall rather than a check. A row is now
+  its finding and the evidence for it — *Times overlap · Day 2*, *Week 1 too
+  heavy · 14.5h* — and says no more until it is asked.
+
+  The advice is the same sentence it always was; it opens underneath when the
+  row is pressed, and is on the row's hover besides. Pressed rather than only
+  hovered because the tablet this is read on has no pointer to hover with.
+
+  They sort worst first now: what stops the fortnight running before what is
+  merely worth watching, and what is already fine last. On **Everyone** each
+  child gets a heading and a count of what wants doing, instead of their name
+  being glued to the front of every line they own.
+
+### Added
+
+- **A note box on every block.** The checks read the hours and nothing else.
+  They cannot know that the coach is away that week, that this block is building
+  to one particular tournament, or which wrist to watch — so the block carries a
+  line of its own, and it sits above the judging because it outranks it.
+
+  It belongs to the block, so a different fortnight gets its own, and it travels
+  in a backup and reaches the other device on sync like everything else. On
+  **Everyone** it reads back under that child's heading, read-only: it is edited
+  on the block it belongs to.
+
+  What is typed is normalised into the block and never in the box, so a
+  half-written point is not tidied out from under the person writing it. A box
+  emptied again leaves nothing behind on the block.
+
 ## [2.29.0] — 2026-09-12
 
 ### Added

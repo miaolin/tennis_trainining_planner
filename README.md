@@ -100,6 +100,19 @@ tests/                          jsdom harness + api tests — dev only, never de
   day, two things booked over the same hour, physical work crowding out court
   time, and weeks over the weekly cap. They are written about the block's child
   by name and age.
+
+  Each one reads as its finding and the evidence for it — *Times overlap · Day
+  2* — and says no more until it is asked: press the row and the advice opens
+  underneath. The advice is worth reading once per problem and worth nobody's
+  time on the tenth row. They sort worst first, so what stops the fortnight
+  running is read before what is merely worth watching. On **Everyone** they sit
+  under a heading per child with a count of what wants doing, rather than the
+  child's name being glued to every line.
+- **Your notes**, a box of your own above the checks. The checks read the hours
+  and nothing else — they cannot know the coach is away that week, or that this
+  block is building to one particular tournament, or which wrist to watch. The
+  note belongs to the block, so a different fortnight gets its own, and it reads
+  back under that child's heading on **Everyone**.
 - **Export** the plan as plain text to the clipboard, or print it — the print
   stylesheet drops the controls and prints the grid on white.
 
