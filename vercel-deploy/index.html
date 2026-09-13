@@ -560,6 +560,9 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
   display:grid;gap:14px 18px;margin-top:18px;
   grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
 }
+/* The one that belongs to no child runs the width of the calendar above it,
+   because that is what it is about. The named ones share the row beneath. */
+.cknotebox.all{grid-column:1/-1}
 .noteboxes[hidden]{display:none}
 .cknotelab{
   display:block;font-family:'Barlow Condensed',sans-serif;font-weight:500;
@@ -1577,7 +1580,7 @@ function uid(){ return 'b' + Math.floor(performance.now() * 1000).toString(36) +
 function emptyState(){
   // updatedAt is what decides which device is ahead, so it travels with the
   // state — into localStorage, into a backup file, and up to the server.
-  return {version:2, updatedAt:0, blocks:[], activeBlockId:null,
+  return {version:2, updatedAt:0, blocks:[], activeBlockId:null, note:'',
           players:[], entries:[], trips:[], manualMatches:[], rewards:{},
           forKids:{}, resultLinks:{}, schemes:{}, matchTag:{}};
 }
@@ -1824,6 +1827,16 @@ function normBlockNote(t){
 function blockNote(b){
   return (b && typeof b.note === 'string') ? b.note : '';
 }
+/* The one above them, which belongs to no child. Half of what wants saying
+   about a week is about the household and not about either plan — the car is
+   in the garage on Thursday, both of them are at the same tournament on the
+   Saturday — and filing that under one child would be filing it wrong. */
+function allNote(){
+  return typeof state.note === 'string' ? state.note : '';
+}
+function setAllNote(t){
+  state.note = normBlockNote(t);
+}
 function setBlockNote(b, t){
   const note = normBlockNote(t);
   if(note) b.note = note; else delete b.note;
@@ -1865,6 +1878,7 @@ function sanitiseState(raw, allowEmptyBlocks){
   if(!st.blocks.length && !allowEmptyBlocks) return null;
   const wanted = st.blocks.find(b => b.id === raw.activeBlockId);
   st.activeBlockId = wanted ? wanted.id : (st.blocks[0] ? st.blocks[0].id : null);
+  st.note = normBlockNote(raw.note);
 
   if(Array.isArray(raw.players)) st.players = raw.players
     .filter(p => p && typeof p.id === 'string' && typeof p.name === 'string' && p.name)
@@ -2907,8 +2921,8 @@ function renderEveryone(){
      one block at a time rather than blended into a family verdict. */
   const blocks = checkBlocks();
   // The calendar above is drawn from all of them, so all of them get their say
-  // under it — side by side, named, and each writing on its own block.
-  renderBlockNotes(blocks);
+  // under it: one for the household, then the children who wrote something.
+  renderBlockNotes(blocks, true);
   // A restore or a sync can swap the whole state out from under the strip, so
   // a tab pointing at a block that is no longer here falls back to the first.
   const picked = blocks.find(b => b.id === checkWho) || blocks[0];
@@ -2923,44 +2937,77 @@ function renderEveryone(){
    write on: Everyone, and a child with no block of their own. What was typed is
    never rewritten under a cursor that is in it — a normalise on every keystroke
    would eat the space before the next word. */
-/* A box for every plan drawn on the grid above: one on a child's tab, one per
-   block on Everyone. Each says which block it writes on, because the handler
-   cannot ask the block bar — Everyone has no active block and draws several
-   boxes at once.
+/* What is written under the calendar. One box on a child's tab — the plan above
+   is theirs and the note explains it.
 
-   The boxes are rebuilt only when the set of blocks changes. A render during
-   typing is ordinary — every keystroke saves — and rebuilding the box under the
-   cursor would take the cursor with it. */
-function renderBlockNotes(list){
+   Everyone gets a shared one first, running the width of the grid, because half
+   of what wants saying about a week belongs to the household rather than to
+   either plan: the car is in the garage on Thursday, both of them are at the
+   same tournament on the Saturday. Under it, a named box for each child who has
+   something on their own plan to say — and only those. An empty box for a child
+   with nothing to add is a field asking to be filled in, which is not what this
+   is; the place to start one is that child's own tab, where the box always
+   stands because writing is what you went there to do.
+
+   Each box says which block it writes on, because the handler cannot ask the
+   block bar: Everyone has no active block and draws several boxes at once. */
+function noteBoxHtml({id, label, colour, ph, aria, all}){
+  return `<div class="cknotebox${all ? ' all' : ''}">` +
+    `<label class="cknotelab" for="${id}">` +
+    (colour === undefined ? escapeHtml(label)
+      : `<span class="who" style="--c:${colour || 'transparent'}">${escapeHtml(label)}</span>`) +
+    '</label>' +
+    `<textarea class="blocknote" id="${id}" rows="3" maxlength="${MAX_BLOCKNOTE}"` +
+    ` aria-label="${escapeHtml(aria)}" placeholder="${escapeHtml(ph)}"></textarea></div>`;
+}
+function renderBlockNotes(list, shared){
   const wrap = document.getElementById('noteboxes');
   const blocks = (list || []).filter(Boolean);
-  wrap.hidden = !blocks.length;
-  const key = blocks.map(b => b.id).join('|');
+  /* A box being typed in is kept whatever else is true of it, or clearing one
+     on Everyone would pull it out from under the cursor doing the clearing. It
+     goes on the next render after the cursor leaves. */
+  const live = document.activeElement;
+  const keep = live && live.classList && live.classList.contains('blocknote')
+    ? live.dataset.b : null;
+  const shown = shared ? blocks.filter(b => blockNote(b) || b.id === keep) : blocks;
+  wrap.hidden = !shared && !shown.length;
+  const key = (shared ? 'all|' : '') + shown.map(b => b.id).join('|');
   if(wrap.dataset.key !== key){
     wrap.dataset.key = key;
-    // Named for whose plan it explains, but only where more than one is on the
-    // page: on a child's own tab the calendar above is already theirs.
-    const many = blocks.length > 1;
-    wrap.innerHTML = blocks.map((b, i)=>{
-      const own = blockOwner(b);
-      const nm = own ? own.name : b.name;
-      return `<div class="cknotebox"><label class="cknotelab" for="bn${i}">` +
-        (many ? `<span class="who" style="--c:${own ? own.colour : 'transparent'}">` +
-                `${escapeHtml(nm)}</span>` : 'Your notes') + '</label>' +
-        `<textarea class="blocknote" id="bn${i}" data-b="${escapeHtml(b.id)}" rows="3"` +
-        ` maxlength="${MAX_BLOCKNOTE}" aria-label="Notes on ${escapeHtml(nm)}\u2019s plan"` +
-        ` placeholder="${many ? 'Anything the plan above cannot say for itself.'
-          : 'Anything the plan above cannot say for itself \u2014 the coach is away that week, watch the left wrist, this block is building to the county.'}"></textarea></div>`;
-    }).join('');
+    const named = shared || blocks.length > 1;
+    wrap.innerHTML =
+      (shared ? noteBoxHtml({id:'bnall', label:'Your notes', all:true,
+        ph:'Anything the fortnight above cannot say for itself — whose lift is whose, ' +
+           'the week the courts are resurfaced, what this block is building to.',
+        aria:'Notes on the whole plan'}) : '') +
+      shown.map((b, i)=>{
+        const own = blockOwner(b);
+        const nm = own ? own.name : b.name;
+        return noteBoxHtml({
+          id: 'bn' + i,
+          label: named ? nm : 'Your notes',
+          // undefined keeps the plain label; a named box wears the child's colour.
+          colour: named ? (own ? own.colour : '') : undefined,
+          ph: named ? 'Anything this plan cannot say for itself.'
+                    : 'Anything the plan above cannot say for itself — the coach is away ' +
+                      'that week, watch the left wrist, this block is building to the county.',
+          aria: 'Notes on ' + nm + '’s plan'});
+      }).join('');
+    // The block each box writes on, set after the markup so an id with a quote
+    // in it cannot break out of an attribute.
+    shown.forEach((b, i)=>{
+      const ta = document.getElementById('bn' + i);
+      if(ta) ta.dataset.b = b.id;
+    });
   }
   // The text itself, on every render, but never into the one being typed in.
-  blocks.forEach((b, i)=>{
-    const ta = document.getElementById('bn' + i);
+  const put = (ta, note) => {
     if(!ta) return;
-    const note = blockNote(b);
     if(document.activeElement !== ta) ta.value = note;
     ta.classList.toggle('said', !!note);
-  });
+  };
+  if(shared) put(document.getElementById('bnall'), allNote());
+  shown.forEach((b, i) => put(document.getElementById('bn' + i), blockNote(b)));
 }
 function renderTraining(){
   const grid = document.getElementById('grid');
@@ -6598,19 +6645,27 @@ document.getElementById('blockname').addEventListener('input', e=>{
    half-typed point is never tidied out from under the person typing it. */
 /* Delegated, because the boxes are drawn rather than standing in the markup:
    a strip that changes with the blocks cannot carry listeners of its own. */
-const noteBlockOf = el => el && el.classList.contains('blocknote')
+// Which note a box is writing: the shared one carries no block id.
+const isNote = el => !!(el && el.classList && el.classList.contains('blocknote'));
+const noteBlockOf = el => isNote(el) && el.dataset.b
   ? state.blocks.find(b => b.id === el.dataset.b) : null;
+const noteRead = el => el.dataset.b ? blockNote(noteBlockOf(el)) : allNote();
 document.getElementById('noteboxes').addEventListener('input', e=>{
-  const b = noteBlockOf(e.target); if(!b) return;
-  setBlockNote(b, e.target.value);
-  e.target.classList.toggle('said', !!blockNote(b));
+  if(!isNote(e.target)) return;
+  if(e.target.dataset.b){
+    const b = noteBlockOf(e.target); if(!b) return;
+    setBlockNote(b, e.target.value);
+  } else setAllNote(e.target.value);
+  e.target.classList.toggle('said', !!noteRead(e.target));
   save();
 });
-// Leaving the box is where the tidying shows: trailing blank lines go, and what
-// is left is what was stored all along.
+/* Leaving the box is where the tidying shows: trailing blank lines go, and what
+   is left is what was stored all along. It is also when a box emptied on
+   Everyone goes away, having been kept only for the cursor that was in it. */
 document.getElementById('noteboxes').addEventListener('focusout', e=>{
-  const b = noteBlockOf(e.target); if(!b) return;
-  e.target.value = blockNote(b);
+  if(!isNote(e.target)) return;
+  e.target.value = noteRead(e.target);
+  if(merged()) renderTraining();
 });
 document.getElementById('start').addEventListener('change', e=>{
   const b = active(); if(!b) return;

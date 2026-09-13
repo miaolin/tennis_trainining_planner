@@ -119,9 +119,16 @@ tests/                          jsdom harness + api tests — dev only, never de
   and is read before the checks below — which know the hours and nothing else,
   and cannot know that the coach is away that week, that this block is building
   to one particular tournament, or which wrist to watch. The note belongs to the
-  block, so a different fortnight gets its own. **Everyone** draws one per plan
-  on the grid, side by side and named, because a merged calendar is several
-  plans and each has its own story.
+  block, so a different fortnight gets its own.
+
+  **Everyone** puts a shared box first, running the width of the calendar,
+  because half of what wants saying about a week belongs to the household rather
+  than to either plan — whose lift is whose, the week the courts are resurfaced.
+  That one is kept with the season rather than on any block. Under it, a named
+  box for each child who has written something on their own plan, and only
+  those: an empty box for a child with nothing to add is a field asking to be
+  filled in, which is not what this is. The place to start one is that child's
+  own tab, where the box always stands.
 - **Export** the plan as plain text to the clipboard, or print it — the print
   stylesheet drops the controls and prints the grid on white.
 

@@ -42,11 +42,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read before the judging below, which it outranks.
 
   It belongs to the block, so a different fortnight gets its own, and it travels
-  in a backup and reaches the other device on sync like everything else.
-  **Everyone** draws one per plan on the grid, side by side and named for whose
-  plan each explains — a merged calendar is several plans and each has its own
-  story. Each box says which block it writes on, since Everyone has no active
-  block and draws several at once.
+  in a backup and reaches the other device on sync like everything else. Each
+  box says which block it writes on, since Everyone has no active block and
+  draws several at once.
+
+  **Everyone** puts a shared box first, running the width of the calendar. Half
+  of what wants saying about a week belongs to the household rather than to
+  either plan — the car is in the garage on Thursday, both of them are at the
+  same tournament on the Saturday — and filing that under one child would be
+  filing it wrong, so it is kept with the season instead.
+
+  Under it, a named box for each child who has written something, and only
+  those. An empty box for a child with nothing to add is a field asking to be
+  filled in, which is not what this is; the place to start one is that child's
+  own tab, where the box always stands because writing is what you went there to
+  do. A box emptied under the cursor is kept until the cursor leaves, or
+  clearing one would pull it out from under the typing doing the clearing.
 
   What is typed is normalised into the block and never in the box, so a
   half-written point is not tidied out from under the person writing it. A box

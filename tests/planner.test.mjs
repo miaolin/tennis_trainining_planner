@@ -3916,9 +3916,11 @@ group('Everyone is one calendar');
   ok('one child\u2019s rows at a time, not both stacked',
      !$(d, '#notes').textContent.includes('Olivia Lin \u00b7') && !$(d, '#notes .ckgroup'),
      $(d, '#notes').textContent.slice(0, 80));
-  ok('and a note box under the calendar for each plan drawn on it',
-     $$(d, '#noteboxes .blocknote').length === 2,
+  ok('and a shared note box under the calendar, for what belongs to neither plan',
+     $$(d, '#noteboxes .blocknote').length === 1 && !!$(d, '.cknotebox.all'),
      $$(d, '#noteboxes .blocknote').length);
+  ok('with no named box for a child who has written nothing',
+     !$(d, '.cknotelab .who'), $(d, '#noteboxes').textContent.slice(0, 60));
 
   // A child's tab is still where a block is written.
   click(dom, trainTabs(d)[1]);
@@ -6423,6 +6425,7 @@ group('the season across the children is read a child at a time');
                             pm: [{ type: 'p1', at: '09:30', hrs: 2 }] } },
                note: 'Building to the county.' },
              { id: 'b2', name: 'Hers', start: `${Y}-06-02`, days: 7, playerId: 'p2',
+               note: 'Wrist still sore — light week.',
                plan: { 0: { am: [{ type: 'g2', at: '09:00', hrs: 2, confirmed: true }] },
                        2: { am: [{ type: 'g2', at: '09:00', hrs: 2, confirmed: true }] },
                        4: { am: [{ type: 'g2', at: '09:00', hrs: 2, confirmed: true }] } } }],
@@ -6457,21 +6460,40 @@ group('the season across the children is read a child at a time');
      calendar is several plans and each has its own story to tell under it. */
   const boxes = () => $$(d, '#noteboxes .blocknote');
   const boxOf = id => boxes().find(t => t.dataset.b === id);
-  ok('a box for each plan, under the calendar and not among the checks',
-     boxes().length === 2 && !$(d, '.checks').contains($(d, '#noteboxes')),
+  const sharedBox = () => $(d, '.cknotebox.all .blocknote');
+  ok('a shared box first, then one per plan that has something to say',
+     boxes().length === 3 && !$(d, '.checks').contains($(d, '#noteboxes')),
      boxes().length);
+  ok('the shared one runs the width and belongs to no child',
+     !!sharedBox() && !$(d, '.cknotebox.all .who') && !sharedBox().dataset.b,
+     $(d, '.cknotebox.all .cknotelab').textContent);
+  ok('and comes before the named ones, being about all of it',
+     boxes()[0] === sharedBox());
   ok('each named for whose plan it explains',
      $$(d, '.cknotelab .who').map(e => e.textContent).join('|') === 'Ian|Olivia',
      $$(d, '.cknotelab .who').map(e => e.textContent).join('|'));
   ok('and each carrying what was written on its own block',
-     boxOf('b1').value === 'Building to the county.' && boxOf('b2').value === '',
+     boxOf('b1').value === 'Building to the county.' &&
+     boxOf('b2').value === 'Wrist still sore — light week.',
      boxes().map(t => t.value).join('|'));
 
-  input(dom, boxOf('b2'), 'Her wrist — light week.');
+  input(dom, boxOf('b2'), 'Her wrist — lighter week.');
   ok('writing in one lands on that block and not on the other',
-     saved(dom).blocks[1].note === 'Her wrist — light week.' &&
+     saved(dom).blocks[1].note === 'Her wrist — lighter week.' &&
      saved(dom).blocks[0].note === 'Building to the county.',
      JSON.stringify(saved(dom).blocks.map(b => b.note)));
+
+  /* The shared one is the household's, not either child's: whose lift is
+     whose, the week the courts are resurfaced. Filing that under one child
+     would be filing it wrong. */
+  input(dom, sharedBox(), 'Car in the garage Thursday — no lifts.');
+  ok('the shared note is kept on the season and on neither block',
+     saved(dom).note === 'Car in the garage Thursday — no lifts.' &&
+     saved(dom).blocks[0].note === 'Building to the county.',
+     JSON.stringify(saved(dom).note));
+  ok('and it survives a reload with the rest',
+     $(boot({ [KEY]: dom.window.localStorage.getItem(KEY) }).window.document,
+       '#noteboxes .blocknote') !== null);
 
   // the tabs are the checks' own, and move only those
   click(dom, tabNamed('Olivia'));
@@ -6481,7 +6503,7 @@ group('the season across the children is read a child at a time');
      !rowTitles().includes('Times overlap') && rowTitles().includes('Balanced'),
      rowTitles().join('|'));
   ok('while the notes stay put \u2014 they are the calendar\u2019s, not the checks\u2019',
-     boxes().length === 2 && boxOf('b1').value === 'Building to the county.',
+     boxes().length === 3 && boxOf('b1').value === 'Building to the county.',
      boxes().map(t => t.value).join('|'));
 
   // which tab is open is a view preference, not a fact about the season
@@ -6507,6 +6529,61 @@ group('one block needs no tab to pick it');
   ok('no strip on a child’s own tab', $(d, '#cktabs').hidden);
   ok('but the box is still there to write in', !$(d, '#noteboxes').hidden);
   ok('and the checks still read', $$(d, '#notes .ckrow').length > 0);
+}
+
+/* An empty box for a child with nothing to add is a field asking to be filled
+   in, which is not what this is. Everyone shows the notes that exist; the place
+   to start one is that child's own tab, where the box always stands because
+   writing is what you went there to do. */
+group('a child with nothing to say takes up no room saying it');
+{
+  const Y = new Date().getFullYear();
+  const seed = JSON.stringify({
+    version: 2, updatedAt: 1, note: 'Half term the week of the 20th.',
+    players: [{ id: 'p1', name: 'Ian', birthYear: Y - 9, colour: '#5B9BD5' },
+              { id: 'p2', name: 'Olivia', birthYear: Y - 9, colour: '#D6E64B' }],
+    blocks: [{ id: 'b1', name: 'His', start: `${Y}-06-01`, days: 7, playerId: 'p1',
+               plan: {}, note: 'Building to the county.' },
+             { id: 'b2', name: 'Hers', start: `${Y}-06-01`, days: 7, playerId: 'p2', plan: {} }],
+    activeBlockId: 'b1', entries: [], trips: [], manualMatches: [], rewards: {}, forKids: {},
+  });
+  const dom = boot({ [KEY]: seed });
+  const d = dom.window.document;
+  const named = () => $$(d, '.cknotelab .who').map(e => e.textContent);
+  const trainTabs = () => $$(d, '#trainwho button');
+  click(dom, trainTabs()[0]);                      // Everyone
+
+  ok('only the child who wrote something gets a box',
+     named().join('|') === 'Ian', named().join('|'));
+  ok('and the shared one is there whatever either child did',
+     $(d, '.cknotebox.all .blocknote').value === 'Half term the week of the 20th.',
+     $(d, '.cknotebox.all .blocknote').value);
+
+  // her own tab is where one is started, so the box always stands there
+  click(dom, trainTabs()[2]);
+  ok('her own tab always offers the box, empty or not',
+     $$(d, '#noteboxes .blocknote').length === 1 &&
+     $(d, '#noteboxes .blocknote').value === '',
+     $$(d, '#noteboxes .blocknote').length);
+  ok('and no shared box there — the calendar above is hers alone',
+     !$(d, '.cknotebox.all'));
+
+  input(dom, $(d, '#noteboxes .blocknote'), 'Serve practice every session.');
+  click(dom, trainTabs()[0]);
+  ok('once she has written one it reads on Everyone too',
+     named().join('|') === 'Ian|Olivia', named().join('|'));
+
+  /* Clearing one on Everyone must not pull the box out from under the cursor
+     doing the clearing. It goes on the next render after the cursor leaves. */
+  const hers = $$(d, '#noteboxes .blocknote').find(t => t.dataset.b === 'b2');
+  input(dom, hers, '');
+  ok('a box emptied under the cursor stays while it is being typed in',
+     $$(d, '#noteboxes .blocknote').includes(hers),
+     $$(d, '#noteboxes .blocknote').map(t => t.dataset.b).join('|'));
+  ok('and nothing is left on her block', !('note' in saved(dom).blocks[1]),
+     JSON.stringify(saved(dom).blocks[1]));
+  hers.dispatchEvent(new dom.window.Event('focusout', { bubbles: true }));
+  ok('and it goes once the cursor leaves', named().join('|') === 'Ian', named().join('|'));
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
