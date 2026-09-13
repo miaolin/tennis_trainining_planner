@@ -3906,10 +3906,19 @@ group('Everyone is one calendar');
      `${$(d, '#lab3').textContent}/${$(d, '#restdays').textContent}`);
   ok('a season total per child, because that is whose it is',
      $$(d, '#weekcaps .wcap.who').length === 2, $$(d, '#weekcaps .wcap').length);
-  ok('and the load checks are said under the name they belong to',
-     $(d, '#notes').textContent.includes('Olivia Lin ·') &&
-     $(d, '#notes').textContent.includes('Ian Lin ·'),
-     $(d, '#notes').textContent.slice(0, 140));
+  const ckTabs = () => $$(d, '#cktabs .whotab');
+  ok('and the load checks are read a child at a time, from a tab each',
+     ckTabs().map(t => t.textContent.replace(/\d+$/, '').trim()).join('|')
+       .includes('Olivia Lin'),
+     ckTabs().map(t => t.textContent).join('|'));
+  // the name used to be glued to the front of all eleven rows, and before that
+  // both children's rows were stacked into one column two screens long
+  ok('one child\u2019s rows at a time, not both stacked',
+     !$(d, '#notes').textContent.includes('Olivia Lin \u00b7') && !$(d, '#notes .ckgroup'),
+     $(d, '#notes').textContent.slice(0, 80));
+  ok('and a note box under the calendar for each plan drawn on it',
+     $$(d, '#noteboxes .blocknote').length === 2,
+     $$(d, '#noteboxes .blocknote').length);
 
   // A child's tab is still where a block is written.
   click(dom, trainTabs(d)[1]);
@@ -6290,6 +6299,214 @@ group('a length the list does not offer still shows');
   ok('and the grid still draws the window it runs for',
      $(d, '#grid .placed .tm').textContent.includes('09:00–13:15'),
      $(d, '#grid .placed .tm').textContent);
+}
+
+/* Eleven rows of full coaching advice, each prefixed with a name, is a wall
+   rather than a check. A row now says its finding and the evidence for it, and
+   says no more until it is asked — the advice is worth reading once per problem
+   and worth nobody's time on the tenth row. */
+group('a check says its finding first');
+{
+  const Y = new Date().getFullYear();
+  const seed = JSON.stringify({
+    version: 2, updatedAt: 1,
+    players: [{ id: 'p1', name: 'Ian', birthYear: Y - 9, colour: '#5B9BD5' }],
+    blocks: [{ id: 'b1', name: 'Camp', start: `${Y}-06-01`, days: 7, playerId: 'p1',
+               plan: { 0: { am: [{ type: 'p1', at: '09:00', hrs: 2 }],
+                            pm: [{ type: 'p1', at: '09:30', hrs: 2 }] } } }],
+    activeBlockId: 'b1', entries: [], trips: [], manualMatches: [], rewards: {}, forKids: {},
+  });
+  const dom = boot({ [KEY]: seed });
+  const d = dom.window.document;
+  const rows = () => $$(d, '#notes .ckrow');
+  const titled = t => rows().find(r => r.querySelector('b').textContent === t);
+
+  ok('a row is its finding and the evidence, not a paragraph',
+     titled('Times overlap').querySelector('.gist').textContent === 'Day 1',
+     titled('Times overlap').querySelector('.gist').textContent);
+  const whyOf = t => d.getElementById(titled(t).getAttribute('aria-controls'));
+  ok('the advice is there but not shown',
+     whyOf('Times overlap').hidden &&
+     whyOf('Times overlap').textContent.includes('the day cannot run as written'),
+     whyOf('Times overlap').textContent);
+  ok('every row gets its own panel rather than sharing one',
+     new Set($$(d, '#notes .ckwhy').map(w => w.id)).size === $$(d, '#notes .ckwhy').length,
+     $$(d, '#notes .ckwhy').map(w => w.id).join(' '));
+  // hover is no use on the tablet this is read on, so the row opens on a press
+  ok('and the row is the button that asks for it',
+     titled('Times overlap').getAttribute('aria-expanded') === 'false');
+  click(dom, titled('Times overlap'));
+  const why = whyOf('Times overlap');
+  ok('pressing it shows the advice', !why.hidden &&
+     titled('Times overlap').getAttribute('aria-expanded') === 'true');
+  click(dom, titled('Times overlap'));
+  ok('and pressing again puts it away', why.hidden);
+  ok('every row still carries it as a hover, where there is a pointer',
+     titled('Times overlap').title.includes('Move one'), titled('Times overlap').title);
+
+  /* Severity is the order to read them in: what stops the fortnight running
+     comes before what is merely worth watching. */
+  const kinds = () => $$(d, '#notes .note').map(n =>
+    n.classList.contains('bad') ? 'bad' : n.classList.contains('warn') ? 'warn' : 'ok');
+  const rank = { bad: 0, warn: 1, ok: 2 };
+  ok('what stops the plan running is read first',
+     kinds().every((k, i, a) => i === 0 || rank[k] >= rank[a[i - 1]]), kinds().join(' '));
+}
+
+/* The checks read the hours and nothing else. They cannot know the coach is
+   away that week, or which wrist to watch, so the block carries a line of its
+   own — and it sits above the judging because it outranks it. */
+group('a block carries a note of its own');
+{
+  const Y = new Date().getFullYear();
+  const seed = JSON.stringify({
+    version: 2, updatedAt: 1,
+    players: [{ id: 'p1', name: 'Ian', birthYear: Y - 9, colour: '#5B9BD5' }],
+    blocks: [{ id: 'b1', name: 'Camp', start: `${Y}-06-01`, days: 7, playerId: 'p1', plan: {} }],
+    activeBlockId: 'b1', entries: [], trips: [], manualMatches: [], rewards: {}, forKids: {},
+  });
+  const dom = boot({ [KEY]: seed });
+  const d = dom.window.document;
+  const ta = $(d, '.blocknote');
+
+  const FOLLOWS = d.defaultView.Node.DOCUMENT_POSITION_FOLLOWING;
+  ok('the box is there, under the plan it explains', !$(d, '#noteboxes').hidden &&
+     !!($(d, '#grid').compareDocumentPosition($(d, '#noteboxes')) & FOLLOWS));
+  ok('and above the judging, which it outranks',
+     !$(d, '.checks').contains($(d, '#noteboxes')) &&
+     !!($(d, '#noteboxes').compareDocumentPosition($(d, '.checks')) & FOLLOWS));
+  ok('one plan on this tab, so the box needs no name over it',
+     $$(d, '.blocknote').length === 1 && !$(d, '.cknotelab .who'),
+     $(d, '.cknotelab').textContent);
+  ok('and it starts empty rather than pre-filled', ta.value === '');
+  ok('an empty one does not read as something somebody said',
+     !ta.classList.contains('said'));
+
+  input(dom, ta, 'Coach away 3–5 Oct.\nWatch the left wrist.');
+  ok('what is typed is kept on the block',
+     saved(dom).blocks[0].note === 'Coach away 3–5 Oct.\nWatch the left wrist.',
+     JSON.stringify(saved(dom).blocks[0].note));
+  ok('newlines survive — it is a list of points as often as a sentence',
+     saved(dom).blocks[0].note.includes('\n'));
+  ok('and a box written in says so', ta.classList.contains('said'));
+
+  // it is normalised into the block, never under the cursor of whoever is typing
+  input(dom, ta, 'Still typing   ');
+  ok('a half-typed point is not tidied out from under the typing',
+     ta.value === 'Still typing   ', JSON.stringify(ta.value));
+  ok('though what is stored is already tidy',
+     saved(dom).blocks[0].note === 'Still typing', JSON.stringify(saved(dom).blocks[0].note));
+
+  input(dom, ta, '   ');
+  ok('a box emptied again leaves nothing behind on the block',
+     !('note' in saved(dom).blocks[0]), JSON.stringify(saved(dom).blocks[0]));
+
+  input(dom, ta, 'Building to the county.');
+  const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
+  ok('a note survives a reload',
+     $(dom2.window.document, '.blocknote').value === 'Building to the county.',
+     $(dom2.window.document, '.blocknote').value);
+}
+
+/* Two children stacked was two screens of rows where one was wanted, and the
+   second child's list sat below the fold on the very tab that exists to compare
+   them. A tab each, and the note box writes on whichever is open. */
+group('the season across the children is read a child at a time');
+{
+  const Y = new Date().getFullYear();
+  const seed = JSON.stringify({
+    version: 2, updatedAt: 1,
+    players: [{ id: 'p1', name: 'Ian', birthYear: Y - 9, colour: '#5B9BD5' },
+              { id: 'p2', name: 'Olivia', birthYear: Y - 9, colour: '#D6E64B' }],
+    blocks: [{ id: 'b1', name: 'His', start: `${Y}-06-01`, days: 7, playerId: 'p1',
+               plan: { 0: { am: [{ type: 'p1', at: '09:00', hrs: 2 }],
+                            pm: [{ type: 'p1', at: '09:30', hrs: 2 }] } },
+               note: 'Building to the county.' },
+             { id: 'b2', name: 'Hers', start: `${Y}-06-02`, days: 7, playerId: 'p2',
+               plan: { 0: { am: [{ type: 'g2', at: '09:00', hrs: 2, confirmed: true }] },
+                       2: { am: [{ type: 'g2', at: '09:00', hrs: 2, confirmed: true }] },
+                       4: { am: [{ type: 'g2', at: '09:00', hrs: 2, confirmed: true }] } } }],
+    activeBlockId: 'b1', entries: [], trips: [], manualMatches: [], rewards: {}, forKids: {},
+  });
+  const dom = boot({ [KEY]: seed });
+  const d = dom.window.document;
+  const tabs = () => $$(d, '#cktabs .whotab');
+  const tabNamed = n => tabs().find(t => t.textContent.includes(n));
+  const rowTitles = () => $$(d, '#notes .ckrow b').map(e => e.textContent);
+  click(dom, $$(d, '#trainwho button')[0]);        // Everyone
+
+  ok('a tab for each block being judged', tabs().length === 2,
+     tabs().map(t => t.textContent).join('|'));
+  ok('labelled by whose block it is',
+     !!tabNamed('Ian') && !!tabNamed('Olivia'), tabs().map(t => t.textContent).join('|'));
+  ok('each carrying its own colour, so the strip reads like the one above the grid',
+     tabNamed('Ian').style.getPropertyValue('--c') === '#5B9BD5',
+     tabNamed('Ian').style.getPropertyValue('--c'));
+  ok('the count on a tab is what wants doing behind it',
+     Number(tabNamed('Ian').querySelector('.ct').textContent) > 0,
+     tabNamed('Ian').querySelector('.ct').textContent);
+  ok('and a block with nothing to fix says so rather than showing a nought',
+     tabNamed('Olivia').querySelector('.ct').classList.contains('clear'),
+     tabNamed('Olivia').querySelector('.ct').textContent);
+
+  // the whole point: one child's rows on screen, not both stacked
+  ok('the first block is open to begin with', tabNamed('Ian').classList.contains('on'));
+  ok('and only its checks are drawn',
+     rowTitles().includes('Times overlap'), rowTitles().join('|'));
+  /* The boxes belong to the calendar, not to the check tabs: the merged
+     calendar is several plans and each has its own story to tell under it. */
+  const boxes = () => $$(d, '#noteboxes .blocknote');
+  const boxOf = id => boxes().find(t => t.dataset.b === id);
+  ok('a box for each plan, under the calendar and not among the checks',
+     boxes().length === 2 && !$(d, '.checks').contains($(d, '#noteboxes')),
+     boxes().length);
+  ok('each named for whose plan it explains',
+     $$(d, '.cknotelab .who').map(e => e.textContent).join('|') === 'Ian|Olivia',
+     $$(d, '.cknotelab .who').map(e => e.textContent).join('|'));
+  ok('and each carrying what was written on its own block',
+     boxOf('b1').value === 'Building to the county.' && boxOf('b2').value === '',
+     boxes().map(t => t.value).join('|'));
+
+  input(dom, boxOf('b2'), 'Her wrist — light week.');
+  ok('writing in one lands on that block and not on the other',
+     saved(dom).blocks[1].note === 'Her wrist — light week.' &&
+     saved(dom).blocks[0].note === 'Building to the county.',
+     JSON.stringify(saved(dom).blocks.map(b => b.note)));
+
+  // the tabs are the checks' own, and move only those
+  click(dom, tabNamed('Olivia'));
+  ok('picking the other tab opens it', tabNamed('Olivia').classList.contains('on') &&
+     !tabNamed('Ian').classList.contains('on'));
+  ok('and swaps the rows for hers',
+     !rowTitles().includes('Times overlap') && rowTitles().includes('Balanced'),
+     rowTitles().join('|'));
+  ok('while the notes stay put \u2014 they are the calendar\u2019s, not the checks\u2019',
+     boxes().length === 2 && boxOf('b1').value === 'Building to the county.',
+     boxes().map(t => t.value).join('|'));
+
+  // which tab is open is a view preference, not a fact about the season
+  const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
+  click(dom2, $$(dom2.window.document, '#trainwho button')[0]);
+  ok('a reload opens the first block again',
+     $$(dom2.window.document, '#cktabs .whotab')[0].classList.contains('on'));
+}
+
+/* One block is nobody to tell apart, so there is no strip to pick from and the
+   rows stand on their own — the same as a child's own tab. */
+group('one block needs no tab to pick it');
+{
+  const Y = new Date().getFullYear();
+  const seed = JSON.stringify({
+    version: 2, updatedAt: 1,
+    players: [{ id: 'p1', name: 'Ian', birthYear: Y - 9, colour: '#5B9BD5' }],
+    blocks: [{ id: 'b1', name: 'His', start: `${Y}-06-01`, days: 7, playerId: 'p1', plan: {} }],
+    activeBlockId: 'b1', entries: [], trips: [], manualMatches: [], rewards: {}, forKids: {},
+  });
+  const dom = boot({ [KEY]: seed });
+  const d = dom.window.document;
+  ok('no strip on a child’s own tab', $(d, '#cktabs').hidden);
+  ok('but the box is still there to write in', !$(d, '#noteboxes').hidden);
+  ok('and the checks still read', $$(d, '#notes .ckrow').length > 0);
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

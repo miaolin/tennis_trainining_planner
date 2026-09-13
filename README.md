@@ -100,6 +100,28 @@ tests/                          jsdom harness + api tests — dev only, never de
   day, two things booked over the same hour, physical work crowding out court
   time, and weeks over the weekly cap. They are written about the block's child
   by name and age.
+
+  Each one reads as its finding and the evidence for it — *Times overlap · Day
+  2* — and says no more until it is asked: press the row and the advice opens
+  underneath. The advice is worth reading once per problem and worth nobody's
+  time on the tenth row. They sort worst first, so what stops the fortnight
+  running is read before what is merely worth watching.
+
+  On **Everyone** they are read a child at a time, from a tab each — the same
+  strip as the one above the grid, with each child's colour and a count of what
+  wants doing behind their tab (a tick where there is nothing). Two children
+  stacked was two screens of rows where one was wanted, and the second child's
+  list sat below the fold on the very tab that exists to compare them. Which tab
+  is open is a view preference and resets on a reload. One block is nobody to
+  tell apart, so there is no strip at all.
+- **Your notes**, a box directly under the calendar. It is an explanation of the
+  plan rather than a finding about it, so it belongs to the fortnight above it
+  and is read before the checks below — which know the hours and nothing else,
+  and cannot know that the coach is away that week, that this block is building
+  to one particular tournament, or which wrist to watch. The note belongs to the
+  block, so a different fortnight gets its own. **Everyone** draws one per plan
+  on the grid, side by side and named, because a merged calendar is several
+  plans and each has its own story.
 - **Export** the plan as plain text to the clipboard, or print it — the print
   stylesheet drops the controls and prints the grid on white.
 
