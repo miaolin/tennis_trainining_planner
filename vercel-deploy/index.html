@@ -300,6 +300,12 @@ input[type=text]#blockname{flex:0 1 200px;min-width:0}
    removed — that is what a child's own tab is for — so the controls give up
    their handles and read as plain text. */
 .placed.read{cursor:default}
+/* Nothing is edited on Everyone, but a card is the way back to the grid that
+   can edit it — so it takes a pointer and lifts under one, the same lift a
+   chip gets. */
+.placed.read.jump{cursor:pointer}
+.placed.read.jump:hover{background:rgba(255,255,255,.15)}
+.placed.read.jump:focus-visible{outline:2px solid var(--court-line);outline-offset:1px}
 .placed.read .tm{cursor:default;margin-right:0}
 .placed.read .tm:hover{color:var(--mute);border-bottom-color:transparent}
 .placed .whodot{
@@ -1777,11 +1783,13 @@ function restDay(b, i){
   return dayEntries(b, i).some(isRest) && dayHours(b, i) === 0;
 }
 // A stacked slot reads top to bottom like a clock. Anything without a time
-// sits at the end, keeping the order it was added in.
-function sortSlot(list){
+// sits at the end, keeping the order it was added in. `of` reads the entry out
+// of whatever is being sorted, for Everyone's lanes — which sort cards that
+// carry the block they came from rather than bare entries.
+function sortSlot(list, of = x => x){
   return list.map((e, i) => ({e, i}))
     .sort((a, b) => {
-      const x = minsOf(a.e), y = minsOf(b.e);
+      const x = minsOf(of(a.e)), y = minsOf(of(b.e));
       if(x === y) return a.i - b.i;
       if(x === null) return 1;
       if(y === null) return -1;
@@ -2740,14 +2748,18 @@ function mergedCols(day){
   if(day.on.some(o => !o.owner)) out.push(null);   // a block nobody has claimed
   return out;
 }
-// One child's sessions in one slot, in the order their day runs.
+/* One child's sessions in one slot, in the order their day runs. A lane can
+   draw two blocks' mornings into one column, so a card carries the block and
+   the day it came out of — which is what lets a click on it land on the right
+   grid. `idx` is the entry's place in its own block's slot, which is how the
+   editing side of the app addresses a session. */
 function mergedSlot(day, sl, who){
   const list = [];
   day.on.forEach(o=>{
     if((o.owner ? o.owner.id : null) !== (who ? who.id : null)) return;
-    planAt(o.b, o.i)[sl].forEach(e => list.push(e));
+    planAt(o.b, o.i)[sl].forEach((e, idx) => list.push({e, b:o.b, day:o.i, sl, idx}));
   });
-  return sortSlot(list);
+  return sortSlot(list, r => r.e);
 }
 /* Whose it is takes the colour here. On a child's tab the strip above already
    answers that and the colour can say what kind of session it is; alongside a
@@ -2760,22 +2772,33 @@ function mergedSlot(day, sl, who){
    line) and the length (09:00–10:30 is the length). Alone in the cell, or on a
    phone where a day is the full width, all three fit and all three show. The
    hover carries the whole line either way. */
-function mergedCard(e, owner){
+function mergedCard(ref, owner){
+  const e = ref.e;
   const inf = entryInfo(e);
   if(!inf) return '';
   const resting = isRest(e);
   const when = timeLabel(e);
   const who = owner ? firstName(owner.name) : '';
+  /* Nothing is edited on this tab, but the clash is spotted on it — so a card
+     is the way back to the grid that can fix it: it opens the owner's tab on
+     the block it came from, with its own time dialog already up. The overview
+     stays a calendar; the click is a shortcut through the tabbing, not an
+     editing surface of its own. Rest has no time to set, so it only travels. */
+  const verb = resting ? 'open' : 'edit';
+  const hint = owner ? `${verb} on ${who}’s tab` : `${verb} this block`;
   const full = [who, inf.nm].filter(Boolean).join(' · ') +
                (when ? ' ' + when : '') + (inf.span ? ' ' + inf.dur : '') +
-               (asks(e.type) ? (e.confirmed ? ' · confirmed' : ' · not confirmed yet') : '');
+               (asks(e.type) ? (e.confirmed ? ' · confirmed' : ' · not confirmed yet') : '') +
+               ' — ' + hint;
   const name = owner ? `<span class="who"><i class="whodot"></i>${escapeHtml(who)} · </span>` : '';
   /* Read-only here, so the dot is a mark rather than a button — this tab
      answers "who is out on Thursday", and saying yes to a session belongs on
      the tab where the session can also be moved or removed. */
   const dot = asks(e.type) ? `<i class="okdot${e.confirmed ? ' yes' : ''}"></i>` : '';
-  return `<div class="placed read${inf.custom ? ' block' : ''}${resting ? ' off' : ''}` +
+  return `<div class="placed read jump${inf.custom ? ' block' : ''}${resting ? ' off' : ''}` +
          `${isProposed(e) ? ' todo' : ''}${isConfirmed(e) ? ' done' : ''}"` +
+         ` role="button" tabindex="0" data-b="${escapeHtml(ref.b.id)}" data-day="${ref.day}"` +
+         ` data-slot="${ref.sl}" data-idx="${ref.idx}"` +
          ` style="--c:${owner ? owner.colour : inf.c}" title="${escapeHtml(full)}">` +
          `<span class="nm">${dot}<span class="txt">${name}${escapeHtml(inf.nm)}</span></span>` +
          (resting
@@ -2821,9 +2844,18 @@ function mergedCell(d, day){
       byCol.map((list, i)=>{
         const owner = cols[i];
         return `<div class="whocol">` +
-               list.map(e => mergedCard(e, owner)).join('') + '</div>';
+               list.map(r => mergedCard(r, owner)).join('') + '</div>';
       }).join('');
     slots.appendChild(box);
+  });
+  // Written as markup and wired once the cell is built, the same as the cards
+  // on a child's own grid.
+  slots.querySelectorAll('.placed.jump').forEach(c=>{
+    const go = ()=> jumpToEntry(c.dataset.b, +c.dataset.day, c.dataset.slot, +c.dataset.idx);
+    c.addEventListener('click', go);
+    c.addEventListener('keydown', ev=>{
+      if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); go(); }
+    });
   });
   el.appendChild(slots);
 
@@ -2855,6 +2887,29 @@ function mergedCell(d, day){
 }
 // A tab says "Ian Lin"; a day cell has room for "Ian".
 function firstName(n){ return String(n).trim().split(/\s+/)[0] || n; }
+
+/* From a card on Everyone to the grid that can change it. The overview is
+   where a clash is seen and a child's tab is where it is fixed, so the card
+   makes that trip itself rather than leaving you to work out whose it was and
+   which of two identically named camps it came from.
+
+   A block nobody has claimed is on every child's tab, so it lands on the first
+   child rather than on Everyone, which cannot edit it at all. The day it came
+   from is scrolled to, because the dialog closes onto that grid and a fortnight
+   is taller than a screen. */
+function jumpToEntry(bid, day, sl, idx){
+  const b = state.blocks.find(x => x.id === bid);
+  if(!b || SLOTS.indexOf(sl) < 0) return;
+  trainWho = b.playerId || (state.players[0] ? state.players[0].id : null);
+  state.activeBlockId = b.id;
+  render(); save();
+  const cell = document.querySelector(`#grid .day[data-i="${day}"]`);
+  if(cell && cell.scrollIntoView) cell.scrollIntoView({block:'center'});
+  // Rest is the one card with no time to set: it has made the trip, and there
+  // is nothing to ask about it.
+  const e = planAt(b, day)[sl][idx];
+  if(e && !isRest(e)) editEntry(day, sl, idx);
+}
 
 function renderEveryone(){
   const grid = document.getElementById('grid');
@@ -3088,6 +3143,7 @@ function renderTraining(){
   for(let i=0;i<b.days;i++){
     const d = document.createElement('div');
     d.className = 'day';
+    d.dataset.i = i;          // so a card on Everyone can scroll its day into view
     const cell = planAt(b, i);
     const offDay = restDay(b, i);
     if(offDay) d.classList.add('rest');

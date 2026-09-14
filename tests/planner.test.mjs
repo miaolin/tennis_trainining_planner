@@ -3897,9 +3897,11 @@ group('Everyone is one calendar');
   ok('and one lane apiece when only one thing is booked',
      $$(lanes[1], '.placed').length === 1, $$(lanes[1], '.placed').length);
   // The name is written even where the lane is too narrow to show it, so the
-  // hover and the phone layout both have it to hand.
+  // hover and the phone layout both have it to hand — and it ends by saying
+  // where the card goes, which is the one thing the card does.
   ok('every card carries the whole line in its title',
-     $(lanes[1], '.placed').title === 'Ian · Private 08:00–09:00 1h · not confirmed yet',
+     $(lanes[1], '.placed').title ===
+       'Ian · Private 08:00–09:00 1h · not confirmed yet — edit on Ian’s tab',
      $(lanes[1], '.placed').title);
   ok('but no handles on any of them — this is the reading tab',
      !$(days()[0], '.placed .x') && !$(days()[0], '.add'));
@@ -3950,6 +3952,92 @@ group('Everyone is one calendar');
      $(d, '#tot').textContent === '4.0', $(d, '#tot').textContent);
   ok('and his morning is off the grid', !$(d, '#grid').textContent.includes('Ian'),
      $(d, '#grid').textContent.slice(0, 90));
+}
+
+group('a card on Everyone is the way back to the grid');
+{
+  /* The overview is where a clash is seen and a child's tab is where it is
+     fixed. Working out whose card it was and which of two identically named
+     camps it came from is the tabbing this tab exists to remove, so the card
+     makes the trip itself. */
+  const dom = boot({ [KEY]: sameWeekPlan() });
+  const d = dom.window.document;
+  const lanes = () => $$($(d, '#grid .day:not(.blank) .slot'), '.whocol');
+
+  const his = $(lanes()[1], '.placed');
+  ok('a card says it is a way somewhere',
+     his.getAttribute('role') === 'button' && his.tabIndex === 0,
+     `${his.getAttribute('role')}/${his.tabIndex}`);
+  click(dom, his);
+  ok('clicking it opens his tab', trainTabs(d)[2].classList.contains('on'),
+     trainTabs(d).map(b => b.className).join('|'));
+  ok('on the block the card came from, not whichever was active',
+     saved(dom).activeBlockId === 'bb', saved(dom).activeBlockId);
+  ok('with that session’s own dialog already up', !$(d, '#modal').hidden);
+  fill(dom, { time: '09:00' });
+  ok('and the edit lands on his morning',
+     slotOf(saved(dom).blocks.find(b => b.id === 'bb'), 0, 'am').at === '09:00',
+     JSON.stringify(saved(dom).blocks.find(b => b.id === 'bb').plan[0]));
+
+  /* A lane runs to the clock and a block stores what was dropped on it first,
+     so the card's place in the column is not its place in the plan. The second
+     card in her lane is the first session in her morning. */
+  click(dom, trainTabs(d)[0]);
+  click(dom, $$(lanes()[0], '.placed')[1]);
+  ok('her tab this time', trainTabs(d)[1].classList.contains('on'),
+     trainTabs(d).map(b => b.className).join('|'));
+  fill(dom, { time: '11:00' });
+  // Saving re-sorts the morning to the clock, so read the two by type rather
+  // than by position: the private moved, the physical did not.
+  const am = saved(dom).blocks.find(b => b.id === 'ba').plan[0].am;
+  const at = t => (am.find(e => e.type === t) || {}).at;
+  ok('a card carries its own session, not the one above it in the lane',
+     at('p1') === '11:00' && at('phys') === '07:00', JSON.stringify(am));
+}
+
+group('what a card does when there is nobody to open it on');
+{
+  const Y = new Date().getFullYear();
+  const dom = boot({ [KEY]: JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [
+      { id: 'bb', name: 'His camp', start: `${Y}-06-01`, days: 7, playerId: 'pb',
+        plan: { 0: { am: [{ type: 'rest' }] } } },
+      // filed under nobody — one made on Everyone, or left behind by a child
+      { id: 'bn', name: 'Nobody’s camp', start: `${Y}-06-01`, days: 7, playerId: null,
+        plan: { 0: { pm: [{ type: 'p1', at: '15:00' }] } } },
+    ],
+    activeBlockId: 'bb',
+    players: [
+      { id: 'pa', name: 'Olivia Lin', birthYear: Y - 9,  colour: '#5B9BD5' },
+      { id: 'pb', name: 'Ian Lin',    birthYear: Y - 13, colour: '#D6E64B' },
+    ],
+    entries: [], manualMatches: [], trips: [], rewards: {},
+  }) });
+  const d = dom.window.document;
+  const day0 = () => $$(d, '#grid .day:not(.blank)')[0];
+
+  // Rest has no time to set, so it travels and asks nothing.
+  click(dom, $(day0(), '.placed.off'));
+  ok('a rest card still opens his tab', trainTabs(d)[2].classList.contains('on'),
+     trainTabs(d).map(b => b.className).join('|'));
+  ok('and asks nothing, there being no time on it', $(d, '#modal').hidden);
+
+  // A block nobody has claimed is on every child's tab, and on none of them by
+  // name — so it lands on the first, which can edit it, rather than on Everyone,
+  // which cannot.
+  click(dom, trainTabs(d)[0]);
+  const loose = $$(d, '#grid .placed').find(c => c.title.includes('this block'));
+  ok('an unclaimed card says it is the block that is opened', !!loose,
+     $$(d, '#grid .placed').map(c => c.title).join('|'));
+  click(dom, loose);
+  ok('and it lands on a tab that can edit it', trainTabs(d)[1].classList.contains('on'),
+     trainTabs(d).map(b => b.className).join('|'));
+  ok('on the unclaimed block', saved(dom).activeBlockId === 'bn', saved(dom).activeBlockId);
+  fill(dom, { time: '16:00' });
+  ok('and the edit lands on it',
+     slotOf(saved(dom).blocks.find(b => b.id === 'bn'), 0, 'pm').at === '16:00',
+     JSON.stringify(saved(dom).blocks.find(b => b.id === 'bn').plan[0]));
 }
 
 group('the quiet months between two camps collapse');

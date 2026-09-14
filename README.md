@@ -58,7 +58,9 @@ tests/                          jsdom harness + api tests — dev only, never de
   anybody free at the same time — without holding two fortnights in your head.
   Nothing there is editable: hours, rest and every load check are judgements
   about one body, so they stay on the child's own tab, read against their own
-  age. The foot of each day still lists them side by side rather than added up,
+  age. A card is the way back to that tab — click one and it opens the owner's
+  tab, on the block it came from, with that session's time dialog already up
+  and its day scrolled to. The foot of each day still lists them side by side rather than added up,
   and the readout counts days, which is the thing a family really does share.
   Weeks no one trains collapse to a rule saying how many there were, so a camp
   in June and a camp in March are one calendar rather than three empty months.

@@ -30,6 +30,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   resets on a reload, the same as which child is filtered for. One block is
   nobody to tell apart, so no strip is drawn at all.
 
+- **A card on Everyone is the way back to the grid.** The overview is where a
+  clash is seen and a child's tab is where it is fixed, and getting from one to
+  the other meant working out whose morning that was and which of two
+  identically named camps it came from — the tabbing the merged calendar exists
+  to remove.
+
+  A card now makes the trip itself: click it and it opens the owner's tab, on
+  the block it came from, with that session's own time dialog already up, and
+  scrolls its day into view behind it. A lane runs to the clock and a block
+  stores what was dropped on it first, so a card carries its own session rather
+  than its place in the column.
+
+  Everyone stays a calendar. Nothing is placed, moved, removed or confirmed
+  there — the click is a shortcut through the tabbing, not an editing surface,
+  and the load checks stay one child's. Rest has no time to set, so it travels
+  and asks nothing. A block nobody has claimed lands on the first child's tab,
+  which can edit it, rather than on Everyone, which cannot.
+
 - **A blocked slot is renamed where it is read.** *Museum* came from the
   **Study / other** chip, and the name it was given on the way in was the last
   say anyone had over it: the only way back was to delete the card and place it
