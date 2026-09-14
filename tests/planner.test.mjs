@@ -6727,6 +6727,104 @@ group('a block carries a note of its own');
      $(dom2.window.document, '.blocknote').value);
 }
 
+/* A note is read far more often than it is written, and a box three rows deep
+   showed the first three lines of one that ran to six. So it stands as text
+   until somebody says they are writing it, and says so again when they are
+   done — as often as they like. */
+group('a note is read, then written, then read again');
+{
+  const Y = new Date().getFullYear();
+  const dom = boot({ [KEY]: JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [{ id: 'b1', name: 'Camp', start: `${Y}-06-01`, days: 7, playerId: null, plan: {},
+               note: 'Coach away 3–5 Oct.\nWatch the left wrist.' }],
+    activeBlockId: 'b1', players: [],
+    entries: [], trips: [], manualMatches: [], rewards: {}, forKids: {},
+  }) });
+  const d = dom.window.document;
+  const ta = () => $(d, '.blocknote');
+  const read = () => $(d, '.noteread');
+  const btn = () => $(d, '.noteedit');
+
+  ok('a note that has been written stands as text', !read().hidden && ta().hidden,
+     `${read().hidden}/${ta().hidden}`);
+  ok('all of it, with the breaks it was given',
+     read().textContent === 'Coach away 3–5 Oct.\nWatch the left wrist.',
+     JSON.stringify(read().textContent));
+  ok('and the way back in says what it is', btn().textContent === 'Edit', btn().textContent);
+  ok('with nothing about it reading as empty', !read().classList.contains('empty'));
+
+  click(dom, btn());
+  ok('opening it shows the box instead', read().hidden && !ta().hidden,
+     `${read().hidden}/${ta().hidden}`);
+  ok('with the words in it, ready to be added to', ta().value.includes('left wrist'),
+     ta().value);
+  ok('the cursor already in it', d.activeElement === ta());
+  ok('and the button now offers the way out', btn().textContent === 'Save', btn().textContent);
+
+  input(dom, ta(), 'Coach away 3–5 Oct.\nWatch the left wrist.\nEntry closes Friday.   ');
+  ok('what is typed is on the block before it is submitted',
+     saved(dom).blocks[0].note.endsWith('Entry closes Friday.'),
+     JSON.stringify(saved(dom).blocks[0].note));
+
+  click(dom, btn());
+  ok('submitting puts it back to text', !read().hidden && ta().hidden,
+     `${read().hidden}/${ta().hidden}`);
+  ok('the new line among the old ones',
+     read().textContent.endsWith('Entry closes Friday.'), JSON.stringify(read().textContent));
+  ok('tidied of the typing that trailed it',
+     !read().textContent.endsWith('   ') && ta().value.endsWith('Friday.'),
+     JSON.stringify(ta().value));
+  ok('and the way in again', btn().textContent === 'Edit', btn().textContent);
+
+  // as often as it wants saying differently
+  click(dom, btn());
+  input(dom, ta(), 'Rewritten.');
+  click(dom, btn());
+  ok('a note can be written again and again',
+     read().textContent === 'Rewritten.' && saved(dom).blocks[0].note === 'Rewritten.',
+     read().textContent);
+}
+
+group('a note nobody has written yet');
+{
+  const Y = new Date().getFullYear();
+  const dom = boot({ [KEY]: JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [{ id: 'b1', name: 'Camp', start: `${Y}-06-01`, days: 7, playerId: null, plan: {} }],
+    activeBlockId: 'b1', players: [],
+    entries: [], trips: [], manualMatches: [], rewards: {}, forKids: {},
+  }) });
+  const d = dom.window.document;
+  const read = () => $(d, '.noteread');
+
+  ok('an empty note says what it is for', read().classList.contains('empty') &&
+     read().textContent.includes('cannot say for itself'), read().textContent.slice(0, 40));
+  ok('and asks rather than offers an edit',
+     $(d, '.noteedit').textContent === 'Write one', $(d, '.noteedit').textContent);
+
+  // an empty note is all invitation, so the prompt itself is the way in
+  click(dom, read());
+  ok('the prompt opens the box', !$(d, '.blocknote').hidden && read().hidden,
+     `${$(d, '.blocknote').hidden}/${read().hidden}`);
+  input(dom, $(d, '.blocknote'), 'Half term the week of the 20th.');
+  click(dom, $(d, '.noteedit'));
+  ok('and what was written reads back',
+     read().textContent === 'Half term the week of the 20th.' &&
+     !read().classList.contains('empty'), read().textContent);
+  ok('with the way in named for a note that now exists',
+     $(d, '.noteedit').textContent === 'Edit', $(d, '.noteedit').textContent);
+
+  // emptied again, and it is an invitation once more
+  click(dom, $(d, '.noteedit'));
+  input(dom, $(d, '.blocknote'), '   ');
+  click(dom, $(d, '.noteedit'));
+  ok('emptied, it asks again', read().classList.contains('empty') &&
+     $(d, '.noteedit').textContent === 'Write one', read().textContent.slice(0, 30));
+  ok('and nothing is left on the block', !('note' in saved(dom).blocks[0]),
+     JSON.stringify(saved(dom).blocks[0]));
+}
+
 /* Two children stacked was two screens of rows where one was wanted, and the
    second child's list sat below the fold on the very tab that exists to compare
    them. A tab each, and the note box writes on whichever is open. */

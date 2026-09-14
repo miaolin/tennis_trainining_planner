@@ -583,11 +583,22 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
    because that is what it is about. The named ones share the row beneath. */
 .cknotebox.all{flex-basis:100%}
 .noteboxes[hidden]{display:none}
+/* The heading and the way in, on one line: what the note is about on the left,
+   and on the right the button that opens it — which is also what tells you the
+   text below is finished rather than a field you are looking at. */
+.cknotehead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
 .cknotelab{
   display:block;font-family:'Barlow Condensed',sans-serif;font-weight:500;
   font-size:12px;letter-spacing:.16em;text-transform:uppercase;
-  color:var(--mute);margin-bottom:6px;
+  color:var(--mute);
 }
+.noteedit{
+  flex:none;font-family:'Barlow Condensed',sans-serif;
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  padding:3px 10px;color:var(--mute);
+}
+.noteedit:hover{color:var(--court-line)}
+.noteedit.on{border-color:var(--ball);color:var(--ball)}
 /* Named for whose plan it explains, once there is more than one on the page. */
 .cknotelab .who{color:var(--c,var(--court-line));border-left:3px solid var(--c,var(--hair));padding-left:7px}
 .blocknote{
@@ -601,6 +612,27 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
 /* Written in, so it stops looking like an empty field and starts looking like
    something somebody said. */
 .blocknote.said{border-style:solid;border-color:var(--ball)}
+/* A note is read far more often than it is written, and a box three rows deep
+   hides the fourth line of a note that runs to six. So what is written stands
+   as text — all of it, at whatever length it runs to, with the line breaks it
+   was given — until somebody says they are editing it. */
+.noteread{
+  white-space:pre-wrap;overflow-wrap:anywhere;
+  font-family:'Karla',sans-serif;font-size:13.5px;line-height:1.5;
+  color:var(--court-line);
+  border-left:2px solid var(--ball);border-radius:0 3px 3px 0;
+  background:rgba(255,255,255,.04);padding:9px 11px;
+  box-sizing:border-box;
+}
+/* Nothing written yet: the prompt that used to sit inside the box, and the
+   whole of it is the way in — an empty note is all invitation. */
+.noteread.empty{
+  color:var(--mute);font-style:italic;cursor:pointer;
+  border-left:2px dashed var(--hair);background:transparent;
+  min-height:58px;                     /* a target worth aiming at, and the box it replaces */
+}
+.noteread.empty:hover{background:rgba(255,255,255,.05)}
+.noteread[hidden],.blocknote[hidden]{display:none}
 
 /* ---------- backup bar ---------- */
 .databar{
@@ -1180,6 +1212,9 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
 @media print{
   body{background:#fff;color:#000}
   .palette,.bar,.blockbar,.whotabs,.hint,.mainnav,.modal-back,.syncrow,.syncqr{display:none}
+  /* Paper is all view mode. */
+  .noteedit{display:none}
+  .noteread{border-left:2px solid #000;background:#fff;color:#000}
   .day{background:#f4f4f4;border:1px solid #999}
   /* On paper the strip naming the children is gone, so what is left to say
      whose a session is has to be the ink rather than the colour behind it. */
@@ -3161,12 +3196,55 @@ function renderEveryone(){
    block bar: Everyone has no active block and draws several boxes at once. */
 function noteBoxHtml({id, label, colour, ph, aria, all}){
   return `<div class="cknotebox${all ? ' all' : ''}">` +
-    `<label class="cknotelab" for="${id}">` +
+    `<div class="cknotehead"><label class="cknotelab" for="${id}">` +
     (colour === undefined ? escapeHtml(label)
       : `<span class="who" style="--c:${colour || 'transparent'}">${escapeHtml(label)}</span>`) +
     '</label>' +
-    `<textarea class="blocknote" id="${id}" rows="3" maxlength="${MAX_BLOCKNOTE}"` +
-    ` aria-label="${escapeHtml(aria)}" placeholder="${escapeHtml(ph)}"></textarea></div>`;
+    `<button type="button" class="noteedit" aria-controls="${id}"></button></div>` +
+    `<div class="noteread" id="${id}-read"></div>` +
+    `<textarea class="blocknote" id="${id}" rows="6" maxlength="${MAX_BLOCKNOTE}"` +
+    ` aria-label="${escapeHtml(aria)}" placeholder="${escapeHtml(ph)}" hidden></textarea></div>`;
+}
+/* Which notes are open for writing. A view and an edit rather than a box that
+   is always both: a note is read far more often than it is written, and the
+   box only ever showed the first few lines of what it held. Kept here and not
+   on the markup, the boxes being drawn again whenever the blocks under them
+   change — an edit half-written survives its own calendar being redrawn.
+
+   It is the mode that is submitted, not the words: those are on the block from
+   the keystroke that wrote them, so nothing is lost to a shut tab, and Save is
+   free to mean "I am finished" rather than "keep this". */
+const noteEdit = new Set();
+const noteKeyOf = ta => ta.dataset.b || 'all';
+// The two faces of one box, and the button that says which is showing.
+function paintNote(ta, note){
+  const box = ta.closest('.cknotebox');
+  if(!box) return;
+  const read = box.querySelector('.noteread');
+  const btn = box.querySelector('.noteedit');
+  const on = noteEdit.has(noteKeyOf(ta));
+  ta.hidden = !on;
+  read.hidden = on;
+  read.textContent = note || ta.placeholder;
+  read.classList.toggle('empty', !note);
+  btn.textContent = on ? 'Save' : (note ? 'Edit' : 'Write one');
+  btn.classList.toggle('on', on);
+  btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+}
+// In and out of writing. Leaving tidies what was typed, which is the one thing
+// Save does to the words themselves.
+function noteMode(ta, on){
+  if(!ta) return;
+  const key = noteKeyOf(ta);
+  if(on) noteEdit.add(key); else noteEdit.delete(key);
+  if(!on) ta.value = noteRead(ta);
+  paintNote(ta, noteRead(ta));
+  if(on){
+    ta.focus();
+    // The cursor goes to the end of what is already there: a note is added to
+    // far more often than it is rewritten.
+    if(ta.setSelectionRange) ta.setSelectionRange(ta.value.length, ta.value.length);
+  }
 }
 function renderBlockNotes(list, shared){
   const wrap = document.getElementById('noteboxes');
@@ -3208,11 +3286,15 @@ function renderBlockNotes(list, shared){
       if(ta) ta.dataset.b = b.id;
     });
   }
+  // Nothing open for writing that is no longer on the page.
+  const keys = new Set((shared ? ['all'] : []).concat(shown.map(b => b.id)));
+  [...noteEdit].forEach(k => { if(!keys.has(k)) noteEdit.delete(k); });
   // The text itself, on every render, but never into the one being typed in.
   const put = (ta, note) => {
     if(!ta) return;
     if(document.activeElement !== ta) ta.value = note;
     ta.classList.toggle('said', !!note);
+    paintNote(ta, note);
   };
   if(shared) put(document.getElementById('bnall'), allNote());
   shown.forEach((b, i) => put(document.getElementById('bn' + i), blockNote(b)));
@@ -6889,12 +6971,24 @@ document.getElementById('noteboxes').addEventListener('input', e=>{
   e.target.classList.toggle('said', !!noteRead(e.target));
   save();
 });
+/* The way in and the way out. An empty note is all invitation, so the prompt
+   itself opens it; a written one is opened from the button, leaving the text
+   free to be selected and copied without falling into an edit. */
+document.getElementById('noteboxes').addEventListener('click', e=>{
+  const box = e.target.closest && e.target.closest('.cknotebox');
+  if(!box) return;
+  const ta = box.querySelector('.blocknote');
+  if(!ta) return;
+  if(e.target.closest('.noteedit')) noteMode(ta, !noteEdit.has(noteKeyOf(ta)));
+  else if(e.target.closest('.noteread.empty')) noteMode(ta, true);
+});
 /* Leaving the box is where the tidying shows: trailing blank lines go, and what
    is left is what was stored all along. It is also when a box emptied on
    Everyone goes away, having been kept only for the cursor that was in it. */
 document.getElementById('noteboxes').addEventListener('focusout', e=>{
   if(!isNote(e.target)) return;
   e.target.value = noteRead(e.target);
+  paintNote(e.target, noteRead(e.target));
   if(merged()) renderTraining();
 });
 document.getElementById('start').addEventListener('change', e=>{

@@ -137,6 +137,14 @@ tests/                          jsdom harness + api tests — dev only, never de
   to one particular tournament, or which wrist to watch. The note belongs to the
   block, so a different fortnight gets its own.
 
+  It stands as text — all of it, at whatever length it runs to and with the line
+  breaks it was given — and **Edit** opens the box, **Save** puts it back, as
+  often as it wants saying differently. What is typed is on the block from the
+  keystroke that wrote it, so Save means *I am finished* rather than *keep this*;
+  what it does to the words is tidy the typing that trailed them. A note nobody
+  has written yet is all invitation: the prompt stands where the text would be
+  and a click anywhere on it opens the box.
+
   **Everyone** puts a shared box first, running the width of the calendar,
   because half of what wants saying about a week belongs to the household rather
   than to either plan — whose lift is whose, the week the courts are resurfaced.

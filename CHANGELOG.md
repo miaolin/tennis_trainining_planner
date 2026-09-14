@@ -59,6 +59,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it opens the same dialog. A training session is named by its type and has
   nothing to rename, so those stay plain text.
 
+- **A note is read, then written, then read again.** A note is read far more
+  often than it is written, and the box it lived in showed three rows of one
+  that ran to six — the rest was there, behind a scrollbar, on the very thing
+  written to be read at a glance.
+
+  It stands as text now, all of it, at whatever length it runs to and with the
+  line breaks it was given. **Edit** opens the box, with the cursor at the end,
+  because a note is added to far more often than it is rewritten; **Save** puts
+  it back to text. As often as it wants saying differently.
+
+  What is written is still on the block from the keystroke that wrote it, so
+  nothing is lost to a shut tab and Save is free to mean *I am finished* rather
+  than *keep this*. What it does to the words is tidy the typing that trailed
+  them.
+
+  A note nobody has written yet is all invitation: the prompt stands where the
+  text would be and opening it is a click anywhere on it. A written one is
+  opened from the button alone, leaving the text free to be selected and copied
+  without falling into an edit. Each box carries its own mode, so on Everyone
+  the household's note and a child's can be open at once, and a half-written one
+  survives the calendar being redrawn under it.
+
 ### Added
 
 - **The same morning, on both plans.** A museum trip, a school day, a family
