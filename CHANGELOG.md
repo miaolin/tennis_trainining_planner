@@ -30,6 +30,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   resets on a reload, the same as which child is filtered for. One block is
   nobody to tell apart, so no strip is drawn at all.
 
+- **A blocked slot is renamed where it is read.** *Museum* came from the
+  **Study / other** chip, and the name it was given on the way in was the last
+  say anyone had over it: the only way back was to delete the card and place it
+  again. The dialog that changes the time had the name field all along — the
+  grid simply had no way into it.
+
+  The name of a blocked slot is now a button on the same terms as the time
+  under it: plain text until the pointer goes near, then a dashed underline, and
+  it opens the same dialog. A training session is named by its type and has
+  nothing to rename, so those stay plain text.
+
 ### Added
 
 - **A note box under every calendar.** The checks read the hours and nothing

@@ -429,6 +429,15 @@ button.okdot.yes:hover{opacity:.75}
 button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
 .placed .nm{display:flex;align-items:baseline}
 .placed .nm .txt{min-width:0}
+/* The name of a blocked slot is its own button, and keeps the weight and
+   colour of the name it replaces — plain text until you go near it, like the
+   time below it. */
+.placed .nm button.txt{
+  font:inherit;color:inherit;letter-spacing:inherit;text-align:left;
+  background:transparent;border:none;border-bottom:1px dashed transparent;
+  padding:0;cursor:pointer;
+}
+.placed .nm button.txt:hover{color:var(--court-line);border-bottom-color:rgba(255,255,255,.4)}
 /* A day's worth in one click, for the call where he says yes to all of it. It
    stays out of the way until the day is hovered — a row of buttons down the
    calendar would read as more important than the sessions. */
@@ -3128,7 +3137,14 @@ function renderTraining(){
                               : 'Mark this agreed with the coach'
               }" aria-pressed="${val.confirmed ? 'true' : 'false'}"></button>`
             : '';
-          p.innerHTML = `<span class="nm">${dot}<span class="txt">${escapeHtml(inf.nm)}</span></span>` +
+          // A blocked slot carries its own label, so its name is a button on the
+          // same terms as the time: same dialog, same plain-text-until-hovered
+          // look. A training session is named by its type and has nothing to
+          // rename.
+          const name = inf.custom
+            ? `<button class="txt nmed" title="Change the name">${escapeHtml(inf.nm)}</button>`
+            : `<span class="txt">${escapeHtml(inf.nm)}</span>`;
+          p.innerHTML = `<span class="nm">${dot}${name}</span>` +
                         (resting
                           ? `<span class="tm">nothing booked</span>`
                           : `<button class="tm${when ? '' : ' unset'}" title="Change the time">${
@@ -3144,6 +3160,11 @@ function renderTraining(){
           const ok = p.querySelector('.okdot');
           if(ok) ok.addEventListener('click', ev=>{ ev.stopPropagation(); toggleConfirmed(i,s,idx); });
           if(!resting) p.querySelector('.tm').addEventListener('click', ev=>{ ev.stopPropagation(); editEntry(i,s,idx); });
+          const nmed = p.querySelector('.nmed');
+          if(nmed){
+            nmed.draggable = false;   // the name is clicked, the card is dragged
+            nmed.addEventListener('click', ev=>{ ev.stopPropagation(); editEntry(i,s,idx); });
+          }
           el.appendChild(p);
         });
         const drop = ()=>{ if(armed){ const a = armed; arm(a); startPlace(i, s, {type:a}); } };

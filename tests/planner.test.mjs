@@ -606,6 +606,25 @@ group('blocking a slot with study');
      slot(dom, 0, 'am').hrs === 1, JSON.stringify(slot(dom, 0, 'am')));
   ok('an unnamed block still gets a name', $(d, '#grid .placed .nm').textContent === 'Blocked',
      $(d, '#grid .placed .nm').textContent);
+
+  // the name is a button on the same terms as the time: it opens the same
+  // dialog, and what is typed there is what the grid reads back
+  click(dom, $(d, '#btn-clear'));
+  tap(dom, 'other', daySlots(d)[0], { label: 'Study', hours: '2', time: '09:00' });
+  ok('a block names itself with a button', !!$(d, '#grid .placed .nm button.txt'));
+  fillAt(dom, $(d, '#grid .placed .nm button.txt'), { label: 'Museum' });
+  ok('the name is editable from the grid', $(d, '#grid .placed .nm').textContent === 'Museum',
+     $(d, '#grid .placed .nm').textContent);
+  ok('and the time it was given survives the rename',
+     $(d, '#grid .placed .tm').textContent.includes('09:00–11:00'),
+     $(d, '#grid .placed .tm').textContent);
+  ok('the new name is persisted', slot(dom, 0, 'am').label === 'Museum',
+     JSON.stringify(slot(dom, 0, 'am')));
+
+  // a session named by its type has no name to change
+  click(dom, $(d, '#btn-clear'));
+  tap(dom, 'p1', daySlots(d)[0]);
+  ok('a training session offers no rename', !$(d, '#grid .placed .nm button.txt'));
 }
 
 /* ------------------------------------------------------------------ */

@@ -87,6 +87,8 @@ tests/                          jsdom harness + api tests — dev only, never de
   its hours, but never counts towards the daily or weekly load, so blocking an
   afternoon does not make the week look heavier than it is. It is drawn in teal
   on a hatched card, so training and everything else are told apart at a glance.
+  Its name is a button on the same terms as the time under it, so a *Museum* can
+  be renamed where it is read rather than deleted and placed again.
 - **The palette stays with you**, pinned to the top of the window and shrunk to
   the chips once you scroll past it, so a session is always there to drag.
 - **Running totals** per day, per 7-day week, and across the block, with a
