@@ -300,6 +300,12 @@ input[type=text]#blockname{flex:0 1 200px;min-width:0}
    removed — that is what a child's own tab is for — so the controls give up
    their handles and read as plain text. */
 .placed.read{cursor:default}
+/* Nothing is edited on Everyone, but a card is the way back to the grid that
+   can edit it — so it takes a pointer and lifts under one, the same lift a
+   chip gets. */
+.placed.read.jump{cursor:pointer}
+.placed.read.jump:hover{background:rgba(255,255,255,.15)}
+.placed.read.jump:focus-visible{outline:2px solid var(--court-line);outline-offset:1px}
 .placed.read .tm{cursor:default;margin-right:0}
 .placed.read .tm:hover{color:var(--mute);border-bottom-color:transparent}
 .placed .whodot{
@@ -429,6 +435,15 @@ button.okdot.yes:hover{opacity:.75}
 button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
 .placed .nm{display:flex;align-items:baseline}
 .placed .nm .txt{min-width:0}
+/* The name of a blocked slot is its own button, and keeps the weight and
+   colour of the name it replaces — plain text until you go near it, like the
+   time below it. */
+.placed .nm button.txt{
+  font:inherit;color:inherit;letter-spacing:inherit;text-align:left;
+  background:transparent;border:none;border-bottom:1px dashed transparent;
+  padding:0;cursor:pointer;
+}
+.placed .nm button.txt:hover{color:var(--court-line);border-bottom-color:rgba(255,255,255,.4)}
 /* A day's worth in one click, for the call where he says yes to all of it. It
    stays out of the way until the day is hovered — a row of buttons down the
    calendar would read as more important than the sessions. */
@@ -795,6 +810,10 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
 .chk:hover{background:rgba(255,255,255,.12)}
 .chk input{accent-color:var(--ball);margin:0;cursor:pointer}
 .chk.on{border-color:var(--ball)}
+/* A field's input fills its row; a tick box is not a field, so it keeps its
+   own size and the pill takes what the words need. */
+#m-allrow .chk{flex:0 1 auto;min-width:0}
+#m-allrow .chk input{flex:none}
 #impnote.busy{color:var(--ball)}
 #impnote.bad{color:var(--bad)}
 #impnote.good{color:var(--ok)}
@@ -1384,6 +1403,10 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
       <label class="lab" for="m-dur">Length</label>
       <select id="m-dur"></select>
     </div>
+    <div class="mrow" id="m-allrow">
+      <span class="lab">Who</span>
+      <label class="chk" id="m-alllab"><input type="checkbox" id="m-all"> <span></span></label>
+    </div>
     <p class="hint" id="m-note"></p>
     <div class="mfoot">
       <button type="button" id="m-cancel">Cancel</button>
@@ -1768,11 +1791,13 @@ function restDay(b, i){
   return dayEntries(b, i).some(isRest) && dayHours(b, i) === 0;
 }
 // A stacked slot reads top to bottom like a clock. Anything without a time
-// sits at the end, keeping the order it was added in.
-function sortSlot(list){
+// sits at the end, keeping the order it was added in. `of` reads the entry out
+// of whatever is being sorted, for Everyone's lanes — which sort cards that
+// carry the block they came from rather than bare entries.
+function sortSlot(list, of = x => x){
   return list.map((e, i) => ({e, i}))
     .sort((a, b) => {
-      const x = minsOf(a.e), y = minsOf(b.e);
+      const x = minsOf(of(a.e)), y = minsOf(of(b.e));
       if(x === y) return a.i - b.i;
       if(x === null) return 1;
       if(y === null) return -1;
@@ -2207,6 +2232,22 @@ function openDialog(o){
   document.getElementById('m-labelrow').hidden = !custom;
   // Everything but rest has a length, and rest never opens the dialog.
   document.getElementById('m-durrow').hidden = false;
+  /* A museum trip is one morning for the family, but a plan belongs to a child,
+     so the same morning has to be written into each of theirs. Asked here
+     because this is where the morning is described, and answered once: the
+     dialog opens with it off, a session being one child's until it is said not
+     to be. Only shown when there is somebody else whose fortnight covers the
+     day — with nobody to assign to, the question is noise. */
+  const all = document.getElementById('m-all');
+  const allrow = document.getElementById('m-allrow');
+  const others = o.others || [];
+  allrow.hidden = !others.length;
+  all.checked = false;
+  document.getElementById('m-alllab').classList.remove('on');
+  if(others.length)
+    allrow.querySelector('.chk span').textContent = others.length === 1
+      ? `Also on ${firstName(others[0].p.name)}’s plan`
+      : 'Also on every child’s plan';
   const lab = document.getElementById('m-label');
   const tm  = document.getElementById('m-time');
   lab.value = o.entry.label && o.entry.label !== 'Blocked' ? o.entry.label : '';
@@ -2230,8 +2271,10 @@ function commitDialog(){
                hrs:document.getElementById('m-dur').value};
   if(TYPES[out.type].custom) out.label = document.getElementById('m-label').value;
   const e = normEntry(out);
+  const all = !document.getElementById('m-allrow').hidden &&
+              document.getElementById('m-all').checked;
   closeDialog();
-  if(e && done) done(e);
+  if(e && done) done(e, all);
 }
 
 /* The rewards dialog. One dialog, two things to edit: a child's standard, or
@@ -2444,10 +2487,11 @@ function startPlace(day, slot, entry){
     title: slotTitle(day, slot),
     entry: {type:entry.type, at:entry.at || SLOT_TIME[slot], label:entry.label,
             hrs:entry.hrs || t.hrs || 1},
+    others: othersOn(active(), day),
     note: t.custom
       ? 'A blocked slot keeps the time free of training. It does not add to the daily or weekly load.'
       : `${t.nm}. The usual ${t.dur} is filled in — change it for a longer or shorter one.`,
-    ok: e => place(day, slot, e, null)
+    ok: (e, all) => place(day, slot, e, null, all)
   });
 }
 // From the grid: change the time (and, for a blocked slot, what it is).
@@ -2457,8 +2501,72 @@ function editEntry(day, slot, idx){
   if(!e) return;
   openDialog({
     title: slotTitle(day, slot), entry: {...e}, action: 'Save',
+    others: othersOn(b, day),
     note: TYPES[e.type].custom ? '' : `${TYPES[e.type].nm}. The end time follows from the length.`,
-    ok: ne => setEntry(day, slot, idx, ne)
+    ok: (ne, all) => setEntry(day, slot, idx, ne, all)
+  });
+}
+
+/* ---- the same morning on more than one plan ----
+   A museum trip, a school day, a family Sunday: one morning for the family,
+   but the calendar knows only plans, and a plan belongs to a child. So it is
+   written into each of theirs.
+
+   A copy and not a link, on the same terms as copying a block to a sibling:
+   the two go their own ways from the moment it is made, because the reason to
+   put a session on both plans is almost never the reason to keep them in step
+   afterwards. What it does keep is the sibling's own copy — an edit pushed
+   across finds what it wrote last time rather than laying a second card beside
+   it. */
+function dayIndexOf(b, k){
+  for(let i=0;i<b.days;i++) if(iso(dateFor(b, i)) === k) return i;
+  return -1;
+}
+/* Everyone else's day, on the date this one falls on. A child is here once: if
+   two of their blocks cover the day, the first is the one written to, the
+   second being a duplicate fortnight rather than a second child. A block filed
+   under nobody is nobody to assign to, and the block being edited is already
+   the plan this is on. */
+function othersOn(b, day){
+  if(!b || day < 0 || day >= b.days) return [];
+  const k = iso(dateFor(b, day));
+  const out = [];
+  state.players.forEach(p=>{
+    if(b.playerId === p.id) return;
+    const ob = state.blocks.find(x => x !== b && x.playerId === p.id && dayIndexOf(x, k) >= 0);
+    if(ob) out.push({p, b:ob, i:dayIndexOf(ob, k)});
+  });
+  return out;
+}
+// The same session, as far as anyone reading the calendar is concerned.
+function sameEntry(a, b){
+  return !!a && !!b && a.type === b.type && (a.at || '') === (b.at || '') &&
+         (a.hrs || 0) === (b.hrs || 0) && (a.label || '') === (b.label || '');
+}
+/* Writes `entry` into everybody else's copy of the slot. `was` is what the
+   session looked like before an edit, which is how the sibling's copy is
+   recognised — rename Musem to Museum on one plan and the other is renamed
+   rather than given a second outing. A child with no room left in that slot is
+   left alone: a plan is not quietly overfilled on a tab nobody is looking at. */
+function spreadEntry(b, day, slot, entry, was){
+  othersOn(b, day).forEach(o=>{
+    const cell = planAt(o.b, o.i);
+    const list = cell[slot];
+    // Nobody agreed to a session on a child's behalf: the coach said yes to
+    // one child's Tuesday, and the copy is a question again.
+    const e = normEntry({...entry, confirmed:false});
+    if(!e) return;
+    const at = was ? list.findIndex(x => sameEntry(x, was)) : -1;
+    if(at >= 0){ list[at] = e; }
+    else {
+      if(list.some(x => sameEntry(x, e))) return;   // already on their plan
+      const room = list.filter(x => !isRest(x));
+      if(room.length >= MAX_PER_SLOT) return;
+      cell[slot] = room;                            // a rest gives way, as it does anywhere
+      cell[slot].push(e);
+    }
+    cell[slot] = sortSlot(cell[slot]);
+    o.b.plan[o.i] = cell;
   });
 }
 
@@ -2475,7 +2583,7 @@ function roomIn(day, slot, from){
 }
 // Adds to a slot rather than taking it over, so a morning can be a private and
 // then physical. `from` is set when the session is being moved off the grid.
-function place(day, slot, entry, from){
+function place(day, slot, entry, from, all){
   const b = active();
   const e = normEntry(entry);
   if(!b || !e || SLOTS.indexOf(slot) < 0) return;
@@ -2497,10 +2605,11 @@ function place(day, slot, entry, from){
   now[slot] = e.type === 'rest' ? [e]
             : sortSlot(now[slot].filter(x => !isRest(x)).concat([e]));
   b.plan[day] = now;
+  if(all) spreadEntry(b, day, slot, e, null);
   render(); save();
 }
 // Editing one entry in place — the time changed, or what a blocked slot is.
-function setEntry(day, slot, idx, entry){
+function setEntry(day, slot, idx, entry, all){
   const b = active();
   const e = normEntry(entry);
   if(!b || !e || SLOTS.indexOf(slot) < 0) return;
@@ -2515,6 +2624,7 @@ function setEntry(day, slot, idx, entry){
   d[slot][idx] = e;
   d[slot] = sortSlot(d[slot]);
   b.plan[day] = d;
+  if(all) spreadEntry(b, day, slot, e, was);
   render(); save();
 }
 /* Saying yes to one session. The coach agrees to them one at a time — a
@@ -2731,14 +2841,18 @@ function mergedCols(day){
   if(day.on.some(o => !o.owner)) out.push(null);   // a block nobody has claimed
   return out;
 }
-// One child's sessions in one slot, in the order their day runs.
+/* One child's sessions in one slot, in the order their day runs. A lane can
+   draw two blocks' mornings into one column, so a card carries the block and
+   the day it came out of — which is what lets a click on it land on the right
+   grid. `idx` is the entry's place in its own block's slot, which is how the
+   editing side of the app addresses a session. */
 function mergedSlot(day, sl, who){
   const list = [];
   day.on.forEach(o=>{
     if((o.owner ? o.owner.id : null) !== (who ? who.id : null)) return;
-    planAt(o.b, o.i)[sl].forEach(e => list.push(e));
+    planAt(o.b, o.i)[sl].forEach((e, idx) => list.push({e, b:o.b, day:o.i, sl, idx}));
   });
-  return sortSlot(list);
+  return sortSlot(list, r => r.e);
 }
 /* Whose it is takes the colour here. On a child's tab the strip above already
    answers that and the colour can say what kind of session it is; alongside a
@@ -2751,22 +2865,33 @@ function mergedSlot(day, sl, who){
    line) and the length (09:00–10:30 is the length). Alone in the cell, or on a
    phone where a day is the full width, all three fit and all three show. The
    hover carries the whole line either way. */
-function mergedCard(e, owner){
+function mergedCard(ref, owner){
+  const e = ref.e;
   const inf = entryInfo(e);
   if(!inf) return '';
   const resting = isRest(e);
   const when = timeLabel(e);
   const who = owner ? firstName(owner.name) : '';
+  /* Nothing is edited on this tab, but the clash is spotted on it — so a card
+     is the way back to the grid that can fix it: it opens the owner's tab on
+     the block it came from, with its own time dialog already up. The overview
+     stays a calendar; the click is a shortcut through the tabbing, not an
+     editing surface of its own. Rest has no time to set, so it only travels. */
+  const verb = resting ? 'open' : 'edit';
+  const hint = owner ? `${verb} on ${who}’s tab` : `${verb} this block`;
   const full = [who, inf.nm].filter(Boolean).join(' · ') +
                (when ? ' ' + when : '') + (inf.span ? ' ' + inf.dur : '') +
-               (asks(e.type) ? (e.confirmed ? ' · confirmed' : ' · not confirmed yet') : '');
+               (asks(e.type) ? (e.confirmed ? ' · confirmed' : ' · not confirmed yet') : '') +
+               ' — ' + hint;
   const name = owner ? `<span class="who"><i class="whodot"></i>${escapeHtml(who)} · </span>` : '';
   /* Read-only here, so the dot is a mark rather than a button — this tab
      answers "who is out on Thursday", and saying yes to a session belongs on
      the tab where the session can also be moved or removed. */
   const dot = asks(e.type) ? `<i class="okdot${e.confirmed ? ' yes' : ''}"></i>` : '';
-  return `<div class="placed read${inf.custom ? ' block' : ''}${resting ? ' off' : ''}` +
+  return `<div class="placed read jump${inf.custom ? ' block' : ''}${resting ? ' off' : ''}` +
          `${isProposed(e) ? ' todo' : ''}${isConfirmed(e) ? ' done' : ''}"` +
+         ` role="button" tabindex="0" data-b="${escapeHtml(ref.b.id)}" data-day="${ref.day}"` +
+         ` data-slot="${ref.sl}" data-idx="${ref.idx}"` +
          ` style="--c:${owner ? owner.colour : inf.c}" title="${escapeHtml(full)}">` +
          `<span class="nm">${dot}<span class="txt">${name}${escapeHtml(inf.nm)}</span></span>` +
          (resting
@@ -2812,9 +2937,18 @@ function mergedCell(d, day){
       byCol.map((list, i)=>{
         const owner = cols[i];
         return `<div class="whocol">` +
-               list.map(e => mergedCard(e, owner)).join('') + '</div>';
+               list.map(r => mergedCard(r, owner)).join('') + '</div>';
       }).join('');
     slots.appendChild(box);
+  });
+  // Written as markup and wired once the cell is built, the same as the cards
+  // on a child's own grid.
+  slots.querySelectorAll('.placed.jump').forEach(c=>{
+    const go = ()=> jumpToEntry(c.dataset.b, +c.dataset.day, c.dataset.slot, +c.dataset.idx);
+    c.addEventListener('click', go);
+    c.addEventListener('keydown', ev=>{
+      if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); go(); }
+    });
   });
   el.appendChild(slots);
 
@@ -2846,6 +2980,29 @@ function mergedCell(d, day){
 }
 // A tab says "Ian Lin"; a day cell has room for "Ian".
 function firstName(n){ return String(n).trim().split(/\s+/)[0] || n; }
+
+/* From a card on Everyone to the grid that can change it. The overview is
+   where a clash is seen and a child's tab is where it is fixed, so the card
+   makes that trip itself rather than leaving you to work out whose it was and
+   which of two identically named camps it came from.
+
+   A block nobody has claimed is on every child's tab, so it lands on the first
+   child rather than on Everyone, which cannot edit it at all. The day it came
+   from is scrolled to, because the dialog closes onto that grid and a fortnight
+   is taller than a screen. */
+function jumpToEntry(bid, day, sl, idx){
+  const b = state.blocks.find(x => x.id === bid);
+  if(!b || SLOTS.indexOf(sl) < 0) return;
+  trainWho = b.playerId || (state.players[0] ? state.players[0].id : null);
+  state.activeBlockId = b.id;
+  render(); save();
+  const cell = document.querySelector(`#grid .day[data-i="${day}"]`);
+  if(cell && cell.scrollIntoView) cell.scrollIntoView({block:'center'});
+  // Rest is the one card with no time to set: it has made the trip, and there
+  // is nothing to ask about it.
+  const e = planAt(b, day)[sl][idx];
+  if(e && !isRest(e)) editEntry(day, sl, idx);
+}
 
 function renderEveryone(){
   const grid = document.getElementById('grid');
@@ -3079,6 +3236,7 @@ function renderTraining(){
   for(let i=0;i<b.days;i++){
     const d = document.createElement('div');
     d.className = 'day';
+    d.dataset.i = i;          // so a card on Everyone can scroll its day into view
     const cell = planAt(b, i);
     const offDay = restDay(b, i);
     if(offDay) d.classList.add('rest');
@@ -3128,7 +3286,14 @@ function renderTraining(){
                               : 'Mark this agreed with the coach'
               }" aria-pressed="${val.confirmed ? 'true' : 'false'}"></button>`
             : '';
-          p.innerHTML = `<span class="nm">${dot}<span class="txt">${escapeHtml(inf.nm)}</span></span>` +
+          // A blocked slot carries its own label, so its name is a button on the
+          // same terms as the time: same dialog, same plain-text-until-hovered
+          // look. A training session is named by its type and has nothing to
+          // rename.
+          const name = inf.custom
+            ? `<button class="txt nmed" title="Change the name">${escapeHtml(inf.nm)}</button>`
+            : `<span class="txt">${escapeHtml(inf.nm)}</span>`;
+          p.innerHTML = `<span class="nm">${dot}${name}</span>` +
                         (resting
                           ? `<span class="tm">nothing booked</span>`
                           : `<button class="tm${when ? '' : ' unset'}" title="Change the time">${
@@ -3144,6 +3309,11 @@ function renderTraining(){
           const ok = p.querySelector('.okdot');
           if(ok) ok.addEventListener('click', ev=>{ ev.stopPropagation(); toggleConfirmed(i,s,idx); });
           if(!resting) p.querySelector('.tm').addEventListener('click', ev=>{ ev.stopPropagation(); editEntry(i,s,idx); });
+          const nmed = p.querySelector('.nmed');
+          if(nmed){
+            nmed.draggable = false;   // the name is clicked, the card is dragged
+            nmed.addEventListener('click', ev=>{ ev.stopPropagation(); editEntry(i,s,idx); });
+          }
           el.appendChild(p);
         });
         const drop = ()=>{ if(armed){ const a = armed; arm(a); startPlace(i, s, {type:a}); } };
@@ -6580,6 +6750,10 @@ document.getElementById('btn-print').addEventListener('click', ()=>window.print(
 
 document.getElementById('m-ok').addEventListener('click', commitDialog);
 document.getElementById('m-cancel').addEventListener('click', closeDialog);
+// The pill lights up when it is ticked, the same as the ones in the For panel.
+document.getElementById('m-all').addEventListener('change', function(){
+  document.getElementById('m-alllab').classList.toggle('on', this.checked);
+});
 document.getElementById('modal').addEventListener('click', e=>{
   if(e.target.id === 'modal') closeDialog();          // click the backdrop to drop it
 });

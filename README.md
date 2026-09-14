@@ -58,7 +58,9 @@ tests/                          jsdom harness + api tests — dev only, never de
   anybody free at the same time — without holding two fortnights in your head.
   Nothing there is editable: hours, rest and every load check are judgements
   about one body, so they stay on the child's own tab, read against their own
-  age. The foot of each day still lists them side by side rather than added up,
+  age. A card is the way back to that tab — click one and it opens the owner's
+  tab, on the block it came from, with that session's time dialog already up
+  and its day scrolled to. The foot of each day still lists them side by side rather than added up,
   and the readout counts days, which is the thing a family really does share.
   Weeks no one trains collapse to a rule saying how many there were, so a camp
   in June and a camp in March are one calendar rather than three empty months.
@@ -82,11 +84,21 @@ tests/                          jsdom harness + api tests — dev only, never de
   single slot as off rather than the whole day, so a morning can be free while
   the afternoon is not; a day with nothing else booked still reads as a rest day
   in the totals and the load checks.
+- **The same morning on both plans.** A museum trip, a school day, a family
+  Sunday is one morning for the family, but a plan belongs to a child — so the
+  dialog that describes it asks *Also on Ian's plan* and writes it into theirs
+  on the same date, in the same slot. Off by default, and only asked when there
+  is somebody to assign to. It is a copy and not a link: the two go their own
+  ways afterwards, except that an edit pushed across finds the copy it made
+  rather than laying a second one beside it. A copy arrives unconfirmed, and a
+  slot already holding all it can is left alone.
 - **Study / other** blocks out a slot that is not training: give it your own
   label and length (study, school, a piano lesson). It holds the slot and shows
   its hours, but never counts towards the daily or weekly load, so blocking an
   afternoon does not make the week look heavier than it is. It is drawn in teal
   on a hatched card, so training and everything else are told apart at a glance.
+  Its name is a button on the same terms as the time under it, so a *Museum* can
+  be renamed where it is read rather than deleted and placed again.
 - **The palette stays with you**, pinned to the top of the window and shrunk to
   the chips once you scroll past it, so a session is always there to drag.
 - **Running totals** per day, per 7-day week, and across the block, with a

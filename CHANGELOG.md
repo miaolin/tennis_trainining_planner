@@ -30,7 +30,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   resets on a reload, the same as which child is filtered for. One block is
   nobody to tell apart, so no strip is drawn at all.
 
+- **A card on Everyone is the way back to the grid.** The overview is where a
+  clash is seen and a child's tab is where it is fixed, and getting from one to
+  the other meant working out whose morning that was and which of two
+  identically named camps it came from — the tabbing the merged calendar exists
+  to remove.
+
+  A card now makes the trip itself: click it and it opens the owner's tab, on
+  the block it came from, with that session's own time dialog already up, and
+  scrolls its day into view behind it. A lane runs to the clock and a block
+  stores what was dropped on it first, so a card carries its own session rather
+  than its place in the column.
+
+  Everyone stays a calendar. Nothing is placed, moved, removed or confirmed
+  there — the click is a shortcut through the tabbing, not an editing surface,
+  and the load checks stay one child's. Rest has no time to set, so it travels
+  and asks nothing. A block nobody has claimed lands on the first child's tab,
+  which can edit it, rather than on Everyone, which cannot.
+
+- **A blocked slot is renamed where it is read.** *Museum* came from the
+  **Study / other** chip, and the name it was given on the way in was the last
+  say anyone had over it: the only way back was to delete the card and place it
+  again. The dialog that changes the time had the name field all along — the
+  grid simply had no way into it.
+
+  The name of a blocked slot is now a button on the same terms as the time
+  under it: plain text until the pointer goes near, then a dashed underline, and
+  it opens the same dialog. A training session is named by its type and has
+  nothing to rename, so those stay plain text.
+
 ### Added
+
+- **The same morning, on both plans.** A museum trip, a school day, a family
+  Sunday — one morning for the family, but the calendar knows only plans, and a
+  plan belongs to a child. Putting it on both meant writing it twice, on two
+  tabs, and keeping the two in step by hand.
+
+  The dialog that describes the morning now asks the one question it could not
+  ask of a single child — *Also on Ian's plan* — and writes it into theirs on
+  the same date, in the same slot. It is off when the dialog opens, a session
+  being one child's until it is said not to be, and it is only asked when there
+  is somebody to assign to: one child on the page, or a sibling whose fortnight
+  does not cover the day, and the row does not appear.
+
+  It is a copy and not a link, on the same terms as copying a block to a
+  sibling — the two go their own ways from the moment it is made. What it does
+  keep is the copy itself: an edit pushed across finds what it wrote last time,
+  so renaming *Musem* to *Museum* on one plan renames the other rather than
+  laying a second outing beside it. Nobody agrees to a session on another
+  child's behalf, so a copy arrives unconfirmed. A slot already holding all it
+  can is left alone rather than quietly overfilled on a tab nobody is looking
+  at.
 
 - **A note box under every calendar.** The checks read the hours and nothing
   else. They cannot know that the coach is away that week, that this block is
