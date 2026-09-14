@@ -75,8 +75,15 @@ function fill(dom, opts = {}) {
   if ('time' in opts) d.getElementById('m-time').value = opts.time ?? '';
   if ('label' in opts) d.getElementById('m-label').value = opts.label;
   if ('hours' in opts) d.getElementById('m-dur').value = opts.hours;
-  // The one question the dialog puts about somebody who is not on this tab.
-  if (opts.all) d.getElementById('m-all').checked = true;
+  // The one question the dialog puts about somebody who is not on this tab:
+  // `all` ticks every child it offers, `who` names the ones to tick.
+  if (opts.all) [...d.querySelectorAll('#m-who input[data-who]')]
+    .forEach(i => { i.checked = true; });
+  (opts.who || []).forEach(id => {
+    const i = d.querySelector(`#m-who input[data-who="${id}"]`);
+    if (!i) throw new Error(`no tick for ${id} in the dialog`);
+    i.checked = true;
+  });
   click(dom, d.getElementById(opts.cancel ? 'm-cancel' : 'm-ok'));
 }
 function ok_open(d) {
@@ -4056,10 +4063,18 @@ group('the same morning on both plans');
   click(dom, trainTabs(d)[1]);                       // her tab, where a plan is written
   click(dom, $$(d, '.chip').find(c => c.dataset.type === 'other'));
   click(dom, daySlots(d)[1]);
-  ok('the dialog asks who the morning is for', !$(d, '#m-allrow').hidden);
+  ok('the dialog asks who the morning is for', !$(d, '#m-whorow').hidden);
   ok('and names the child who is not on this tab',
-     $(d, '#m-alllab').textContent.includes('Ian'), $(d, '#m-alllab').textContent);
-  ok('with the question off until it is answered', !$(d, '#m-all').checked);
+     $(d, '#m-who').textContent.includes('Ian'), $(d, '#m-who').textContent);
+  ok('with the child whose plan it is ticked and not in question',
+     $(d, '#m-who .wpk.fixed').textContent.trim() === 'Olivia' &&
+     $(d, '#m-who .wpk.fixed input').disabled &&
+     $(d, '#m-who .wpk.fixed input').checked,
+     $(d, '#m-who .wpk.fixed').textContent);
+  ok('and nobody else answered for yet',
+     !$$(d, '#m-who input[data-who]:checked').length,
+     $$(d, '#m-who input[data-who]').map(i => i.checked).join());
+  ok('with no All to mean one child', !$(d, '#m-who input[data-all]'));
   fill(dom, { label: 'Museum', hours: '2', time: '09:00', all: true });
 
   ok('it lands on the plan it was written on',
@@ -4097,6 +4112,81 @@ group('the same morning on both plans');
      JSON.stringify(his().plan[0].eve));
 }
 
+group('three children, and picking which of them');
+{
+  /* Two children is one question with a yes and a no. Three is a list, and a
+     family Sunday that is only two of them is a real answer — so the ticks are
+     named, and All is the shorthand rather than the only way to say more than
+     one. */
+  const Y = new Date().getFullYear();
+  const week = id => ({ id, name: id, start: `${Y}-06-01`, days: 7, playerId: 'p' + id.slice(-1),
+                        plan: {} });
+  const dom = boot({ [KEY]: JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [week('bl1'), week('bl2'), week('bl3')],
+    activeBlockId: 'bl1',
+    players: [
+      { id: 'p1', name: 'Olivia Lin', birthYear: Y - 9,  colour: '#5B9BD5' },
+      { id: 'p2', name: 'Ian Lin',    birthYear: Y - 13, colour: '#D6E64B' },
+      { id: 'p3', name: 'Ada Lin',    birthYear: Y - 11, colour: '#E8A33D' },
+    ],
+    entries: [], manualMatches: [], trips: [], rewards: {},
+  }) });
+  const d = dom.window.document;
+  const plan = id => saved(dom).blocks.find(b => b.id === id).plan;
+
+  click(dom, trainTabs(d)[1]);                        // Olivia's tab
+  click(dom, $$(d, '.chip').find(c => c.dataset.type === 'other'));
+  click(dom, daySlots(d)[0]);
+  ok('every child is named, in the order of the strip',
+     $$(d, '#m-who .wpk').map(l => l.textContent.trim()).join('|') ===
+       'All|Olivia|Ian|Ada',
+     $$(d, '#m-who .wpk').map(l => l.textContent.trim()).join('|'));
+  ok('All is offered once there are two others to mean',
+     !!$(d, '#m-who input[data-all]'));
+  ok('and is off while the others are', !$(d, '#m-who input[data-all]').checked);
+
+  // one of the two, which is the answer two children could not give
+  fill(dom, { label: 'Museum', time: '09:00', who: ['p2'] });
+  ok('the named child gets it', !!plan('bl2')[0], JSON.stringify(plan('bl2')));
+  ok('and the one not named does not', !plan('bl3')[0], JSON.stringify(plan('bl3')));
+
+  // All is a shorthand for the names: it ticks them, and they tick it
+  click(dom, $$(d, '.chip').find(c => c.dataset.type === 'other'));
+  click(dom, daySlots(d)[1]);
+  const all = $(d, '#m-who input[data-all]');
+  all.checked = true;
+  all.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+  ok('All ticks every name under it',
+     $$(d, '#m-who input[data-who]').every(i => i.checked),
+     $$(d, '#m-who input[data-who]').map(i => i.checked).join());
+  fill(dom, { label: 'Sunday', time: '14:00' });
+  ok('so the afternoon lands on all three',
+     slotOf(saved(dom).blocks.find(b => b.id === 'bl2'), 0, 'pm').label === 'Sunday' &&
+     slotOf(saved(dom).blocks.find(b => b.id === 'bl3'), 0, 'pm').label === 'Sunday' &&
+     slotOf(saved(dom).blocks.find(b => b.id === 'bl1'), 0, 'pm').label === 'Sunday',
+     JSON.stringify([plan('bl1')[0].pm, plan('bl2')[0].pm, plan('bl3')[0].pm]));
+
+  /* A dialog opens on the plan it is editing and nobody else — a copy is its
+     own session from the moment it is made, so there is nothing to remember. */
+  click(dom, $(daySlots(d)[1], '.placed .nm button.txt'));
+  ok('a dialog opened again asks the question afresh',
+     !$$(d, '#m-who input[data-who]:checked').length &&
+     !$(d, '#m-who input[data-all]').checked,
+     $$(d, '#m-who input[data-who]').map(i => i.checked).join());
+
+  // and the names add up to All rather than the other way about
+  const tick = el => { el.checked = !el.checked;
+                       el.dispatchEvent(new dom.window.Event('change', { bubbles: true })); };
+  tick($(d, '#m-who input[data-all]'));
+  tick($(d, '#m-who input[data-who]'));
+  ok('a name unticked puts All out too', !$(d, '#m-who input[data-all]').checked);
+  ok('and the names still read as picked or not',
+     $$(d, '#m-who .wpk.on').map(l => l.textContent.trim()).join('|') === 'Olivia|Ada',
+     $$(d, '#m-who .wpk.on').map(l => l.textContent.trim()).join('|'));
+  fill(dom, { cancel: true });
+}
+
 group('when there is nobody to put the morning on');
 {
   const Y = new Date().getFullYear();
@@ -4105,7 +4195,7 @@ group('when there is nobody to put the morning on');
   const d1 = one.window.document;
   click(one, $$(d1, '.chip').find(c => c.dataset.type === 'other'));
   click(one, firstSlot(d1));
-  ok('one child is asked nothing', $(d1, '#m-allrow').hidden);
+  ok('one child is asked nothing', $(d1, '#m-whorow').hidden);
   fill(one, { cancel: true });
 
   // two children, but their camps do not overlap: nobody else's fortnight
@@ -4127,7 +4217,7 @@ group('when there is nobody to put the morning on');
   click(apart, trainTabs(d2)[1]);
   click(apart, $$(d2, '.chip').find(c => c.dataset.type === 'other'));
   click(apart, firstSlot(d2));
-  ok('nor is a child whose fortnight does not cover the day', $(d2, '#m-allrow').hidden);
+  ok('nor is a child whose fortnight does not cover the day', $(d2, '#m-whorow').hidden);
   fill(apart, { cancel: true });
 
   /* A slot already holding all it can is left alone: a plan is not quietly

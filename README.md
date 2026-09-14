@@ -84,11 +84,15 @@ tests/                          jsdom harness + api tests — dev only, never de
   single slot as off rather than the whole day, so a morning can be free while
   the afternoon is not; a day with nothing else booked still reads as a rest day
   in the totals and the load checks.
-- **The same morning on both plans.** A museum trip, a school day, a family
-  Sunday is one morning for the family, but a plan belongs to a child — so the
-  dialog that describes it asks *Also on Ian's plan* and writes it into theirs
-  on the same date, in the same slot. Off by default, and only asked when there
-  is somebody to assign to. It is a copy and not a link: the two go their own
+- **The same morning on more than one plan.** A museum trip, a school day, a
+  family Sunday is one morning for the family, but a plan belongs to a child —
+  so the dialog that describes it carries a **Who** field, a tick per child, and
+  writes the morning into each ticked plan on the same date, in the same slot.
+  The children are named one at a time, so two of three is a real answer; *All*
+  appears once there are two others to mean, and is a shorthand for the names.
+  The child whose plan is being written is ticked and fixed. Nobody else is
+  ticked to begin with, and the field is only shown where there is somebody to
+  answer for. It is a copy and not a link: the two go their own
   ways afterwards, except that an edit pushed across finds the copy it made
   rather than laying a second one beside it. A copy arrives unconfirmed, and a
   slot already holding all it can is left alone.
