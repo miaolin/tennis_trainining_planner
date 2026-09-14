@@ -67,11 +67,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tabs, and keeping the two in step by hand.
 
   The dialog that describes the morning now asks the one question it could not
-  ask of a single child — *Also on Ian's plan* — and writes it into theirs on
-  the same date, in the same slot. It is off when the dialog opens, a session
-  being one child's until it is said not to be, and it is only asked when there
-  is somebody to assign to: one child on the page, or a sibling whose fortnight
-  does not cover the day, and the row does not appear.
+  ask of a single child. **Who** is a field like *Starts* and *Length* above it,
+  holding a tick per child rather than a value to type, and it writes the
+  morning into each ticked child's plan on the same date, in the same slot.
+
+  The children are named and ticked one at a time, in the order of the strip
+  above — a family Sunday that is two of three is a real answer, and a single
+  *everyone* could not give it. **All** is offered once there are two others to
+  mean, and is a shorthand for the names rather than a fourth answer: it ticks
+  them, and they tick it. The child whose plan is being written is ticked and
+  fixed, which is what makes the empty ticks beside it mean something.
+
+  It opens with nobody else ticked, a session being one child's until it is said
+  not to be, and it is only asked where there is somebody to answer for: one
+  child on the page, or a sibling whose fortnight does not cover the day, and
+  the row does not appear.
 
   It is a copy and not a link, on the same terms as copying a block to a
   sibling — the two go their own ways from the moment it is made. What it does

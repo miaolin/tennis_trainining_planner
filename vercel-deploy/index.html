@@ -810,10 +810,29 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
 .chk:hover{background:rgba(255,255,255,.12)}
 .chk input{accent-color:var(--ball);margin:0;cursor:pointer}
 .chk.on{border-color:var(--ball)}
-/* A field's input fills its row; a tick box is not a field, so it keeps its
-   own size and the pill takes what the words need. */
-#m-allrow .chk{flex:0 1 auto;min-width:0}
-#m-allrow .chk input{flex:none}
+/* Who the session is for is a field like the two above it — the same border and
+   ground, filling the row — holding a tick per child rather than a value to
+   type. It wraps rather than scrolls, a fourth child being a taller field and
+   not a hidden one. */
+#m-whorow{align-items:flex-start}
+#m-whorow .lab{padding-top:9px}
+.whopick{
+  flex:1;min-width:0;
+  display:flex;flex-wrap:wrap;align-items:center;gap:7px 14px;
+  border:1px solid var(--hair);border-radius:3px;
+  padding:8px 12px;min-height:34px;
+}
+.whopick .wpk{
+  display:flex;align-items:center;gap:7px;
+  font-size:13px;color:var(--mute);cursor:pointer;user-select:none;
+}
+.whopick .wpk.on{color:var(--court-line)}
+/* The plan being written is already this child's, so their tick is the answer
+   rather than a question — it says whose session this is by default. */
+.whopick .wpk.fixed{cursor:default}
+.whopick input{flex:none;margin:0;accent-color:var(--ball);cursor:pointer}
+.whopick .wpk.fixed input{cursor:default}
+.wsep{width:1px;align-self:stretch;background:var(--hair);margin:0 1px}
 #impnote.busy{color:var(--ball)}
 #impnote.bad{color:var(--bad)}
 #impnote.good{color:var(--ok)}
@@ -1403,9 +1422,9 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
       <label class="lab" for="m-dur">Length</label>
       <select id="m-dur"></select>
     </div>
-    <div class="mrow" id="m-allrow">
+    <div class="mrow" id="m-whorow">
       <span class="lab">Who</span>
-      <label class="chk" id="m-alllab"><input type="checkbox" id="m-all"> <span></span></label>
+      <div class="whopick" id="m-who"></div>
     </div>
     <p class="hint" id="m-note"></p>
     <div class="mfoot">
@@ -2235,19 +2254,13 @@ function openDialog(o){
   /* A museum trip is one morning for the family, but a plan belongs to a child,
      so the same morning has to be written into each of theirs. Asked here
      because this is where the morning is described, and answered once: the
-     dialog opens with it off, a session being one child's until it is said not
-     to be. Only shown when there is somebody else whose fortnight covers the
-     day — with nobody to assign to, the question is noise. */
-  const all = document.getElementById('m-all');
-  const allrow = document.getElementById('m-allrow');
+     dialog opens on the child whose plan this is and nobody else, a session
+     being one child's until it is said not to be. Only shown when there is
+     somebody else whose fortnight covers the day — with nobody to assign to,
+     the question is noise. */
   const others = o.others || [];
-  allrow.hidden = !others.length;
-  all.checked = false;
-  document.getElementById('m-alllab').classList.remove('on');
-  if(others.length)
-    allrow.querySelector('.chk span').textContent = others.length === 1
-      ? `Also on ${firstName(others[0].p.name)}’s plan`
-      : 'Also on every child’s plan';
+  document.getElementById('m-whorow').hidden = !others.length;
+  if(others.length) renderWhoPick(others, o.owner);
   const lab = document.getElementById('m-label');
   const tm  = document.getElementById('m-time');
   lab.value = o.entry.label && o.entry.label !== 'Blocked' ? o.entry.label : '';
@@ -2257,6 +2270,40 @@ function openDialog(o){
   document.getElementById('modal').hidden = false;
   (custom ? lab : tm).focus();
   if(tm.select && !custom) tm.select();
+}
+/* One tick per child, in the order of the strip above, so the children come in
+   the order they are read everywhere else. The child whose plan is being
+   written is ticked and fixed — it is their session either way, and saying so
+   is what makes the empty ticks beside it mean something. All is offered once
+   there are two others to mean, a family of three otherwise being asked to say
+   "all" of one. */
+function renderWhoPick(others, owner){
+  const box = document.getElementById('m-who');
+  const pick = (label, attrs) =>
+    `<label class="wpk${attrs.cls ? ' ' + attrs.cls : ''}">` +
+    `<input type="checkbox"${attrs.on ? ' checked' : ''}${attrs.off ? ' disabled' : ''}` +
+    `${attrs.id ? ` data-who="${escapeHtml(attrs.id)}"` : ''}` +
+    `${attrs.all ? ' data-all="1"' : ''}> ${escapeHtml(label)}</label>`;
+  box.innerHTML =
+    (others.length > 1 ? pick('All', {all:true}) + '<i class="wsep"></i>' : '') +
+    (owner ? pick(firstName(owner.name), {on:true, off:true, cls:'fixed'}) : '') +
+    others.map(o => pick(firstName(o.p.name), {id:o.p.id})).join('');
+  markWhoPick();
+}
+// A name reads as picked, and All reads as what the names add up to.
+function markWhoPick(){
+  const box = document.getElementById('m-who');
+  const kids = [...box.querySelectorAll('input[data-who]')];
+  const all = box.querySelector('input[data-all]');
+  if(all) all.checked = kids.length > 0 && kids.every(k => k.checked);
+  box.querySelectorAll('.wpk').forEach(l =>
+    l.classList.toggle('on', l.querySelector('input').checked));
+}
+// Whose plans this is going on besides the one it is written on.
+function dialogWho(){
+  if(document.getElementById('m-whorow').hidden) return [];
+  return [...document.querySelectorAll('#m-who input[data-who]:checked')]
+    .map(i => i.dataset.who);
 }
 function closeDialog(){
   document.getElementById('modal').hidden = true;
@@ -2271,10 +2318,9 @@ function commitDialog(){
                hrs:document.getElementById('m-dur').value};
   if(TYPES[out.type].custom) out.label = document.getElementById('m-label').value;
   const e = normEntry(out);
-  const all = !document.getElementById('m-allrow').hidden &&
-              document.getElementById('m-all').checked;
+  const who = dialogWho();
   closeDialog();
-  if(e && done) done(e, all);
+  if(e && done) done(e, who);
 }
 
 /* The rewards dialog. One dialog, two things to edit: a child's standard, or
@@ -2487,11 +2533,11 @@ function startPlace(day, slot, entry){
     title: slotTitle(day, slot),
     entry: {type:entry.type, at:entry.at || SLOT_TIME[slot], label:entry.label,
             hrs:entry.hrs || t.hrs || 1},
-    others: othersOn(active(), day),
+    others: othersOn(active(), day), owner: blockOwner(active()),
     note: t.custom
       ? 'A blocked slot keeps the time free of training. It does not add to the daily or weekly load.'
       : `${t.nm}. The usual ${t.dur} is filled in — change it for a longer or shorter one.`,
-    ok: (e, all) => place(day, slot, e, null, all)
+    ok: (e, who) => place(day, slot, e, null, who)
   });
 }
 // From the grid: change the time (and, for a blocked slot, what it is).
@@ -2501,9 +2547,9 @@ function editEntry(day, slot, idx){
   if(!e) return;
   openDialog({
     title: slotTitle(day, slot), entry: {...e}, action: 'Save',
-    others: othersOn(b, day),
+    others: othersOn(b, day), owner: blockOwner(b),
     note: TYPES[e.type].custom ? '' : `${TYPES[e.type].nm}. The end time follows from the length.`,
-    ok: (ne, all) => setEntry(day, slot, idx, ne, all)
+    ok: (ne, who) => setEntry(day, slot, idx, ne, who)
   });
 }
 
@@ -2543,13 +2589,14 @@ function sameEntry(a, b){
   return !!a && !!b && a.type === b.type && (a.at || '') === (b.at || '') &&
          (a.hrs || 0) === (b.hrs || 0) && (a.label || '') === (b.label || '');
 }
-/* Writes `entry` into everybody else's copy of the slot. `was` is what the
+/* Writes `entry` into the copy of the slot belonging to each child in `who`.
+   `was` is what the
    session looked like before an edit, which is how the sibling's copy is
    recognised — rename Musem to Museum on one plan and the other is renamed
    rather than given a second outing. A child with no room left in that slot is
    left alone: a plan is not quietly overfilled on a tab nobody is looking at. */
-function spreadEntry(b, day, slot, entry, was){
-  othersOn(b, day).forEach(o=>{
+function spreadEntry(b, day, slot, entry, was, who){
+  othersOn(b, day).filter(o => who.includes(o.p.id)).forEach(o=>{
     const cell = planAt(o.b, o.i);
     const list = cell[slot];
     // Nobody agreed to a session on a child's behalf: the coach said yes to
@@ -2583,7 +2630,7 @@ function roomIn(day, slot, from){
 }
 // Adds to a slot rather than taking it over, so a morning can be a private and
 // then physical. `from` is set when the session is being moved off the grid.
-function place(day, slot, entry, from, all){
+function place(day, slot, entry, from, who){
   const b = active();
   const e = normEntry(entry);
   if(!b || !e || SLOTS.indexOf(slot) < 0) return;
@@ -2605,11 +2652,11 @@ function place(day, slot, entry, from, all){
   now[slot] = e.type === 'rest' ? [e]
             : sortSlot(now[slot].filter(x => !isRest(x)).concat([e]));
   b.plan[day] = now;
-  if(all) spreadEntry(b, day, slot, e, null);
+  if(who && who.length) spreadEntry(b, day, slot, e, null, who);
   render(); save();
 }
 // Editing one entry in place — the time changed, or what a blocked slot is.
-function setEntry(day, slot, idx, entry, all){
+function setEntry(day, slot, idx, entry, who){
   const b = active();
   const e = normEntry(entry);
   if(!b || !e || SLOTS.indexOf(slot) < 0) return;
@@ -2624,7 +2671,7 @@ function setEntry(day, slot, idx, entry, all){
   d[slot][idx] = e;
   d[slot] = sortSlot(d[slot]);
   b.plan[day] = d;
-  if(all) spreadEntry(b, day, slot, e, was);
+  if(who && who.length) spreadEntry(b, day, slot, e, was, who);
   render(); save();
 }
 /* Saying yes to one session. The coach agrees to them one at a time — a
@@ -6750,9 +6797,14 @@ document.getElementById('btn-print').addEventListener('click', ()=>window.print(
 
 document.getElementById('m-ok').addEventListener('click', commitDialog);
 document.getElementById('m-cancel').addEventListener('click', closeDialog);
-// The pill lights up when it is ticked, the same as the ones in the For panel.
-document.getElementById('m-all').addEventListener('change', function(){
-  document.getElementById('m-alllab').classList.toggle('on', this.checked);
+/* Delegated, the ticks being written afresh each time the dialog opens. All is
+   a shorthand for the names rather than a fourth answer, so it sets them and is
+   set by them. */
+document.getElementById('m-who').addEventListener('change', ev=>{
+  const box = ev.currentTarget;
+  if(ev.target.dataset.all)
+    box.querySelectorAll('input[data-who]').forEach(k => { k.checked = ev.target.checked; });
+  markWhoPick();
 });
 document.getElementById('modal').addEventListener('click', e=>{
   if(e.target.id === 'modal') closeDialog();          // click the backdrop to drop it
