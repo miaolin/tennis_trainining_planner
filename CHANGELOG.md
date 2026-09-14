@@ -61,6 +61,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The same morning, on both plans.** A museum trip, a school day, a family
+  Sunday — one morning for the family, but the calendar knows only plans, and a
+  plan belongs to a child. Putting it on both meant writing it twice, on two
+  tabs, and keeping the two in step by hand.
+
+  The dialog that describes the morning now asks the one question it could not
+  ask of a single child — *Also on Ian's plan* — and writes it into theirs on
+  the same date, in the same slot. It is off when the dialog opens, a session
+  being one child's until it is said not to be, and it is only asked when there
+  is somebody to assign to: one child on the page, or a sibling whose fortnight
+  does not cover the day, and the row does not appear.
+
+  It is a copy and not a link, on the same terms as copying a block to a
+  sibling — the two go their own ways from the moment it is made. What it does
+  keep is the copy itself: an edit pushed across finds what it wrote last time,
+  so renaming *Musem* to *Museum* on one plan renames the other rather than
+  laying a second outing beside it. Nobody agrees to a session on another
+  child's behalf, so a copy arrives unconfirmed. A slot already holding all it
+  can is left alone rather than quietly overfilled on a tab nobody is looking
+  at.
+
 - **A note box under every calendar.** The checks read the hours and nothing
   else. They cannot know that the coach is away that week, that this block is
   building to one particular tournament, or which wrist to watch — so the

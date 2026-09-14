@@ -75,6 +75,8 @@ function fill(dom, opts = {}) {
   if ('time' in opts) d.getElementById('m-time').value = opts.time ?? '';
   if ('label' in opts) d.getElementById('m-label').value = opts.label;
   if ('hours' in opts) d.getElementById('m-dur').value = opts.hours;
+  // The one question the dialog puts about somebody who is not on this tab.
+  if (opts.all) d.getElementById('m-all').checked = true;
   click(dom, d.getElementById(opts.cancel ? 'm-cancel' : 'm-ok'));
 }
 function ok_open(d) {
@@ -4038,6 +4040,124 @@ group('what a card does when there is nobody to open it on');
   ok('and the edit lands on it',
      slotOf(saved(dom).blocks.find(b => b.id === 'bn'), 0, 'pm').at === '16:00',
      JSON.stringify(saved(dom).blocks.find(b => b.id === 'bn').plan[0]));
+}
+
+group('the same morning on both plans');
+{
+  /* A museum trip is one morning for the family, but the calendar knows only
+     plans, and a plan belongs to a child. So the dialog that describes the
+     morning is where it is asked, and it writes the morning into each of
+     theirs. */
+  const dom = boot({ [KEY]: sameWeekPlan() });
+  const d = dom.window.document;
+  const his = () => saved(dom).blocks.find(b => b.id === 'bb');
+  const hers = () => saved(dom).blocks.find(b => b.id === 'ba');
+
+  click(dom, trainTabs(d)[1]);                       // her tab, where a plan is written
+  click(dom, $$(d, '.chip').find(c => c.dataset.type === 'other'));
+  click(dom, daySlots(d)[1]);
+  ok('the dialog asks who the morning is for', !$(d, '#m-allrow').hidden);
+  ok('and names the child who is not on this tab',
+     $(d, '#m-alllab').textContent.includes('Ian'), $(d, '#m-alllab').textContent);
+  ok('with the question off until it is answered', !$(d, '#m-all').checked);
+  fill(dom, { label: 'Museum', hours: '2', time: '09:00', all: true });
+
+  ok('it lands on the plan it was written on',
+     slotOf(hers(), 0, 'pm').label === 'Museum', JSON.stringify(hers().plan[0].pm));
+  ok('and on the other child’s, on the same date',
+     slotOf(his(), 0, 'pm').label === 'Museum' && slotOf(his(), 0, 'pm').at === '09:00' &&
+     slotOf(his(), 0, 'pm').hrs === 2, JSON.stringify(his().plan[0].pm));
+  ok('written into his own block rather than shared with hers',
+     his().plan[0].pm.length === 1 && hers().plan[0].pm.length === 1,
+     `${his().plan[0].pm.length}/${hers().plan[0].pm.length}`);
+
+  /* An edit pushed across finds the copy it made last time — rename it on one
+     plan and the other is renamed, not given a second outing. */
+  click(dom, $$(d, '#grid .placed .nm button.txt')[0]);
+  fill(dom, { label: 'Aquarium', all: true });
+  ok('an edit follows the copy it made',
+     slotOf(his(), 0, 'pm').label === 'Aquarium' && his().plan[0].pm.length === 1,
+     JSON.stringify(his().plan[0].pm));
+
+  // ...and left alone when the question is not answered: these are copies, and
+  // the two go their own ways from the moment one is made.
+  fillAt(dom, $(daySlots(d)[1], '.placed .tm'), { time: '14:00' });
+  ok('an edit that says nothing about him leaves his alone',
+     slotOf(his(), 0, 'pm').at === '09:00' && slotOf(hers(), 0, 'pm').at === '14:00',
+     `${slotOf(his(), 0, 'pm').at}/${slotOf(hers(), 0, 'pm').at}`);
+  ok('and ticking it twice does not lay a second card beside the first',
+     his().plan[0].pm.length === 1, JSON.stringify(his().plan[0].pm));
+
+  /* Nobody agrees to a session on another child's behalf. The coach said yes
+     to her Tuesday; his copy is a question again. */
+  click(dom, $$(d, '.chip').find(c => c.dataset.type === 'p1'));
+  click(dom, daySlots(d)[2]);
+  fill(dom, { time: '17:00', all: true });
+  ok('a session copied across is unconfirmed', slotOf(his(), 0, 'eve').confirmed === false,
+     JSON.stringify(his().plan[0].eve));
+}
+
+group('when there is nobody to put the morning on');
+{
+  const Y = new Date().getFullYear();
+  // one child on the page: the question has no second answer, so it is not put
+  const one = boot();
+  const d1 = one.window.document;
+  click(one, $$(d1, '.chip').find(c => c.dataset.type === 'other'));
+  click(one, firstSlot(d1));
+  ok('one child is asked nothing', $(d1, '#m-allrow').hidden);
+  fill(one, { cancel: true });
+
+  // two children, but their camps do not overlap: nobody else's fortnight
+  // covers the day, so there is still nothing to assign to
+  const apart = boot({ [KEY]: JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [
+      { id: 'ba', name: 'June camp', start: `${Y}-06-01`, days: 7, playerId: 'pa', plan: {} },
+      { id: 'bb', name: 'Sept camp', start: `${Y}-09-01`, days: 7, playerId: 'pb', plan: {} },
+    ],
+    activeBlockId: 'ba',
+    players: [
+      { id: 'pa', name: 'Olivia Lin', birthYear: Y - 9,  colour: '#5B9BD5' },
+      { id: 'pb', name: 'Ian Lin',    birthYear: Y - 13, colour: '#D6E64B' },
+    ],
+    entries: [], manualMatches: [], trips: [], rewards: {},
+  }) });
+  const d2 = apart.window.document;
+  click(apart, trainTabs(d2)[1]);
+  click(apart, $$(d2, '.chip').find(c => c.dataset.type === 'other'));
+  click(apart, firstSlot(d2));
+  ok('nor is a child whose fortnight does not cover the day', $(d2, '#m-allrow').hidden);
+  fill(apart, { cancel: true });
+
+  /* A slot already holding all it can is left alone: a plan is not quietly
+     overfilled on a tab nobody is looking at. */
+  const full = boot({ [KEY]: JSON.stringify({
+    version: 2, updatedAt: 1,
+    blocks: [
+      { id: 'ba', name: 'Hers', start: `${Y}-06-01`, days: 7, playerId: 'pa', plan: {} },
+      { id: 'bb', name: 'His', start: `${Y}-06-01`, days: 7, playerId: 'pb',
+        plan: { 0: { am: [{ type: 'p1', at: '07:00' }, { type: 'phys', at: '08:00' },
+                          { type: 'g2', at: '09:00' }, { type: 'p1', at: '10:00' }] } } },
+    ],
+    activeBlockId: 'ba',
+    players: [
+      { id: 'pa', name: 'Olivia Lin', birthYear: Y - 9,  colour: '#5B9BD5' },
+      { id: 'pb', name: 'Ian Lin',    birthYear: Y - 13, colour: '#D6E64B' },
+    ],
+    entries: [], manualMatches: [], trips: [], rewards: {},
+  }) });
+  const d3 = full.window.document;
+  click(full, trainTabs(d3)[1]);
+  click(full, $$(d3, '.chip').find(c => c.dataset.type === 'other'));
+  click(full, daySlots(d3)[0]);
+  fill(full, { label: 'Museum', time: '11:00', all: true });
+  const hisAm = saved(full).blocks.find(b => b.id === 'bb').plan[0].am;
+  ok('a full morning is left as it is', hisAm.length === 4 && !hisAm.some(e => e.label),
+     JSON.stringify(hisAm.map(e => e.type)));
+  ok('and hers is written all the same',
+     slotOf(saved(full).blocks.find(b => b.id === 'ba'), 0, 'am').label === 'Museum',
+     JSON.stringify(saved(full).blocks.find(b => b.id === 'ba').plan[0].am));
 }
 
 group('the quiet months between two camps collapse');
