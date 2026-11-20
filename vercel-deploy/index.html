@@ -5536,10 +5536,10 @@ function renderTournList(list, ms, {setup, who}){
     // the whole of the answer — there is no entry to confirm afterwards, and
     // nothing here could tell whether one had been submitted anyway.
     //
-    // Setup is where that is answered, because a child's own tab shows only the
-    // tournaments they are on: taking them off one there would delete the row
-    // out from under the press, with the chip to undo it gone with it. So the
-    // tournaments view states who is playing and Setup is where it changes.
+    // Setup and Everyone are where that is answered. A child's own tab shows
+    // only the tournaments they are on: taking them off one there would delete
+    // the row out from under the press, with the chip to undo it gone with it.
+    // So a child's tab states who else is playing and changes nothing.
     const onKids = state.players.filter(p => kidOnMatch(p, m, mYear));
     const nobody = '<span class="nokid">on no one\u2019s list</span>';
     const chip = p => {
@@ -5561,7 +5561,11 @@ function renderTournList(list, ms, {setup, who}){
     // child in the family the whole page is theirs, which comes to the same.
     const reading = who || (state.players.length < 2 ? state.players[0] : null);
     const others = onKids.filter(p => !reading || p.id !== reading.id);
-    const joins = setup
+    // Everyone lists every tournament, the ones nobody is on included, so
+    // taking a child off there cannot take the row away with it — the reason
+    // the change was kept to Setup does not apply. It offers the same chips.
+    const everyone = !setup && !reading;
+    const joins = setup || everyone
       ? (onKids.length ? '' : nobody) + state.players.map(chip).join('')
       // The hint stays whoever is reading: a tournament nobody is on is worth
       // saying out loud, and on a single child's page it is the only way to see it.

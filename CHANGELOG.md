@@ -5,6 +5,17 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Who is playing can be changed from Everyone.** The chips on each row of the
+  tournaments view looked like buttons and were not; on **Everyone** they now
+  are, the same toggles Setup has. Everyone lists every tournament, the ones
+  nobody is on included, so taking a child off leaves the row and the chip to
+  undo it where they were. A single child's tab still only states who else is
+  playing, because there the row would vanish with the press.
+
 ## [2.30.0] — 2026-09-13
 
 ### Changed
