@@ -1539,11 +1539,26 @@ group('who is playing each tournament');
   // either, and the whole season is what this tab is for.
   ok('Everyone names everybody playing it', $$(d, '#tournlist .join').length === 2,
      $$(d, '#tournlist .join').map(c => c.textContent.trim()).join());
-  ok('and states it rather than offering it',
-     $$(d, '#tournlist .join').every(c => c.tagName === 'SPAN'),
+  // Everyone lists every tournament, so taking a child off cannot take the row
+  // away with it: the change is offered here as well as on Setup.
+  ok('and offers the change',
+     $$(d, '#tournlist .join').every(c => c.tagName === 'BUTTON'),
      $$(d, '#tournlist .join').map(c => c.tagName).join());
   ok('both are counted in the header', $(d, '#restdays').textContent === '2',
      $(d, '#restdays').textContent);
+  const evChip = name => $$(d, '#tournlist .join').find(b => b.textContent.trim() === name);
+  click(dom, evChip('Mia'));
+  ok('pressing a name on Everyone takes that child off',
+     !evChip('Mia').classList.contains('on') && evChip('Leo').classList.contains('on'),
+     $$(d, '#tournlist .join').map(b => b.textContent.trim() + (b.classList.contains('on') ? '*' : '')).join());
+  ok('and the row stays, with the chip to undo it', $$(d, '#tournlist .tourn').length === 1);
+  click(dom, evChip('Leo'));
+  ok('a row nobody is on still shows on Everyone',
+     $$(d, '#tournlist .tourn').length === 1 && !!$(d, '#tournlist .tourn .nokid'));
+  click(dom, evChip('Mia'));
+  click(dom, evChip('Leo'));
+  ok('pressing again puts them back',
+     $$(d, '#tournlist .join.on').length === 2, $$(d, '#tournlist .join.on').length);
 
   // A child's own tab lists only what they are on, so naming them against every
   // row of it says nothing. Who else is playing is still worth saying.
@@ -3663,8 +3678,8 @@ group('Everyone changes nothing');
     ok('a row offers Rewards with no child picked', !!$(d, '#tournlist .tourn .trewbtn'));
     ok('and Results too', !!$(d, '#tournlist .tourn [data-sc]'));
     ok('no deleting a tournament from here', !$(d, '#tournlist .tourn .tdel'));
-    ok('who is playing is stated, never offered',
-       $$(d, '#tournlist .tourn .join').every(c => c.tagName === 'SPAN'),
+    ok('who is playing can be changed on Everyone',
+       $$(d, '#tournlist .tourn .join').every(c => c.tagName === 'BUTTON'),
        $$(d, '#tournlist .tourn .join').map(c => c.tagName).join());
 
     // and the whole season is legible with it

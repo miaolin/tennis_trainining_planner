@@ -201,9 +201,12 @@ tests/                          jsdom harness + api tests — dev only, never de
 - **Who's going** — a chip per child on each row, saying who is playing it.
   Being on a tournament is the whole of the statement: there is no entry to
   confirm on top of it, because the entry is submitted at the organiser's end
-  and nothing here could tell whether it had been. Who a tournament is for is
-  changed on Setup — filtered to one child, taking them off a tournament would
-  take the row and the chip to undo it with it.
+  and nothing here could tell whether it had been. On **Everyone** the chips
+  are buttons: press a name to take that child off, press it again to put them
+  back. Everyone lists every tournament, the ones nobody is on included, so the
+  row stays put either way. Filtered to one child the chips only state who else
+  is playing — taking them off there would take the row and the chip to undo it
+  with it — and Setup always offers the same change.
 - **Summary** — where the season stands, a line per child: how many tournaments
   they are in, how many results are written down, how many matches they have
   won, and what it has paid. It follows the filters, so a year picked is a year
