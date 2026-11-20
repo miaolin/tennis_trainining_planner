@@ -4178,13 +4178,20 @@ function whoShown(){
   return state.players.find(p => p.id === whoFilter) || null;
 }
 // The tournaments one child could enter — the same rule the list itself uses.
+// Everyone is the tournaments somebody is on: a row with every child taken off
+// it is not part of anybody's season, so it leaves this page. It is not
+// deleted — Setup lists it as on no one's list, which is where a name goes back
+// on, and a re-import still recognises it rather than adding it again. With no
+// children at all there is nobody to be on anything, so everything shows.
 function matchesFor(p){
-  return allMatches().filter(m => !p || kidOnMatch(p, m, Number(m.start.slice(0,4))));
+  return allMatches().filter(m => p
+    ? kidOnMatch(p, m, Number(m.start.slice(0,4)))
+    : !state.players.length || kidsOnMatch(m).length > 0);
 }
 // Every year the season has anything in, newest first — the same order the list
 // itself runs in, so the two read together.
 function seasonYears(){
-  return [...new Set(allMatches().map(m => m.start.slice(0, 4)))].sort().reverse();
+  return [...new Set(matchesFor(null).map(m => m.start.slice(0, 4)))].sort().reverse();
 }
 // What the filters leave. Order is the list's business, not this function's.
 function filteredMatches(){
@@ -5561,9 +5568,9 @@ function renderTournList(list, ms, {setup, who}){
     // child in the family the whole page is theirs, which comes to the same.
     const reading = who || (state.players.length < 2 ? state.players[0] : null);
     const others = onKids.filter(p => !reading || p.id !== reading.id);
-    // Everyone lists every tournament, the ones nobody is on included, so
-    // taking a child off there cannot take the row away with it — the reason
-    // the change was kept to Setup does not apply. It offers the same chips.
+    // Everyone offers the same chips as Setup. Taking one child off leaves the
+    // row where it is; taking the last one off sends it to Setup, as on no
+    // one's list, which is where it is brought back from.
     const everyone = !setup && !reading;
     const joins = setup || everyone
       ? (onKids.length ? '' : nobody) + state.players.map(chip).join('')
