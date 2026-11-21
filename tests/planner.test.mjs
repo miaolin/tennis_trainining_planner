@@ -1552,13 +1552,24 @@ group('who is playing each tournament');
      !evChip('Mia').classList.contains('on') && evChip('Leo').classList.contains('on'),
      $$(d, '#tournlist .join').map(b => b.textContent.trim() + (b.classList.contains('on') ? '*' : '')).join());
   ok('and the row stays, with the chip to undo it', $$(d, '#tournlist .tourn').length === 1);
-  click(dom, evChip('Leo'));
-  ok('a row nobody is on still shows on Everyone',
-     $$(d, '#tournlist .tourn').length === 1 && !!$(d, '#tournlist .tourn .nokid'));
   click(dom, evChip('Mia'));
-  click(dom, evChip('Leo'));
   ok('pressing again puts them back',
      $$(d, '#tournlist .join.on').length === 2, $$(d, '#tournlist .join.on').length);
+  // Nobody on it is nobody's season: the row leaves the tournaments page, and
+  // Setup — which lists everything — is where it comes back from.
+  click(dom, evChip('Mia'));
+  click(dom, evChip('Leo'));
+  ok('a row nobody is on leaves Everyone', $$(d, '#tournlist .tourn').length === 0,
+     $$(d, '#tournlist .tourn').length);
+  goSetup(dom, d);
+  ok('but is kept on Setup, as on no one’s list',
+     $$(d, '#setuplist .tourn').length === 1 && !!$(d, '#setuplist .tourn .nokid'));
+  click(dom, $$(d, '#setuplist .join').find(b => b.textContent.trim() === 'Mia'));
+  click(dom, $$(d, '#setuplist .join').find(b => b.textContent.trim() === 'Leo'));
+  click(dom, $(d, '#nav-matches'));
+  ok('and putting a name back on brings it back',
+     $$(d, '#tournlist .tourn').length === 1 && $$(d, '#tournlist .join.on').length === 2,
+     $$(d, '#tournlist .join.on').length);
 
   // A child's own tab lists only what they are on, so naming them against every
   // row of it says nothing. Who else is playing is still worth saying.
@@ -1583,9 +1594,9 @@ group('who is playing each tournament');
   click(dom, $(d, '#nav-matches'));
   click(dom, $$(d, '#whofilter button[data-who]')[0]);      // Everyone
   ok('the tournaments view drops her from the row',
-     $$(d, '#tournlist .join').length === 1 &&
-     $(d, '#tournlist .join').textContent.trim() === 'Leo',
-     $$(d, '#tournlist .join').map(c => c.textContent.trim()).join());
+     $$(d, '#tournlist .join.on').length === 1 &&
+     $(d, '#tournlist .join.on').textContent.trim() === 'Leo',
+     $$(d, '#tournlist .join.on').map(c => c.textContent.trim()).join());
   ok('and the header counts one', $(d, '#restdays').textContent === '1',
      $(d, '#restdays').textContent);
   click(dom, $$(d, '#whofilter button[data-who]')[1]);      // Mia
@@ -1595,8 +1606,8 @@ group('who is playing each tournament');
   const dom2 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
   const d2 = dom2.window.document;
   click(dom2, $(d2, '#nav-matches'));
-  ok('it survives a reload', $$(d2, '#tournlist .join').length === 1,
-     $$(d2, '#tournlist .join').length);
+  ok('it survives a reload', $$(d2, '#tournlist .join.on').length === 1,
+     $$(d2, '#tournlist .join.on').length);
 
   goSetup(dom2, d2);
   const back = () => $$(d2, '#setuplist .join').find(b => b.textContent.trim() === 'Mia');
@@ -2007,7 +2018,7 @@ group('per-kid eligibility');
     return { dom, d };
   };
   const rowNamed = (d, text) => $$(d, '#tournlist .tourn').find(r => r.textContent.includes(text));
-  const kidsOn = row => [...row.querySelectorAll('.join')].map(b => b.textContent.trim());
+  const kidsOn = row => row ? [...row.querySelectorAll('.join.on')].map(b => b.textContent.trim()) : [];
 
   const { dom, d } = setup();
   ok('chips show each age group', $(d, '#kidrow').textContent.includes('U10') &&
@@ -2076,9 +2087,12 @@ group('per-kid eligibility');
   const yr = $(d3, '.kid .kyr');
   yr.value = String(Y - 13);
   yr.dispatchEvent(new dom3.window.Event('change', { bubbles: true }));
-  ok('filling the year in later applies the rules', $$(d3, '#tournlist .tourn .join').length === 0,
-     $$(d3, '#tournlist .tourn .join').length);
-  ok('and the row says why', $(d3, '#tournlist .tourn .nokid') !== null);
+  // Too old for it, so nobody is on it: it leaves the tournaments page, and
+  // Setup — which lists everything — says why.
+  ok('filling the year in later applies the rules', $$(d3, '#tournlist .tourn').length === 0,
+     $$(d3, '#tournlist .tourn').length);
+  goSetup(dom3, d3);
+  ok('and Setup says why', $(d3, '#setuplist .tourn .nokid') !== null);
 }
 
 group('a tab per child');
@@ -3612,8 +3626,8 @@ group('a child’s tab scopes the whole view');
   // who else is in it is a fact about the event; his own name on his own tab
   // is not, that tab holding only the tournaments he is on
   ok('the row still shows who else is in it',
-     [...row().querySelectorAll('.join')].map(c => c.textContent.trim()).join() === 'Olivia',
-     [...row().querySelectorAll('.join')].map(c => c.textContent.trim()).join());
+     [...row().querySelectorAll('.join.on')].map(c => c.textContent.trim()).join() === 'Olivia',
+     [...row().querySelectorAll('.join.on')].map(c => c.textContent.trim()).join());
   ok('but only his result box', row().querySelectorAll('.res').length === 1,
      [...row().querySelectorAll('.res .rnm')].map(e => e.textContent).join(','));
 
@@ -4557,7 +4571,7 @@ group('an age cap written any of the ways it is written');
 {
   const Y = new Date().getFullYear();
   const rowNamed = (d, t) => $$(d, '#tournlist .tourn').find(r => r.textContent.includes(t));
-  const kidsOn = row => [...row.querySelectorAll('.join')].map(b => b.textContent.trim());
+  const kidsOn = row => row ? [...row.querySelectorAll('.join.on')].map(b => b.textContent.trim()) : [];
 
   const dom = boot();
   const d = dom.window.document;
@@ -4592,7 +4606,7 @@ group('a year in the title is not an age cap');
 {
   const Y = new Date().getFullYear();
   const rowNamed = (d, t) => $$(d, '#tournlist .tourn').find(r => r.textContent.includes(t));
-  const kidsOn = row => [...row.querySelectorAll('.join')].map(b => b.textContent.trim());
+  const kidsOn = row => row ? [...row.querySelectorAll('.join.on')].map(b => b.textContent.trim()) : [];
 
   const dom = boot();
   const d = dom.window.document;

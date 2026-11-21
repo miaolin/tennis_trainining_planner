@@ -203,10 +203,11 @@ tests/                          jsdom harness + api tests — dev only, never de
   confirm on top of it, because the entry is submitted at the organiser's end
   and nothing here could tell whether it had been. On **Everyone** the chips
   are buttons: press a name to take that child off, press it again to put them
-  back. Everyone lists every tournament, the ones nobody is on included, so the
-  row stays put either way. Filtered to one child the chips only state who else
-  is playing — taking them off there would take the row and the chip to undo it
-  with it — and Setup always offers the same change.
+  back. Take every child off and the tournament leaves the Tournaments tab —
+  it is nobody's season. It is not deleted: Setup still lists it as *on no
+  one's list*, which is where a name goes back on, and a re-import recognises
+  it rather than adding it again. Filtered to one child the chips only state
+  who else is playing, and Setup always offers the same change.
 - **Summary** — where the season stands, a line per child: how many tournaments
   they are in, how many results are written down, how many matches they have
   won, and what it has paid. It follows the filters, so a year picked is a year

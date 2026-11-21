@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nobody is on included, so taking a child off leaves the row and the chip to
   undo it where they were. A single child's tab still only states who else is
   playing, because there the row would vanish with the press.
+- **A tournament nobody is on leaves the Tournaments tab.** Taking the last
+  child off one — or a child ageing out of it — takes it off the list, the
+  count, the summary and the season checks. It is kept on Setup, marked *on no
+  one's list*, so a name can go back on, and an STA re-import does not add it
+  again.
+
+### Fixed
+
+- Tests that read who is playing off the Everyone row counted every chip, on or
+  off, once those chips became buttons; they now count the ones switched on.
 
 ## [2.30.0] — 2026-09-13
 
