@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one's list*, so a name can go back on, and an STA re-import does not add it
   again.
 
+- **A deleted STA tournament stays deleted.** The import only knew what was
+  stored, so anything removed with the × came straight back on the next run.
+  Deleting one now remembers its STA id; the import skips it and the note says
+  how many it skipped. Adding it from its tournament link brings it back and
+  forgets the deletion. Tournaments added by hand are not remembered — nothing
+  would bring them back anyway.
+
 ### Fixed
 
 - Tests that read who is playing off the Everyone row counted every chip, on or

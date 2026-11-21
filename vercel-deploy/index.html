@@ -1663,7 +1663,7 @@ function emptyState(){
   // state — into localStorage, into a backup file, and up to the server.
   return {version:2, updatedAt:0, blocks:[], activeBlockId:null, note:'',
           players:[], entries:[], trips:[], manualMatches:[], rewards:{},
-          forKids:{}, resultLinks:{}, schemes:{}, matchTag:{}};
+          forKids:{}, resultLinks:{}, schemes:{}, matchTag:{}, deletedSta:[]};
 }
 // playerId is whose block this is. null means nobody has said yet — every
 // block written before there were two children is in that state, and so is one
@@ -2126,6 +2126,11 @@ function sanitiseState(raw, allowEmptyBlocks){
       }
     }
   }
+
+  // STA tournaments deleted by hand, so a re-import does not bring them back.
+  // Ids only — the name and dates of something deleted are not worth keeping.
+  if(Array.isArray(raw.deletedSta))
+    st.deletedSta = [...new Set(raw.deletedSta.filter(x => typeof x === 'string' && /^sta-/.test(x)))];
 
   if(Array.isArray(raw.trips)) st.trips = raw.trips;
   if(Number.isFinite(raw.updatedAt) && raw.updatedAt > 0) st.updatedAt = raw.updatedAt;
@@ -4250,8 +4255,9 @@ async function importFromSta(){
   const upcomingOnly = document.getElementById('imp-upcoming').checked;
   const today = todayIso();
   const have = new Set(allMatches().map(m=>m.id));
+  const deleted = new Set(state.deletedSta || []);
 
-  let matched = 0, added = 0, skippedOld = 0, dupes = 0;
+  let matched = 0, added = 0, skippedOld = 0, dupes = 0, skippedDel = 0;
   rows.forEach(t=>{
     if(!t || !dmyToIso(t.startDate)) return;
     const m = staToMatch(t);
@@ -4265,6 +4271,7 @@ async function importFromSta(){
     matched++;
     if(upcomingOnly && m.end < today){ skippedOld++; return; }
     if(have.has(m.id)){ dupes++; return; }
+    if(deleted.has(m.id)){ skippedDel++; return; }
     have.add(m.id);
     state.manualMatches.push(m);
     added++;
@@ -4273,6 +4280,7 @@ async function importFromSta(){
   const bits = [`${added} added`];
   if(dupes) bits.push(`${dupes} already there`);
   if(skippedOld) bits.push(`${skippedOld} already finished`);
+  if(skippedDel) bits.push(`${skippedDel} you deleted, skipped`);
   impNote(matched
     ? `${bits.join(', ')}. Matched ${matched} of ${rows.length} STA tournaments for ` +
       (kids.length ? kids.map(p=>p.name).join(' and ') : 'every junior age group') + '.'
@@ -5331,6 +5339,8 @@ function addTournament(){
             'Delete that one first if this is meant to replace it.', 'bad');
     return false;
   }
+  // Adding it by hand is the clearest way to say it is wanted after all.
+  if(fromSta && state.deletedSta) state.deletedSta = state.deletedSta.filter(x => x !== id);
   state.manualMatches.push({
     id, source: fromSta ? 'sta' : 'manual', name, start, end,
     venue: g('t-venue'),
@@ -5360,6 +5370,13 @@ function addTournament(){
 // Everything a tournament owns, dropped together. Both the × and the offer
 // made when a child leaves come through here, so neither can forget a piece.
 function dropTournament(id){
+  // An STA tournament is remembered as deleted, or the next import would put
+  // it straight back — the import only knows what is stored, not what was
+  // thrown away. Adding it again from its link is the way to undo this.
+  if(/^sta-/.test(id) && (state.manualMatches || []).some(x => x.id === id)){
+    if(!state.deletedSta) state.deletedSta = [];
+    if(!state.deletedSta.includes(id)) state.deletedSta.push(id);
+  }
   state.manualMatches = state.manualMatches.filter(x=>x.id !== id);
   state.entries = state.entries.filter(e=>e.matchId !== id);
   delete state.rewards[id];
@@ -5369,7 +5386,9 @@ function dropTournament(id){
 }
 function removeTournament(id){
   const m = (state.manualMatches || []).find(x=>x.id===id);
-  if(m && !window.confirm(`Delete “${m.name}”?`)) return;
+  if(m && !window.confirm(`Delete “${m.name}”?` + (/^sta-/.test(id)
+      ? '\n\nImport from STA will skip it from now on. Adding it from its ' +
+        'tournament link brings it back.' : ''))) return;
   dropTournament(id);
   render(); save();
 }
