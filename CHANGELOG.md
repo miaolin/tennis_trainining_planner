@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The import box links the STA pages it stands for.** *All tournaments* and
+  *Red / Orange / Green* sit under the button, opening in a new tab, so what the
+  import brought in can be checked against the source.
+
 - **Who is playing can be changed from Everyone.** The chips on each row of the
   tournaments view looked like buttons and were not; on **Everyone** they now
   are, the same toggles Setup has. Everyone lists every tournament, the ones
