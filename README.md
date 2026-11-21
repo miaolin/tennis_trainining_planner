@@ -588,15 +588,17 @@ expose.
 Twelve months for one year, with arrows to move between years.
 
 - **A dot per child** on every tournament day, in that child's colour, so you
-  can see who is competing when. Grey means a tournament nobody is on; a child
-  taken off one shows nothing. Hover a day for who is playing and the holiday.
+  can see who is competing when. A child taken off a tournament shows nothing,
+  and a tournament every child is off is not drawn at all — the same rule as the
+  Tournaments tab. (With no children added yet, tournaments show as a grey dot.)
+  Hover a day for who is playing and the holiday.
 - **Training blocks** as a left edge — in the child's colour on a day only they
   train, yellow where two of them do or where the block has no owner. Hover for
   the block name and whose it is.
 - **School holidays** as the day background — vacations green, public holidays
   amber.
 - **Holidays this year**, longest first, each marked clear or with the number of
-  tournaments inside it.
+  tournaments inside it — counting only tournaments somebody is on.
 
 Tournaments are dots, not filled days, because league events run for weeks
 (Inter-Club 3 Sep–18 Oct, JTTL 19 Sep–15 Nov) and filling them hid the school

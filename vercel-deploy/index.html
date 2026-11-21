@@ -5919,7 +5919,9 @@ function calendarIndex(year){
   state.blocks.forEach(b=>eachDay(b.start, iso(dateFor(b, b.days - 1)), k=>{
     if(inYear(k)) at(k).blocks.push(b);
   }));
-  allMatches().forEach(m=>eachDay(m.start, m.end, k=>{
+  // The same tournaments the Tournaments tab lists: one every child has been
+  // taken off is nobody's season, so it puts nothing on the year either.
+  matchesFor(null).forEach(m=>eachDay(m.start, m.end, k=>{
     if(inYear(k)) at(k).matches.push(m);
   }));
   return map;
@@ -5947,7 +5949,8 @@ function renderCalendar(){
     '<span class="lg"><i class="blk"></i>Training block</span>' +
     state.players.map(p=>
       `<span class="lg"><i class="kd" style="--c:${p.colour}"></i>${escapeHtml(p.name)}</span>`).join('') +
-    '<span class="lg"><i class="kd none"></i>Nobody yet</span>';
+    // A grey dot is left only where there are no children to colour one for.
+    (state.players.length ? '' : '<span class="lg"><i class="kd none"></i>Tournament</span>');
 
   const idx = calendarIndex(calYear);
   const today = todayIso();
@@ -6013,7 +6016,7 @@ function renderCalendar(){
   const list = document.getElementById('holidaylist');
   list.innerHTML = vacs.length
     ? vacs.map(p=>{
-        const clash = allMatches().filter(m => m.start <= p.end && m.end >= p.start);
+        const clash = matchesFor(null).filter(m => m.start <= p.end && m.end >= p.start);
         return `<div class="holrow vacation"><span class="hd">` +
           `${fmt(new Date(p.start+'T00:00:00'))} – ${fmt(new Date(p.end+'T00:00:00'))}</span>` +
           `<span class="hn">${escapeHtml(p.name)}</span>` +
