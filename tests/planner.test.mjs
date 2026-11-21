@@ -1914,6 +1914,79 @@ group('bulk import from STA');
   }
 
   {
+    // A tournament deleted by hand stays deleted: the import only knew what was
+    // stored, so the next run used to put it straight back.
+    const dom = new JSDOM(SRC, {
+      runScripts: 'dangerously', url: 'https://example.test/', pretendToBeVisual: true,
+      beforeParse(window) {
+        window.fetch = (url, opts) => {
+          const u = String(url);
+          if (u.includes('GetTournamentInfoBySlug')) {
+            const t = PAYLOAD.data[0].tournamentResps[0];
+            return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({
+              status: 'Success', data: { tournamentId: t.tournamentId, tournamentName: t.tournamentName,
+                tournamentStartDate: t.startDate, tournamentEndDate: t.endDate, closingDeadline: t.deadline,
+                tournamentLevelName: t.tournamentLevelName, tournamentTypeName: t.tournamentTypeName,
+                venue: 'Kallang' } }) });
+          }
+          return u.includes('singtennis.org.sg')
+            ? Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(PAYLOAD) })
+            : Promise.resolve({ ok: false, status: 404 });
+        };
+      },
+    });
+    const d = dom.window.document;
+    dom.window.confirm = () => true;
+    click(dom, $(d, '#nav-setup'));
+    click(dom, $(d, '#imp-run'));
+    await settle();
+    const rowFor = t => $$(d, '#setuplist .tourn').find(r => r.textContent.includes(t));
+    ok('four imported to start with', $$(d, '#setuplist .tourn').length === 4);
+    click(dom, rowFor('U10 Red').querySelector('.tdel'));
+    ok('the × deletes it', $$(d, '#setuplist .tourn').length === 3);
+    ok('and remembers it was deleted', JSON.stringify(saved(dom).deletedSta) === '["sta-1"]',
+       JSON.stringify(saved(dom).deletedSta));
+
+    click(dom, $(d, '#imp-run'));
+    await settle();
+    ok('a re-import does not bring it back', $$(d, '#setuplist .tourn').length === 3 && !rowFor('U10 Red'),
+       $$(d, '#setuplist .tourn').length);
+    ok('and says it skipped it', /1 you deleted, skipped/.test($(d, '#impnote').textContent),
+       $(d, '#impnote').textContent);
+
+    // It survives a reload, and so does the skipping.
+    const dom3 = boot({ [KEY]: dom.window.localStorage.getItem(KEY) });
+    ok('the deleted list survives a reload', JSON.stringify(saved(dom3).deletedSta) === '["sta-1"]',
+       JSON.stringify(saved(dom3).deletedSta));
+
+    // A tournament added by hand is never on the list: only STA ids are kept.
+    addTourn(dom, d, { name: 'Club Open Day', start: `${YEAR + 1}-02-01` });
+    click(dom, rowFor('Club Open Day').querySelector('.tdel'));
+    ok('a hand-added tournament is not remembered', JSON.stringify(saved(dom).deletedSta) === '["sta-1"]',
+       JSON.stringify(saved(dom).deletedSta));
+
+    // Adding it again from its link is how it is wanted back.
+    input(dom, $(d, '#t-url'), 'https://www-new.singtennis.org.sg/tournaments/slug-1');
+    click(dom, $(d, '#t-lookup'));
+    await settle();
+    click(dom, $(d, '#t-add'));
+    ok('adding it from its link brings it back', !!rowFor('U10 Red'), $$(d, '#setuplist .tourn').length);
+    ok('and forgets the deletion', JSON.stringify(saved(dom).deletedSta) === '[]',
+       JSON.stringify(saved(dom).deletedSta));
+  }
+
+  {
+    // A stored list is cleaned on the way in: strings, STA ids, once each.
+    const st = saved(boot());
+    st.deletedSta = ['sta-9', 'sta-9', 'm123', 7, null];
+    const dom = boot({ [KEY]: JSON.stringify(st) });
+    click(dom, $(dom.window.document, '#nav-setup'));   // any change writes it back
+    addTourn(dom, dom.window.document, { name: 'Club Open Day', start: `${YEAR + 1}-02-01` });
+    ok('a stored deleted list is sanitised', JSON.stringify(saved(dom).deletedSta) === '["sta-9"]',
+       JSON.stringify(saved(dom).deletedSta));
+  }
+
+  {
     // a 9-year-old: U10 is her group, 14&U is one up, 16&U and ITF are not
     const dom = bootImp();
     const d = dom.window.document;

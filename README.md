@@ -521,6 +521,13 @@ year it runs in, so a child ageing out between seasons is handled correctly.
 are matched by their STA id, and the note tells you how many were added, already
 there, or already finished.
 
+**Deleting sticks.** An STA tournament deleted with the × on Setup is
+remembered by its STA id, so the next import skips it and says how many it
+skipped (*2 you deleted, skipped*). The list syncs with the rest of the plan.
+To have one back, add it from its tournament link — that clears it from the
+list. Taking every child off a tournament instead of deleting it keeps it on
+Setup as *on no one's list*, which the import also leaves alone.
+
 With no children added yet, the import falls back to every junior age group.
 
 STA publishes no age-group field, so the group is derived from the words: the
