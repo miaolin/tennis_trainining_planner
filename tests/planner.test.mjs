@@ -1881,6 +1881,11 @@ group('bulk import from STA');
     const dom = bootImp();
     const d = dom.window.document;
     click(dom, $(d, '#nav-matches'));
+    const staLinks = $$(d, '#importbox .stalinks a').map(a => a.href);
+    ok('the import box links both STA pages', staLinks.length === 2 &&
+       staLinks.includes('https://www-new.singtennis.org.sg/tournaments/?type=All') &&
+       staLinks.includes('https://www-new.singtennis.org.sg/red-orange-green'), staLinks.join());
+    ok('and they open in a new tab', $$(d, '#importbox .stalinks a').every(a => a.target === '_blank' && a.rel === 'noopener'));
     ok('no kids -> no kid checkboxes, just an explanation', impKids(d).length === 0 &&
        $(d, '#agerow').textContent.includes('every junior age group'), $(d, '#agerow').textContent);
 

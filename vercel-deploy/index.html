@@ -884,6 +884,9 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
 #lookupnote.good{color:var(--ok)}
 .tmeta a.tlink{color:#8FC0E6;text-decoration:none;border-bottom:1px dotted rgba(143,192,230,.5)}
 .tmeta a.tlink:hover{color:var(--court-line)}
+.stalinks{margin-top:6px}
+.stalinks a{color:#8FC0E6;text-decoration:none;border-bottom:1px dotted rgba(143,192,230,.5)}
+.stalinks a:hover{color:var(--court-line)}
 .tmeta .tnote{color:var(--warn)}
 
 /* ---------- tournaments ---------- */
@@ -1368,6 +1371,10 @@ button.okdot.yes:hover::after{content:'\2713';color:var(--ink)}
       <button id="imp-run">Import from STA</button>
     </div>
     <p class="hint" id="impnote">Pulls the whole STA tournament list and keeps what the ticked children can enter.</p>
+    <!-- Its own line: impnote is rewritten by every import, and these should stay. -->
+    <p class="hint stalinks">On STA:
+      <a href="https://www-new.singtennis.org.sg/tournaments/?type=All" target="_blank" rel="noopener">All tournaments</a> ·
+      <a href="https://www-new.singtennis.org.sg/red-orange-green" target="_blank" rel="noopener">Red / Orange / Green</a></p>
   </div>
 
   <div class="addbox" id="addbox">
