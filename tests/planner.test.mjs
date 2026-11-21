@@ -2422,7 +2422,7 @@ group('year calendar');
                              !$(d, '#view-matches').classList.contains('on'));
     ok('twelve months rendered', $$(d, '.mon').length === 12, $$(d, '.mon').length);
     ok('header retitles', $(d, '#title').textContent === 'Calendar', $(d, '#title').textContent);
-    // 3 fixed entries + "Nobody yet"; kids add one each
+    // 3 fixed entries + a grey "Tournament" while there are no kids; kids add one each
     ok('legend rendered', $$(d, '.legend .lg').length === 4, $$(d, '.legend .lg').length);
 
     // 2026 is the default year here only if today is 2026; drive it explicitly
@@ -2513,30 +2513,42 @@ group('year calendar');
     click(dom, $(d, '#nav-calendar'));
     while ($(d, '#cal-year').textContent !== '2026') click(dom, $(d, '#cal-prev'));
     const cells = $$(d, '.cell.ev');
-    ok('three tournament days', cells.length === 3, cells.length);
+    // Nobody on it is nobody's season — the same rule as the Tournaments tab.
+    ok('two tournament days: the one nobody is on is not drawn', cells.length === 2, cells.length);
     ok('the shared day shows two kid dots',
        cells[0].querySelectorAll('.dots i:not(.none)').length === 2,
        cells[0].querySelectorAll('.dots i').length);
     ok('the solo day shows one kid dot',
        cells[1].querySelectorAll('.dots i:not(.none)').length === 1,
        cells[1].querySelectorAll('.dots i').length);
-    ok('a day nobody is going to shows the "nobody yet" dot',
-       cells[2].querySelectorAll('.dots i.none').length === 1,
-       cells[2].querySelectorAll('.dots i').length);
-    ok('a kid taken off gets no dot',
-       cells[2].querySelectorAll('.dots i:not(.none)').length === 0,
-       cells[2].querySelectorAll('.dots i:not(.none)').length);
+    ok('no grey dot anywhere', !$(d, '.dots i.none'));
+    ok('the day nobody is going to is plain',
+       !$$(d, '.cell').some(c => (c.getAttribute('title') || '').includes('Nobody')));
+    ok('a kid taken off gets no dot', cells[1].querySelectorAll('.dots i').length === 1 &&
+       cells[1].getAttribute('title').includes('Playing: Mia') &&
+       !cells[1].getAttribute('title').includes('Leo'), cells[1].getAttribute('title'));
     ok('kid dots use each kid colour',
        cells[0].querySelectorAll('.dots i')[0].getAttribute('style') !==
        cells[0].querySelectorAll('.dots i')[1].getAttribute('style'));
-    ok('legend lists both kids plus the fixed entries',
-       $$(d, '.legend .lg').length === 6, $$(d, '.legend .lg').length);
+    ok('legend lists both kids plus the fixed entries, and no grey dot',
+       $$(d, '.legend .lg').length === 5 && !$(d, '.legend .kd.none'), $$(d, '.legend .lg').length);
     ok('legend names the kids', $(d, '.legend').textContent.includes('Mia') &&
        $(d, '.legend').textContent.includes('Leo'));
 
     // training block still visible alongside
     ok('training block days still marked', $$(d, '.cell.blk').length === 14,
        $$(d, '.cell.blk').length);
+
+    // and a tournament nobody is on does not make a holiday look busy
+    addTourn(dom, d, { name: 'In the break', start: '2026-03-16' });
+    goSetup(dom, d);
+    const breakRow = () => $$(d, '#setuplist .tourn').find(r => r.textContent.includes('In the break'));
+    breakRow().querySelectorAll('.forpick').forEach(b => { if (b.classList.contains('on')) click(dom, b); });
+    click(dom, $(d, '#nav-calendar'));
+    while ($(d, '#cal-year').textContent !== '2026') click(dom, $(d, '#cal-prev'));
+    const march = $$(d, '.holrow').find(r => r.textContent.includes('March break'));
+    ok('a holiday holding only a tournament nobody is on reads clear',
+       march.textContent.includes('clear'), march.textContent);
   }
 
   {

@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The calendar drops tournaments nobody is on.** No more grey *Nobody yet*
+  dots: a tournament every child has been taken off leaves the calendar, as it
+  already leaves the Tournaments tab, and no longer counts towards a holiday's
+  *N tournaments inside*. With no children added yet, tournaments still show
+  as a grey dot, labelled *Tournament*.
+
 - **The import box links the STA pages it stands for.** *All tournaments* and
   *Red / Orange / Green* sit under the button, opening in a new tab, so what the
   import brought in can be checked against the source.
